@@ -1,0 +1,62 @@
+@* Thin vertical tool bar on the right edge. Each RailPanel inside adds an icon; clicking it slides that panel in
+   from the right over the page (one at a time), so the panels take no width from the main content. All panels start
+   closed. *@
+@implements IDisposable
+
+<CascadingValue Value="this" IsFixed="true">
+    @ChildContent
+</CascadingValue>
+
+<nav class="rail" aria-label="Tools">
+    @foreach (var panel in _panels)
+    {
+        <button class="rail-btn @(panel.Key == Open ? "active" : "")" aria-pressed="@(panel.Key == Open ? "true" : "false")"
+                title="@(panel.Badge > 0 ? $"{panel.Title} ({panel.Badge})" : panel.Title)"
+                @onclick="() => ToggleAsync(panel.Key)">
+            <Icon Name="@panel.Icon" Size="20" />
+            @if (panel.Badge > 0)
+            {
+                <span class="rail-badge" @key="panel.Badge">@(panel.Badge > 9 ? "9+" : panel.Badge.ToString())</span>
+            }
+        </button>
+    }
+</nav>
+
+@code {
+    private readonly List<RailPanel> _panels = new();
+
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Key of the panel shown, or null when all are closed.</summary>
+    public string? Open { get; private set; }
+
+    /// <summary>Raised when another panel opens or the open one closes.</summary>
+    public event Action? OpenChanged;
+
+    internal void Register(RailPanel panel)
+    {
+        _panels.Add(panel);
+        StateHasChanged();
+    }
+
+    internal void Unregister(RailPanel panel) => _panels.Remove(panel);
+
+    /// <summary>A panel's icon or badge changed.</summary>
+    internal void Refresh() => InvokeAsync(StateHasChanged);
+
+    public Task ToggleAsync(string key) => ShowAsync(Open == key ? null : key);
+
+    public Task OpenAsync(string key) => Open == key ? Task.CompletedTask : ShowAsync(key);
+
+    public Task CloseAsync() => ShowAsync(null);
+
+    private Task ShowAsync(string? key)
+    {
+        Open = key;
+        OpenChanged?.Invoke();
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    public void Dispose() => _panels.Clear();
+}

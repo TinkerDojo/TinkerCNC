@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <!-- TinkerCNC.dll is the app (TinkerCNC.exe); the library keeps the TinkerCNC.* namespaces. -->
+    <RootNamespace>TinkerCNC</RootNamespace>
+  </PropertyGroup>
+
+  <!-- NuGet package: dotnet pack src/TinkerCNC.Core -c Release -->
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <PackageId>TinkerCNC.Core</PackageId>
+    <Title>TinkerCNC.Core</Title>
+    <Description>Client library for the Makera Z1 / Z1 Pro desktop CNC: UDP discovery, TCP and serial transports with framed packets, typed messages with visitors, file upload and download, job start with probing, G-code time estimates, operation history, camera and time-lapse clients.</Description>
+    <PackageTags>cnc;gcode;makera;makera-z1;z1;cnc-controller;desktop-cnc;machine-control;dotnet</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591;CS1573</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+    <None Include="..\..\build\icons\TinkerCNC.png" Pack="true" PackagePath="\icon.png" Visible="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.14" />
+    <PackageReference Include="System.IO.Ports" Version="10.0.14" />
+  </ItemGroup>
+
+</Project>

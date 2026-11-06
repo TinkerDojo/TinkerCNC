@@ -1,0 +1,158 @@
+@* 3D view of the program's toolpath with the tool head at the machine's work position (wwwroot/js/toolpath-view.js). *@
+@inherits JobComponent
+@inject UiPreferences Preferences
+@inject IJSRuntime JS
+
+<section class="card toolpath-card">
+    <div class="card-head">
+        <h2><Icon Name="cube" /> Toolpath</h2>
+        <div class="head-tools">
+            <div class="seg seg-sm">
+                @foreach (var view in Views)
+                {
+                    <button title="@view.Title" @onclick="() => InvokeViewAsync(Js.SetView, view.Key)">@view.Label</button>
+                }
+            </div>
+            <label class="check" title="Show rapid moves (G0)">
+                <input type="checkbox" checked="@_rapids" @onchange="ToggleRapidsAsync" /> G0
+            </label>
+        </div>
+    </div>
+
+    <div class="toolpath-stage">
+        <div class="toolpath-canvas" @ref="_canvas"></div>
+        @if (Job.Timeline is null)
+        {
+            <div class="toolpath-empty">No program loaded</div>
+        }
+    </div>
+
+    <p class="hint muted">
+        Cut so far · drag to rotate, right-drag to pan, wheel to zoom
+    </p>
+</section>
+
+@code {
+    private sealed record ViewButton(string Key, string Label, string Title);
+
+    /// <summary>Colour of the feed moves of one operation (lines inclusive).</summary>
+    private sealed record SegmentColor(int FirstLine, int LastLine, string Color);
+
+    /// <param name="DoneLine">Line being executed (moves before it are drawn), or null when no job is running.</param>
+    /// <param name="Head">Tool tip on the part, or null when the position is unknown.</param>
+    private sealed record ViewState(int? DoneLine, double[]? Head, double? ToolDiameter);
+
+    /// <summary>Methods of the view object created by <c>createToolpathView</c>.</summary>
+    private static class Js
+    {
+        public const string Module = "./js/toolpath-view.js";
+        public const string Create = "createToolpathView";
+        public const string Load = "load";
+        public const string Clear = "clear";
+        public const string Update = "update";
+        public const string SetView = "setView";
+        public const string ShowRapids = "showRapids";
+        public const string Dispose = "dispose";
+    }
+
+    private static readonly ViewButton[] Views =
+    [
+        new("iso", "Iso", "Isometric view"),
+        new("top", "Top", "View from above"),
+        new("front", "Front", "View from the front"),
+        new("fit", "Fit", "Show the whole toolpath"),
+    ];
+
+    private const string RapidsKey = "toolpath.rapids";
+
+    private ElementReference _canvas;
+    private IJSObjectReference? _module;
+    private IJSObjectReference? _view;
+    private bool _rapids = true;
+    private GCodeAnalysis? _shownProgram;
+    private ViewState? _shownState;
+    private int _loads;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender) await CreateViewAsync();
+        if (_view is null) return;
+        await ShowProgramAsync();
+        await ShowStateAsync();
+    }
+
+    private async Task CreateViewAsync()
+    {
+        try
+        {
+            _rapids = await Preferences.GetAsync(RapidsKey, _rapids);
+            _module = await JS.InvokeAsync<IJSObjectReference>("import", Js.Module);
+            _view = await _module.InvokeAsync<IJSObjectReference?>(Js.Create, _canvas);
+            await InvokeViewAsync(Js.ShowRapids, _rapids);
+            StateHasChanged(); // the checkbox may have changed
+        }
+        catch (JSDisconnectedException) { }
+    }
+
+    /// <summary>Sends the program when it changed; a rebuilt timeline (new measurement) keeps the same program.</summary>
+    private Task ShowProgramAsync()
+    {
+        var timeline = Job.Timeline;
+        if (ReferenceEquals(timeline?.Analysis, _shownProgram)) return Task.CompletedTask;
+        _shownProgram = timeline?.Analysis;
+        if (timeline is null) return InvokeViewAsync(Js.Clear);
+
+        var url = $"toolpath/{Uri.EscapeDataString(Session.Address)}?v={++_loads}";
+        var colors = timeline.Segments
+            .Select(s => new SegmentColor(s.Segment.StartLine, s.Segment.EndLine, ToolPalette.ColorFor(s.Segment.ToolNumber)))
+            .ToList();
+        return InvokeViewAsync(Js.Load, url, colors);
+    }
+
+    private Task ShowStateAsync()
+    {
+        var line = Job.CurrentLine;
+        var head = Session.Status?.WorkPosition is { Length: >= 3 } w
+            ? new Point4(w[0], w[1], w[2], w.Length > 3 ? w[3] : 0).OnPart()
+            : (Point3?)null;
+        var diameter = line is { } l ? Job.Timeline?.Analysis.SegmentAt(l)?.Tool?.Diameter : null;
+        var state = new ViewState(line, head is { } h ? [h.X, h.Y, h.Z] : null, diameter);
+        if (_shownState is { } shown && shown.DoneLine == state.DoneLine && shown.ToolDiameter == state.ToolDiameter
+            && (shown.Head ?? []).SequenceEqual(state.Head ?? []))
+            return Task.CompletedTask;
+        _shownState = state;
+        return InvokeViewAsync(Js.Update, state);
+    }
+
+    private async Task ToggleRapidsAsync(ChangeEventArgs e)
+    {
+        _rapids = e.Value is true;
+        await InvokeViewAsync(Js.ShowRapids, _rapids);
+        await Preferences.SetAsync(RapidsKey, _rapids);
+    }
+
+    private async Task InvokeViewAsync(string method, params object?[] args)
+    {
+        if (_view is null) return;
+        try { await _view.InvokeVoidAsync(method, args); }
+        catch (JSDisconnectedException) { }
+        catch (JSException) { } // e.g. the toolpath vanished between render and fetch; the next change retries
+    }
+
+    protected override void OnDispose()
+    {
+        _ = DisposeViewAsync();
+        base.OnDispose();
+    }
+
+    private async Task DisposeViewAsync()
+    {
+        try
+        {
+            await InvokeViewAsync(Js.Dispose);
+            if (_view is not null) await _view.DisposeAsync();
+            if (_module is not null) await _module.DisposeAsync();
+        }
+        catch (JSDisconnectedException) { }
+    }
+}

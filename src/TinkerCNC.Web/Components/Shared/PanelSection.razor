@@ -1,0 +1,18 @@
+@* A titled section inside a side rail panel, with optional controls on the right of its title. *@
+
+<section class="panel-section">
+    <header class="panel-section-head">
+        <h3>@Title</h3>
+        @if (Tools is not null)
+        {
+            <div class="head-tools">@Tools</div>
+        }
+    </header>
+    @ChildContent
+</section>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = "";
+    [Parameter] public RenderFragment? Tools { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

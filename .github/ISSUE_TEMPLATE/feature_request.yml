@@ -1,0 +1,21 @@
+name: Feature request
+description: Suggest something TinkerCNC should do.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: The job to be done, not the solution. What is awkward or impossible today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: How could TinkerCNC help?
+      description: If you have an idea of how it should look or behave, describe it. Commands the machine needs are welcome too.
+  - type: input
+    id: machine
+    attributes:
+      label: Machine
+      placeholder: Which machine (and firmware version) is this for?

@@ -1,0 +1,76 @@
+@* Notifications from the machine (tool changes to confirm, alarms) in the side rail, with a red badge for open ones. *@
+@inherits SessionComponent
+@inject NotificationCenter Center
+
+<RailPanel Title="Notifications" Icon="bell" Key="notifications" Badge="_notifications.OpenCount">
+    <Tools>
+        @if (_notifications.Items.Any(n => !n.IsOpen))
+        {
+            <button class="btn btn-sm btn-ghost" title="Remove answered and dismissed notifications" @onclick="_notifications.ClearResolved">Clear</button>
+        }
+    </Tools>
+    <ChildContent>
+        @if (_notifications.Items.Count == 0)
+        {
+            <p class="muted small pad">No notifications. Tool changes that need your confirmation and alarms appear here.</p>
+        }
+        <ul class="notes">
+            @foreach (var note in _notifications.Items)
+            {
+                <li class="note note-@note.Kind @(note.IsOpen ? "open" : "resolved")" @key="note.Id">
+                    <span class="note-icon"><Icon Name="@note.Icon" Size="18" /></span>
+                    <div class="note-body">
+                        <div class="note-head">
+                            <b>@note.Title</b>
+                            <span class="muted small" title="@note.RaisedUtc.ToLocalTime().ToString("G")">@TimeFormat.Clock(note.RaisedUtc)</span>
+                        </div>
+                        <p>@note.Message</p>
+                        @if (note.IsOpen)
+                        {
+                            <div class="note-actions">
+                                @foreach (var action in note.Actions)
+                                {
+                                    <button class="btn btn-sm @action.Css" disabled="@(!Connected)" @onclick="() => _runner.RunAsync(() => _notifications.ExecuteAsync(note, action))">
+                                        <Icon Name="@action.Icon" /> @action.Label
+                                    </button>
+                                }
+                                <button class="btn btn-sm btn-ghost" title="Hide without answering the machine" @onclick="() => _notifications.Dismiss(note)">Dismiss</button>
+                            </div>
+                        }
+                        else
+                        {
+                            <span class="note-resolution small"><Icon Name="check" Size="12" /> @note.Resolution · @TimeFormat.Clock(note.ResolvedUtc!.Value)</span>
+                        }
+                    </div>
+                </li>
+            }
+        </ul>
+        @if (_runner.Error is not null)
+        {
+            <p class="hint err">@_runner.Error</p>
+        }
+    </ChildContent>
+</RailPanel>
+
+@code {
+    private readonly ActionRunner _runner = new();
+    private MachineNotifications _notifications = default!;
+
+    protected override void OnParametersSet()
+    {
+        var notifications = Center.Get(Session);
+        if (!ReferenceEquals(notifications, _notifications))
+        {
+            if (_notifications is not null) _notifications.Changed -= RequestRender;
+            _notifications = notifications;
+            _notifications.Changed += RequestRender;
+        }
+        base.OnParametersSet();
+    }
+
+    protected override void OnDispose()
+    {
+        if (_notifications is not null) _notifications.Changed -= RequestRender;
+        base.OnDispose();
+    }
+}

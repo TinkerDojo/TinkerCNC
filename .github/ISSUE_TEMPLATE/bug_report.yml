@@ -1,0 +1,50 @@
+name: Bug report
+description: Something does not work as described.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. The log of an installed copy is in `logs/tinkercnc.log` in the data folder
+        (`%APPDATA%\TinkerCNC` on Windows, `~/Library/Application Support/TinkerCNC` on macOS).
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, what happened instead?
+    validations:
+      required: true
+  - type: dropdown
+    id: machine
+    attributes:
+      label: Machine
+      options:
+        - Makera Z1
+        - Makera Z1 Pro
+        - Bundled simulator
+        - Other (say which below)
+    validations:
+      required: true
+  - type: input
+    id: firmware
+    attributes:
+      label: Firmware version
+      description: As the machine reports it (for example in the console with `version`).
+  - type: input
+    id: version
+    attributes:
+      label: TinkerCNC version
+      description: Settings → About, or the commit you built from.
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system and browser
+      placeholder: Windows 11, installed app / macOS 15, Safari / Ubuntu 24.04, dotnet run + Firefox
+  - type: textarea
+    id: log
+    attributes:
+      label: Console output or log
+      description: The relevant part of the dashboard console or `logs/tinkercnc.log`. Please remove anything private.
+      render: text

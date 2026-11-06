@@ -1,0 +1,14 @@
+# docker compose up -d   →  http://<host>:5185
+services:
+  tinkercnc:
+    image: ghcr.io/tinkerdojo/tinkercnc:latest
+    # build: .                    # build from this checkout instead of pulling the image
+    # Machine discovery listens for UDP broadcasts, which only reach the container on the host network. Without it,
+    # publish "5185:5185" instead and add machines by address.
+    network_mode: host
+    volumes:
+      - tinkercnc-data:/data      # database, cached programs, saved programs, recordings, logs
+    restart: unless-stopped
+
+volumes:
+  tinkercnc-data:

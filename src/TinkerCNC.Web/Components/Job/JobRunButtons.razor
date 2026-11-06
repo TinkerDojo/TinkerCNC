@@ -1,0 +1,46 @@
+@* Pause, resume and stop the running program. Stopping takes a second click to confirm. *@
+@inherits JobControlComponent
+
+@if (Control.CanResume)
+{
+    <button class="btn btn-sm btn-primary" disabled="@(!Connected)" title="Continue: the head goes back to where it paused first"
+            @onclick="() => _runner.RunAsync(Control.ResumeAsync)">
+        <Icon Name="play" /> Resume
+    </button>
+}
+else
+{
+    <button class="btn btn-sm btn-ghost" disabled="@(!Connected || !Control.CanPause)" title="Pause after the moves already queued (suspend)"
+            @onclick="() => _runner.RunAsync(Control.PauseAsync)">
+        <Icon Name="pause" /> Pause
+    </button>
+}
+@if (_confirm.IsAsking(this))
+{
+    <button class="btn btn-sm btn-danger" disabled="@(!Connected || !Control.CanStop)" title="The spindle stops and the rest of the program is dropped"
+            @onclick="StopAsync">
+        <Icon Name="stop" /> Confirm stop
+    </button>
+}
+else
+{
+    <button class="btn btn-sm btn-ghost btn-danger" disabled="@(!Connected || !Control.CanStop)" title="End the program (abort)"
+            @onclick="() => _confirm.AskAsync(this)">
+        <Icon Name="stop" /> Stop
+    </button>
+}
+@if (_runner.Error is { } error)
+{
+    <span class="chip chip-err" title="@error">@error</span>
+}
+
+@code {
+    private readonly ActionRunner _runner = new();
+    private readonly ConfirmClick _confirm = new();
+
+    private async Task StopAsync()
+    {
+        _confirm.Clear();
+        await _runner.RunAsync(Control.StopAsync);
+    }
+}

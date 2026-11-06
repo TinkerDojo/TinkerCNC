@@ -1,0 +1,62 @@
+@* A panel of the SideRail: its icon sits in the rail, its content slides in over the page when opened. *@
+@implements IDisposable
+
+@if (Rail.Open == Key)
+{
+    <aside class="flyout @(Wide ? "flyout-wide" : "")" aria-label="@Title">
+        <header class="flyout-head">
+            <Icon Name="@Icon" />
+            <h2>@Title</h2>
+            <div class="spacer"></div>
+            @if (Tools is not null)
+            {
+                <div class="head-tools">@Tools</div>
+            }
+            <button class="btn btn-icon btn-sm" title="Close" @onclick="Rail.CloseAsync"><Icon Name="x" /></button>
+        </header>
+        <div class="flyout-body">@ChildContent</div>
+    </aside>
+}
+
+@code {
+    [CascadingParameter] public SideRail Rail { get; set; } = default!;
+
+    [Parameter, EditorRequired] public string Title { get; set; } = "";
+    [Parameter, EditorRequired] public string Icon { get; set; } = "";
+
+    /// <summary>Identifies the panel in the rail (and in the remembered state).</summary>
+    [Parameter, EditorRequired] public string Key { get; set; } = "";
+
+    /// <summary>Content that needs more room than the usual panel width (e.g. program text).</summary>
+    [Parameter] public bool Wide { get; set; }
+
+    /// <summary>Count shown as a red badge on the panel's icon (0 = no badge).</summary>
+    [Parameter] public int Badge { get; set; }
+
+    /// <summary>Controls shown in the panel's header.</summary>
+    [Parameter] public RenderFragment? Tools { get; set; }
+
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private int _shownBadge;
+
+    protected override void OnInitialized()
+    {
+        Rail.Register(this);
+        Rail.OpenChanged += StateHasChanged;
+    }
+
+    /// <summary>The icon lives in the rail, so the rail redraws when the badge changes.</summary>
+    protected override void OnParametersSet()
+    {
+        if (Badge == _shownBadge) return;
+        _shownBadge = Badge;
+        Rail.Refresh();
+    }
+
+    public void Dispose()
+    {
+        Rail.OpenChanged -= StateHasChanged;
+        Rail.Unregister(this);
+    }
+}

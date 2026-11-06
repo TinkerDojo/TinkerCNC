@@ -1,0 +1,284 @@
+@page "/"
+@inherits LiveComponent
+@inject MachineDirectory Directory
+@inject MachineSessionManager Sessions
+@inject DiscoveryService Discovery
+@inject NavigationManager Nav
+
+<PageTitle>Machines · TinkerCNC</PageTitle>
+
+<header class="page-head">
+    <div>
+        <h1>Machines</h1>
+        <p class="muted">
+            Discovered on your network or added by address.
+        </p>
+    </div>
+    <div class="head-actions">
+        <button class="btn btn-primary" @onclick="() => _showAdd = !_showAdd">
+            <Icon Name="plus" /> Add machine
+        </button>
+    </div>
+</header>
+
+@if (_showAdd)
+{
+    <section class="card add-card">
+        <form class="add-form" @onsubmit="AddAsync">
+            <label>
+                <span>IP address</span>
+                <input class="input mono" placeholder="192.168.1.42 or 192.168.1.42:2222" @bind="_newAddress" @bind:event="oninput" autofocus />
+            </label>
+            <label>
+                <span>Name <em>(optional)</em></span>
+                <input class="input" placeholder="Workshop mill" @bind="_newName" />
+            </label>
+            <div class="add-buttons">
+                <button type="button" class="btn btn-ghost" disabled="@(_busy || string.IsNullOrWhiteSpace(_newAddress))" @onclick="ProbeAsync">
+                    <Icon Name="search" /> Query
+                </button>
+                <button type="submit" class="btn btn-primary" disabled="@(_busy || string.IsNullOrWhiteSpace(_newAddress))">Add</button>
+            </div>
+        </form>
+        @if (_addMessage is not null)
+        {
+            <div class="notice @(_addOk ? "notice-ok" : "notice-warn")">@_addMessage</div>
+        }
+    </section>
+}
+
+<section class="summary-row">
+    <div class="summary">
+        <span class="summary-value">@_entries.Count</span>
+        <span class="summary-label">known</span>
+    </div>
+    <div class="summary">
+        <span class="summary-value ok">@_entries.Count(e => e.Online)</span>
+        <span class="summary-label">online</span>
+    </div>
+    <div class="summary">
+        <span class="summary-value">@Sessions.Connected.Count</span>
+        <span class="summary-label">connected</span>
+    </div>
+    <div class="summary grow">
+        <span class="summary-label">Discovery (UDP 3333)</span>
+        @if (Directory.Discovery.Error is { } derr)
+        {
+            <span class="err small">@derr</span>
+        }
+        else
+        {
+            <span class="small">@Directory.Discovery.Packets announcements · last @TimeFormat.Ago(Directory.Discovery.LastPacketUtc)</span>
+        }
+    </div>
+</section>
+
+<div class="toolbar">
+    <input class="input search" placeholder="Filter by name or address…" @bind="_filter" @bind:event="oninput" />
+    <div class="seg">
+        @foreach (var view in Views)
+        {
+            <button class="@(_view == view ? "active" : "")" @onclick="() => _view = view">@view.Label</button>
+        }
+    </div>
+</div>
+
+@if (Visible.Count == 0)
+{
+    <div class="empty">
+        <Icon Name="radar" Size="40" />
+        <h3>No machines @(_entries.Count == 0 ? "yet" : "match")</h3>
+        <p class="muted">
+            Machines on the same network announce themselves every few seconds. You can also add one by IP address.
+        </p>
+    </div>
+}
+
+<section class="machine-grid">
+    @foreach (var m in Visible)
+    {
+        var session = m.Address is null ? null : Sessions.Find(m.Address);
+        var connected = session?.State == SessionState.Connected;
+        <article class="card machine-card @(m.Online ? "is-online" : "") @(connected ? "is-connected" : "")">
+            <div class="machine-top">
+                <div class="machine-icon">
+                    <Icon Name="cnc" Size="26" />
+                </div>
+                <div class="machine-title">
+                    <h3 title="@m.Name">@m.Name</h3>
+                    <span class="mono small muted">@(m.Address ?? "no address stored")</span>
+                </div>
+                <div class="machine-presence">
+                    <PresenceChip Machine="m" Connected="connected" />
+                </div>
+            </div>
+
+            <div class="tags">
+                @if (m.Discovered) { <span class="tag">Discovered · @TimeFormat.Ago(m.LastSeenUtc)</span> }
+                @if (m.Manual) { <span class="tag">Added here</span> }
+                @if (session?.Status is { } st) { <StateBadge State="@st.State" Small="true" /> }
+            </div>
+
+            @if (m.Busy && m.Online && !connected)
+            {
+                <p class="hint warn">Another client is connected. The machine may refuse a second connection.</p>
+            }
+
+            <div class="machine-actions">
+                @if (m.Address is null)
+                {
+                    <span class="muted small">Waiting for it to show up on the network…</span>
+                }
+                else if (connected)
+                {
+                    <button class="btn btn-primary" @onclick="() => Open(m)"><Icon Name="dashboard" /> Open</button>
+                    <button class="btn btn-ghost" @onclick="() => DisconnectAsync(session!)">Disconnect</button>
+                }
+                else
+                {
+                    <button class="btn btn-primary" disabled="@(_connecting == m.Key)" @onclick="() => ConnectAsync(m)">
+                        @if (_connecting == m.Key) { <span class="spinner"></span> <span>Connecting…</span> }
+                        else { <Icon Name="plug" /> <span>Connect</span> }
+                    </button>
+                    <button class="btn btn-ghost" @onclick="() => Open(m)" title="Open the dashboard without connecting (camera only)">
+                        <Icon Name="camera" />
+                    </button>
+                }
+                <div class="spacer"></div>
+                @if (m.Manual)
+                {
+                    <button class="btn btn-icon" title="Remove" @onclick="() => Directory.Remove(m)"><Icon Name="trash" /></button>
+                }
+            </div>
+            @if (_cardError.TryGetValue(m.Key, out var cerr))
+            {
+                <div class="notice notice-err">@cerr</div>
+            }
+        </article>
+    }
+</section>
+
+@code {
+    private IReadOnlyList<MachineEntry> _entries = Array.Empty<MachineEntry>();
+    private readonly Dictionary<string, string> _cardError = new();
+    private bool _showAdd;
+    private string? _newAddress;
+    private string? _newName;
+    private string? _addMessage;
+    private bool _addOk;
+    private bool _busy;
+    private string? _connecting;
+    private string _filter = "";
+    private sealed record View(string Label, Func<MachineEntry, bool> Filter);
+
+    private static readonly View[] Views =
+    {
+        new("All", _ => true),
+        new("Online", e => e.Online),
+    };
+
+    private View _view = Views[0];
+
+    private List<MachineEntry> Visible => _entries
+        .Where(_view.Filter)
+        .Where(e => _filter.Length == 0
+                    || e.Name.Contains(_filter, StringComparison.OrdinalIgnoreCase)
+                    || (e.Address?.Contains(_filter, StringComparison.OrdinalIgnoreCase) ?? false))
+        .ToList();
+
+    protected override void OnInitialized()
+    {
+        _entries = Directory.All;
+        Directory.Changed += OnDirectoryChanged;
+        Sessions.Changed += RequestRender;
+        MinRenderInterval = TimeSpan.FromMilliseconds(400);
+        StartTicker(TimeSpan.FromSeconds(2));
+    }
+
+    private void OnDirectoryChanged()
+    {
+        _entries = Directory.All;
+        RequestRender();
+    }
+
+    protected override void OnParametersSet() => _entries = Directory.All;
+
+    private async Task ProbeAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_newAddress)) return;
+        _busy = true;
+        _addMessage = "Sending QUERY…";
+        try
+        {
+            var host = TinkerCNC.Transport.TcpTransport.Parse(_newAddress).Host;
+            var m = await Discovery.QueryAsync(host);
+            _addOk = m is not null;
+            _addMessage = m is null
+                ? "No answer to QUERY. The machine may still accept a TCP connection; you can add it anyway."
+                : $"Found {m.Name} at {m.ConnectAddress}{(m.Busy ? " (busy)" : "")}. It has been added to the list.";
+            if (m is not null && string.IsNullOrWhiteSpace(_newName)) _newName = m.Name;
+        }
+        catch (Exception ex)
+        {
+            _addOk = false;
+            _addMessage = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+            _entries = Directory.All;
+        }
+    }
+
+    private void AddAsync()
+    {
+        try
+        {
+            Directory.AddManual(_newAddress!, _newName);
+            _addOk = true;
+            _addMessage = null;
+            _newAddress = _newName = null;
+            _showAdd = false;
+        }
+        catch (Exception ex)
+        {
+            _addOk = false;
+            _addMessage = ex.Message;
+        }
+        _entries = Directory.All;
+    }
+
+    private async Task ConnectAsync(MachineEntry m)
+    {
+        _connecting = m.Key;
+        _cardError.Remove(m.Key);
+        try
+        {
+            var session = Sessions.GetOrCreate(m.Address!, m.Name);
+            await session.ConnectAsync();
+            Open(m);
+        }
+        catch (Exception ex)
+        {
+            _cardError[m.Key] = ex.Message;
+        }
+        finally
+        {
+            _connecting = null;
+        }
+    }
+
+    private static Task DisconnectAsync(MachineSession s) => s.DisconnectAsync();
+
+    private void Open(MachineEntry m)
+    {
+        Sessions.GetOrCreate(m.Address!, m.Name);
+        Nav.NavigateTo(NavSidebar.MachineLink(m.Address!));
+    }
+
+    protected override void OnDispose()
+    {
+        Directory.Changed -= OnDirectoryChanged;
+        Sessions.Changed -= RequestRender;
+    }
+}

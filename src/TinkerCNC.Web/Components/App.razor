@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="/" />
+    <title>TinkerCNC</title>
+    <ResourcePreloader />
+    <link rel="icon" type="image/png" href="@Assets["favicon.png"]" />
+    <link rel="stylesheet" href="@Assets["app.css"]" />
+    <link rel="stylesheet" href="@Assets["TinkerCNC.styles.css"]" />
+    <ImportMap />
+    <HeadOutlet @rendermode="InteractiveServer" />
+</head>
+
+<body>
+    <Routes @rendermode="InteractiveServer" />
+    <ReconnectModal />
+    <script src="@Assets["_framework/blazor.web.js"]"></script>
+    <script>
+        window.tinkercnc = {
+            scrollToBottom: el => { if (el) el.scrollTop = el.scrollHeight; },
+            fullscreen: el => { if (el && el.requestFullscreen) el.requestFullscreen(); }
+        };
+    </script>
+</body>
+
+</html>

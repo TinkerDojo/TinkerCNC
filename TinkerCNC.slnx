@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/TinkerCNC.Cli/TinkerCNC.Cli.csproj" />
+    <Project Path="src/TinkerCNC.Host/TinkerCNC.Host.csproj" />
+    <Project Path="src/TinkerCNC.Web/TinkerCNC.Web.csproj" />
+    <Project Path="src/TinkerCNC.Core/TinkerCNC.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/TinkerCNC.Tests/TinkerCNC.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/TinkerCNC.Simulator/TinkerCNC.Simulator.csproj" />
+  </Folder>
+</Solution>

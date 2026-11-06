@@ -1,0 +1,98 @@
+@inherits SessionComponent
+@inject IJSRuntime JS
+
+<RailPanel Title="Console" Icon="terminal" Key="console">
+    <Tools>
+        <label class="check" title="Also log every status report">
+            <input type="checkbox" @bind="Session.LogStatusReports" /> status
+        </label>
+        <button class="btn btn-sm btn-ghost" @onclick="Session.ClearLog">Clear</button>
+    </Tools>
+    <ChildContent>
+        <div class="console" @ref="_scroller">
+            @if (_lines.Count == 0)
+            {
+                <div class="console-empty">Command replies and alarms appear here.</div>
+            }
+            @foreach (var line in _lines)
+            {
+                <div class="ln ln-@line.Kind.ToString().ToLowerInvariant()">
+                    <span class="ts">@line.Time.ToString("HH:mm:ss")</span>
+                    <span class="dir">@Arrow(line.Kind)</span>
+                    <span class="tx">@line.Text</span>
+                </div>
+            }
+        </div>
+
+        <div class="quick">
+            @foreach (var q in Quick)
+            {
+                <button class="chip chip-btn" disabled="@(!Connected)" @onclick="() => _runner.RunAsync(() => Session.SendAsync(q))">@q</button>
+            }
+        </div>
+
+        <form class="console-input" @onsubmit="SubmitAsync">
+            <input class="input mono" placeholder="@(Connected ? "G-code or command, e.g. G0 X10 Y10" : "Connect to send commands")"
+                   disabled="@(!Connected)" @bind="_input" @bind:event="oninput" @onkeydown="OnKeyDown" />
+            <button class="btn btn-primary" type="submit" disabled="@(!Connected || string.IsNullOrWhiteSpace(_input))">
+                <Icon Name="send" />
+            </button>
+        </form>
+        @if (_runner.Error is not null)
+        {
+            <p class="hint err">@_runner.Error</p>
+        }
+    </ChildContent>
+</RailPanel>
+
+@code {
+    // Common one-click commands: diagnostics, unlock, home, absolute mode, zero the work offset.
+    private static readonly string[] Quick = { "diagnose", "$X", "$H", "G90", "G92 X0 Y0 Z0 A0" };
+
+    private static readonly IReadOnlyDictionary<LogKind, string> Arrows = new Dictionary<LogKind, string>
+    {
+        [LogKind.Sent] = "›",
+        [LogKind.Received] = "‹",
+        [LogKind.Alarm] = "!",
+        [LogKind.Error] = "×",
+        [LogKind.System] = "·",
+    };
+
+    private readonly ActionRunner _runner = new();
+    private readonly CommandHistory _history = new();
+    private ElementReference _scroller;
+    private IReadOnlyList<LogLine> _lines = Array.Empty<LogLine>();
+    private int _renderedCount = -1;
+    private string? _scrolledElement;
+    private string? _input;
+
+    protected override void OnInitialized() => MinRenderInterval = TimeSpan.FromMilliseconds(250);
+
+    protected override bool ShouldRender()
+    {
+        _lines = Session.Log;
+        return true;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // the console element is new after the panel was opened again
+        if (_lines.Count == _renderedCount && _scroller.Id == _scrolledElement) return;
+        _renderedCount = _lines.Count;
+        _scrolledElement = _scroller.Id;
+        try { await JS.InvokeVoidAsync("tinkercnc.scrollToBottom", _scroller); } catch (JSDisconnectedException) { }
+    }
+
+    private async Task SubmitAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_input)) return;
+        var command = _input.Trim();
+        _history.Add(command);
+        _input = "";
+        await _runner.RunAsync(() => Session.SendAsync(command));
+    }
+
+    private void OnKeyDown(KeyboardEventArgs e) => _input = _history.Navigate(e.Key) ?? _input;
+
+    private static string Arrow(LogKind kind) => Arrows[kind];
+}

@@ -1,0 +1,16 @@
+@* Position and machine view, moves (go to, jog), machine commands and air together in one side rail panel. *@
+
+<RailPanel Title="Controls" Icon="move" Key="controls">
+    <PositionPanel Session="Session" />
+    <MachineViewPanel Session="Session" Preview="_preview" />
+    <GoToPanel Session="Session" Preview="_preview" />
+    <MachineControlPanel Session="Session" />
+    <JogPanel Session="Session" />
+    <AirPanel Session="Session" />
+</RailPanel>
+
+@code {
+    [Parameter, EditorRequired] public MachineSession Session { get; set; } = default!;
+
+    private readonly MoveTargetPreview _preview = new();
+}

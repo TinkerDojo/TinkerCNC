@@ -1,0 +1,110 @@
+@page "/settings/about"
+@inherits LiveComponent
+@inject AppUpdates Updates
+@inject AppPaths Paths
+@inject AppInfo Info
+
+<PageTitle>About · Settings · TinkerCNC</PageTitle>
+
+<header class="page-head">
+    <div>
+        <h1>About TinkerCNC</h1>
+        <p class="muted">@Info.Copyright</p>
+    </div>
+</header>
+
+<section class="card settings-card">
+    <div class="card-head"><h2><Icon Name="info" /> License</h2></div>
+    <p class="about-text">
+        TinkerCNC is free software: you can use, study, change and share it under the terms of the
+        @AppInfo.LicenseName (@AppInfo.License). It comes with <b>no warranty</b>; it controls machine tools, so check
+        every program and setting before running it.
+    </p>
+    <dl class="facts">
+        <dt>Source code</dt>
+        <dd class="mono">
+            @if (Info.SourceUrl is { } source)
+            {
+                <a href="@source" target="_blank" rel="noopener">@source</a>
+            }
+            else
+            {
+                <text>not configured (TinkerCNC:SourceUrl)</text>
+            }
+        </dd>
+        <dt>Documents</dt>
+        <dd class="legal-links">
+            @foreach (var (file, title) in AppInfo.LegalFiles)
+            {
+                <a href="@($"legal/{file}")" target="_blank">@title</a>
+            }
+        </dd>
+    </dl>
+</section>
+
+<section class="card settings-card">
+    <div class="card-head"><h2><Icon Name="refresh" /> Version and updates</h2></div>
+    <dl class="facts">
+        <dt>Version</dt>
+        <dd class="mono">@Updates.CurrentVersion @(Updates.IsInstalled ? "" : "(development build)")</dd>
+        <dt>Release feed</dt>
+        <dd class="mono">@(Updates.Feed ?? "not configured (TinkerCNC:Updates:Url)")</dd>
+        <dt>Data folder</dt>
+        <dd class="mono">@Paths.DataDirectory</dd>
+        @if (Updates.CheckedUtc is { } checkedUtc)
+        {
+            <dt>Last check</dt>
+            <dd>@TimeFormat.Clock(checkedUtc) · @(Updates.AvailableVersion is { } v ? $"version {v} is available" : "up to date")</dd>
+        }
+    </dl>
+
+    <div class="settings-actions">
+        <button class="btn btn-ghost" disabled="@(!Updates.CanUpdate || _busy)" @onclick="CheckAsync"><Icon Name="refresh" /> Check for updates</button>
+        @if (Updates.AvailableVersion is { } available)
+        {
+            <button class="btn btn-primary" disabled="@_busy" @onclick="InstallAsync"><Icon Name="down" /> Install @available and restart</button>
+        }
+        @if (Updates.DownloadPercent is { } percent)
+        {
+            <span class="muted small">Downloading… @percent %</span>
+        }
+    </div>
+
+    @if (!Updates.CanUpdate)
+    {
+        <p class="hint muted">
+            @(Updates.IsInstalled
+                ? "Set TinkerCNC:Updates:Url in appsettings.json to a GitHub repository or release folder to enable updates."
+                : "Updates work in installed copies (Setup.exe / .pkg); this one runs from a build.")
+        </p>
+    }
+    @if (_runner.Error is not null)
+    {
+        <p class="hint err">@_runner.Error</p>
+    }
+</section>
+
+@code {
+    private readonly ActionRunner _runner = new();
+    private bool _busy;
+
+    protected override void OnInitialized() => Updates.Changed += RequestRender;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Updates.CanUpdate && Updates.CheckedUtc is null) await CheckAsync();
+    }
+
+    private Task CheckAsync() => Busy(Updates.CheckAsync);
+
+    private Task InstallAsync() => Busy(Updates.InstallAndRestartAsync);
+
+    private async Task Busy(Func<Task> action)
+    {
+        _busy = true;
+        try { await _runner.RunAsync(action); }
+        finally { _busy = false; }
+    }
+
+    protected override void OnDispose() => Updates.Changed -= RequestRender;
+}

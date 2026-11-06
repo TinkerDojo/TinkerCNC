@@ -1,0 +1,156 @@
+@* The saved programs (shared by all machines): load, edit, replace the file, delete, and restore deleted ones. *@
+@using TinkerCNC.Programs
+@inherits JobControlComponent
+@inject SavedProgramLibrary Library
+
+<div class="saved-list">
+    <div class="saved-head">
+        <span class="muted small">Saved programs, shared by all machines · @Library.Directory</span>
+        <span class="spacer"></span>
+        <label class="check small"><input type="checkbox" @bind="_showDeleted" @bind:after="Reload" /> Show deleted</label>
+    </div>
+    @{ var entries = _entries ??= Library.List(_showDeleted); }
+    @if (entries.Count == 0)
+    {
+        <p class="muted small pad">Nothing saved yet. Choose a program, set its options and use “Save…”.</p>
+    }
+    @foreach (var entry in entries)
+    {
+        var p = entry.Program;
+        <div class="saved-item @(p.IsDeleted ? "deleted" : "") @(Control.Saved?.Id == p.Id ? "active" : "")" @key="p.Id">
+            @if (_editId == p.Id)
+            {
+                <div class="saved-form">
+                    <label>Name<input class="input" maxlength="@SavedProgramLibrary.MaxNameLength" @bind="_name" /></label>
+                    <label>Notes<textarea class="input" rows="2" @bind="_notes"></textarea></label>
+                    <div class="saved-actions">
+                        <button class="btn btn-sm btn-primary" @onclick="() => _runner.Run(() => { Library.Edit(p.Id, _name, _notes); _editId = null; })">Save</button>
+                        <button class="btn btn-sm btn-ghost" @onclick="() => _editId = null">Cancel</button>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="saved-info">
+                    <span class="saved-name">@p.Name</span>
+                    @if (p.Notes.Length > 0)
+                    {
+                        <span class="saved-notes muted small">@p.Notes</span>
+                    }
+                    <span class="muted small">
+                        <span class="mono" title="@entry.FilePath">@p.OriginalFileName</span> ·
+                        @Runs(p)
+                        · @(p.IsDeleted ? $"deleted {Local(p.DeletedUtc!.Value)}" : $"saved {Local(p.UpdatedUtc)}")
+                    </span>
+                    @if (entry.FileMissing)
+                    {
+                        <span class="tag tag-err" title="@entry.FilePath">file missing</span>
+                    }
+                </div>
+                <div class="saved-actions">
+                    @if (p.IsDeleted)
+                    {
+                        <button class="btn btn-sm btn-ghost" @onclick="() => Restore(p)">Restore</button>
+                        @if (_confirm.IsAsking(p.Id))
+                        {
+                            <button class="btn btn-sm btn-danger" @onclick="() => _runner.Run(() => { _confirm.Clear(); Library.DeleteForever(p.Id); })">Confirm</button>
+                        }
+                        else
+                        {
+                            <button class="btn btn-sm btn-ghost btn-danger" title="Remove it and its file for good" @onclick="() => _confirm.AskAsync(p.Id)">Delete forever</button>
+                        }
+                    }
+                    else
+                    {
+                        <button class="btn btn-sm btn-ghost" disabled="@(entry.FileMissing || Control.IsBusy)" title="Choose it with its options as saved"
+                                @onclick="() => _runner.Run(() => Control.LoadSaved(p.Id))">Load</button>
+                        <button class="btn btn-sm btn-ghost" title="Rename it or change its notes" @onclick="() => StartEdit(p)">Edit</button>
+                        <label class="btn btn-sm btn-ghost file-btn @(Control.IsBusy ? "disabled" : "")" title="Use a new version of the G-code file; the options stay">
+                            Replace file
+                            <InputFile OnChange="e => ReplaceFileAsync(p.Id, e)" accept="@ProgramFileTypes" disabled="@Control.IsBusy" />
+                        </label>
+                        @if (_confirm.IsAsking(p.Id))
+                        {
+                            <button class="btn btn-sm btn-danger" @onclick="() => _runner.Run(() => { _confirm.Clear(); Library.Delete(p.Id); })">Confirm</button>
+                        }
+                        else
+                        {
+                            <button class="btn btn-sm btn-ghost btn-danger" title="Move it to the deleted programs (it can be restored)" @onclick="() => _confirm.AskAsync(p.Id)"><Icon Name="trash" /></button>
+                        }
+                    }
+                </div>
+                @if (_restoreId == p.Id)
+                {
+                    <div class="saved-form">
+                        <p class="hint err">Another program is called “@p.Name” now. Restore it under another name:</p>
+                        <label>Name<input class="input" maxlength="@SavedProgramLibrary.MaxNameLength" @bind="_name" /></label>
+                        <div class="saved-actions">
+                            <button class="btn btn-sm btn-primary" @onclick="() => Restore(p, _name)">Restore</button>
+                            <button class="btn btn-sm btn-ghost" @onclick="() => _restoreId = null">Cancel</button>
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+    }
+    @if (_runner.Error is { } error)
+    {
+        <p class="hint err pad">@error</p>
+    }
+</div>
+
+@code {
+    private readonly ActionRunner _runner = new();
+    private readonly ConfirmClick _confirm = new();
+    private IReadOnlyList<SavedProgramEntry>? _entries;
+    private bool _showDeleted;
+    private long? _editId;
+    private long? _restoreId;
+    private string _name = "";
+    private string _notes = "";
+
+    protected override void OnInitialized() => Library.Changed += Reload;
+
+    protected override void OnDispose()
+    {
+        Library.Changed -= Reload;
+        base.OnDispose();
+    }
+
+    private void StartEdit(SavedProgram program)
+    {
+        _runner.Clear();
+        (_editId, _name, _notes) = (program.Id, program.Name, program.Notes);
+    }
+
+    /// <summary>Restores it; when its name was taken meanwhile, asks for another one.</summary>
+    private void Restore(SavedProgram program, string? newName = null) => _runner.Run(() =>
+    {
+        try
+        {
+            Library.Restore(program.Id, newName);
+            _restoreId = null;
+        }
+        catch (SavedProgramNameTakenException) when (newName is null)
+        {
+            (_restoreId, _name) = (program.Id, program.Name);
+        }
+    });
+
+    private Task ReplaceFileAsync(long id, InputFileChangeEventArgs e) =>
+        _runner.RunAsync(async () => Library.ReplaceFile(id, e.File.Name, await ReadAsync(e.File)));
+
+    /// <summary>Lists again on the next render: the list changed (here, in another window or for another machine).</summary>
+    private void Reload()
+    {
+        _entries = null;
+        RequestRender();
+    }
+
+    private static readonly IReadOnlyDictionary<int, string> FewRuns = new Dictionary<int, string> { [0] = "never started", [1] = "started once" };
+
+    private static string Runs(SavedProgram p) =>
+        FewRuns.GetValueOrDefault(p.RunCount, $"started {p.RunCount} times") + (p.LastStartedUtc is { } last ? $", last {Local(last)}" : "");
+
+    private static string Local(DateTime utc) => utc.ToLocalTime().ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
+}

@@ -1,0 +1,45 @@
+name: Machine test report
+description: Tell us what works and what does not on your machine. These reports steer the project.
+labels: [machine-report]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Reports from real machines are the most useful contribution right now: most of TinkerCNC has been developed
+        against the simulator and one Z1.
+  - type: input
+    id: machine
+    attributes:
+      label: Machine and firmware version
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: TinkerCNC version
+    validations:
+      required: true
+  - type: checkboxes
+    id: works
+    attributes:
+      label: What worked
+      options:
+        - label: Discovery on the network
+        - label: Connecting (Wi-Fi / LAN)
+        - label: Connecting (USB serial)
+        - label: Status, positions, state badge
+        - label: Jogging and "go to"
+        - label: Console commands
+        - label: Air on/off, bed cleaning
+        - label: Live camera
+        - label: Starting a job (upload, options, play)
+        - label: Probing before a job (XYZ corner, Z probe, leveling, scan margin)
+        - label: Job progress, tool timeline, tool-change times
+        - label: Manual tool change confirmation
+        - label: Time-lapse playback
+  - type: textarea
+    id: notes
+    attributes:
+      label: What did not work, or behaved differently than described?
+      description: Console output helps a lot (please remove anything private).
+      render: text

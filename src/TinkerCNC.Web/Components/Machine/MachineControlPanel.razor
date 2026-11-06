@@ -1,0 +1,20 @@
+@inherits SessionComponent
+
+<PanelSection Title="Machine control">
+    <div class="control-grid">
+        @foreach (var action in MachineActions.All)
+        {
+            <button class="btn btn-tile @action.Css" disabled="@(!Connected)" title="@action.Title" @onclick="() => _runner.RunAsync(() => action.Execute(Session))">
+                <Icon Name="@action.Icon" Size="18" /><span>@action.Label</span>
+            </button>
+        }
+    </div>
+    @if (_runner.Error is not null)
+    {
+        <p class="hint err">@_runner.Error</p>
+    }
+</PanelSection>
+
+@code {
+    private readonly ActionRunner _runner = new();
+}

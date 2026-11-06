@@ -1,0 +1,262 @@
+@* Choose a program (this computer, the machine's programs folder or a saved program), set the start options and start it. *@
+@using TinkerCNC.Transfer
+@inherits JobControlComponent
+
+@{ var (plan, planError) = PlanOrError(); }
+<section class="card start-card">
+    <div class="card-head">
+        <h2><Icon Name="play" /> Start a job</h2>
+        <div class="head-tools">
+            <label class="btn btn-sm btn-ghost file-btn @(Control.IsBusy ? "disabled" : "")" title="Choose a G-code file on this computer; it is uploaded when the job starts">
+                <Icon Name="plus" /> From this computer
+                <InputFile OnChange="LoadLocalAsync" accept="@ProgramFileTypes" disabled="@Control.IsBusy" />
+            </label>
+            <button class="btn btn-sm btn-ghost" disabled="@(!Connected || Control.ListingFiles || Control.IsBusy)"
+                    title="List the programs on the machine (@RemotePath.GCodeDirectory)" @onclick="ToggleMachineFilesAsync">
+                @if (Control.ListingFiles)
+                {
+                    <span class="spinner"></span>
+                }
+                else
+                {
+                    <Icon Name="cnc" />
+                }
+                On the machine
+            </button>
+            <button class="btn btn-sm btn-ghost @(_list == FileList.Saved ? "active" : "")" title="Programs saved with their options"
+                    @onclick="ToggleSaved">
+                <Icon Name="save" /> Saved
+            </button>
+        </div>
+    </div>
+
+    @if (_list == FileList.Saved)
+    {
+        <SavedProgramsList Session="Session" />
+    }
+    else if (_list == FileList.Machine && Control.MachineFiles is { } files)
+    {
+        <div class="start-files">
+            @if (files.Count == 0)
+            {
+                <p class="muted small pad">No files in @RemotePath.GCodeDirectory.</p>
+            }
+            @foreach (var file in files)
+            {
+                var path = RemotePath.Combine(RemotePath.GCodeDirectory, file.Name);
+                <button class="start-file @(IsSelected(path) ? "active" : "")" disabled="@Control.IsBusy" @onclick="() => ChooseAsync(path)">
+                    <span class="start-file-name mono">@file.Name</span>
+                    <span class="muted small">@Size(file.Size)</span>
+                    <span class="muted small">@(file.Modified?.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture) ?? "")</span>
+                </button>
+            }
+        </div>
+    }
+
+    @if (Control.Phase == JobControlPhase.Loading && Control.Download is { } dl)
+    {
+        <div class="download">
+            <span class="muted small">Reading the program from the machine · packet @dl.Packet/@dl.TotalPackets</span>
+            <div class="bar"><div style="width:@Percent(dl.Fraction)"></div></div>
+        </div>
+    }
+
+    @if (Control.Program is { } program)
+    {
+        <div class="start-program">
+            <span class="mono start-program-name" title="@program.Source.MachinePath">@program.Source.FileName</span>
+            <span class="muted small">@program.Source.Describe()</span>
+            <span class="spacer"></span>
+            @if (program.Bounds is { } b)
+            {
+                <span class="tag mono" title="Size of the cutting moves in X × Y × Z">@Mm(b.Width) × @Mm(b.Depth) × @Mm(b.MaxZ - b.MinZ) mm</span>
+                <span class="tag mono" title="Front left corner of the cutting moves, in work coordinates">corner X@(Mm(b.MinX)) Y@(Mm(b.MinY))</span>
+            }
+            <span class="tag">@program.Analysis.Segments.Count operations</span>
+        </div>
+        <SaveProgramBar Session="Session" />
+
+        <fieldset class="start-grid" disabled="@Control.IsBusy" title="@(Control.IsBusy ? "Fixed while the job is being started" : null)">
+            <fieldset class="opt">
+                <legend>Work origin</legend>
+                <div class="seg seg-sm seg-wrap">
+                    @foreach (var choice in OriginChoices)
+                    {
+                        <button class="@(Options.WorkOrigin == choice.Key ? "active" : "")" @onclick="() => Options.WorkOrigin = choice.Key">@choice.Value.Label</button>
+                    }
+                </div>
+                <p class="hint muted">@OriginChoices[Options.WorkOrigin].Hint</p>
+                @if (Options.WorkOrigin is WorkOriginChoice.BedCorner or WorkOriginChoice.HeadPosition)
+                {
+                    <div class="opt-row">
+                        <label>Offset X (mm)<input class="input mono" type="number" step="0.1" @bind="Options.OriginOffsetX" /></label>
+                        <label>Offset Y (mm)<input class="input mono" type="number" step="0.1" @bind="Options.OriginOffsetY" /></label>
+                    </div>
+                }
+                else if (Options.WorkOrigin == WorkOriginChoice.XyzProbe)
+                {
+                    <div class="opt-row">
+                        <label>Block height (mm)<input class="input mono" type="number" step="0.1" min="0" @bind="Options.XyzProbeHeight" /></label>
+                        <label>Tool diameter (mm)<input class="input mono" type="number" step="0.001" min="0" @bind="Options.XyzProbeToolDiameter" /></label>
+                    </div>
+                }
+            </fieldset>
+
+            <fieldset class="opt @(Options.ZProbe ? "" : "off")">
+                <legend><label class="check"><input type="checkbox" checked="@Options.ZProbe" @onchange="e => Control.SetZProbe(e.Value is true)" /> Auto Z probe</label></legend>
+                <p class="hint muted">Before the job, the probe touches the stock's top there and makes it Z zero.</p>
+                <div class="opt-line">
+                    <span class="muted small">Relative to</span>
+                    <div class="seg seg-sm">
+                        <button class="@(Options.ZProbeFromWorkOrigin ? "" : "active")" title="The front left corner of the program's cutting moves" @onclick="() => Control.SetZProbeFromWorkOrigin(false)">Path origin</button>
+                        <button class="@(Options.ZProbeFromWorkOrigin ? "active" : "")" title="X/Y zero of the program" @onclick="() => Control.SetZProbeFromWorkOrigin(true)">Work origin</button>
+                    </div>
+                    <button class="btn btn-sm btn-ghost" title="Probe in the middle of the program's area" @onclick="Control.CenterZProbe">Center</button>
+                </div>
+                <div class="opt-row">
+                    <label>Offset X (mm)<input class="input mono" type="number" step="0.1" @bind="Options.ZProbeOffsetX" /></label>
+                    <label>Offset Y (mm)<input class="input mono" type="number" step="0.1" @bind="Options.ZProbeOffsetY" /></label>
+                </div>
+                @if (program.Bounds is { } area)
+                {
+                    var (px, py) = Options.ZProbePoint(area);
+                    <p class="hint muted">Probes at X@(Mm(px)) Y@(Mm(py)) in work coordinates.</p>
+                    @if (!Options.ZProbeWithin(area))
+                    {
+                        <p class="hint warn">That is outside the program's area: make sure the stock is there, or use Center.</p>
+                    }
+                }
+            </fieldset>
+
+            <fieldset class="opt @(Options.Leveling ? "" : "off")">
+                <legend><label class="check"><input type="checkbox" @bind="Options.Leveling" /> Auto leveling</label></legend>
+                <p class="hint muted">Probes a grid over the program's area and follows the measured surface: for uneven stock and shallow cuts (engraving, PCBs).</p>
+                <div class="opt-row">
+                    <label>Points X<input class="input mono" type="number" step="1" min="@JobStartOptions.MinLevelingPoints" max="@JobStartOptions.MaxLevelingPoints" @bind="Options.LevelingPointsX" /></label>
+                    <label>Points Y<input class="input mono" type="number" step="1" min="@JobStartOptions.MinLevelingPoints" max="@JobStartOptions.MaxLevelingPoints" @bind="Options.LevelingPointsY" /></label>
+                    <label>Height (mm)<input class="input mono" type="number" step="0.5" min="0.5" @bind="Options.LevelingHeight" /></label>
+                </div>
+            </fieldset>
+
+            <fieldset class="opt">
+                <legend>Before and during the job</legend>
+                <label class="check opt-check">
+                    <input type="checkbox" @bind="Options.ScanMargin" />
+                    <span>Scan margin <small>Traces the program's outline at the clearance height first, to check it fits the stock.</small></span>
+                </label>
+                @foreach (var mode in Control.Modes)
+                {
+                    <label class="check opt-check" title="@mode.OnCommand / @mode.OffCommand">
+                        <input type="checkbox" checked="@Options.IsOn(mode)" @onchange="e => Options.Modes[mode.Key] = e.Value is true" />
+                        <span>@mode.Name <small>@mode.Description</small></span>
+                    </label>
+                }
+                @if (Control.Modes.Count == 0)
+                {
+                    <p class="hint muted">The machine's job options appear once its type is known (from its travel limits).</p>
+                }
+            </fieldset>
+        </fieldset>
+
+        @if (Options.UsesProbe)
+        {
+            <p class="hint muted">
+                Probing needs the probe in the spindle: the machine asks for it first (confirm the tool change in the
+                notifications) and changes back to the current tool afterwards.
+            </p>
+        }
+
+        <details class="start-plan">
+            <summary>Commands sent when starting</summary>
+            @if (plan is not null)
+            {
+                <pre>@string.Join('\n', plan.Commands)</pre>
+            }
+        </details>
+        @if (planError is not null)
+        {
+            <p class="hint err">@planError</p>
+        }
+    }
+    else if (Control.Phase != JobControlPhase.Loading)
+    {
+        <p class="muted small pad">Choose a program from this computer, from the machine or a saved one to set it up and start it.</p>
+    }
+
+    @if ((Control.LastError ?? _runner.Error) is { } error)
+    {
+        <p class="hint err">@error</p>
+    }
+
+    @if (Control.Program is not null)
+    {
+        <div class="start-actions">
+            @if (Control.Phase == JobControlPhase.Uploading && Control.Upload is { } up)
+            {
+                <div class="download">
+                    <span class="muted small">Uploading · packet @up.Packet/@up.TotalPackets · @up.Bytes.ToString("N0") bytes</span>
+                    <div class="bar"><div style="width:@Percent(up.Fraction)"></div></div>
+                </div>
+            }
+            else if (Control.Phase == JobControlPhase.Starting)
+            {
+                <span class="muted small"><span class="spinner"></span> Starting…</span>
+            }
+            else if (Control.WhyNotStart is { } reason)
+            {
+                <span class="muted small">@reason</span>
+            }
+            <span class="spacer"></span>
+            <button class="btn btn-primary" disabled="@(Control.WhyNotStart is not null || planError is not null)"
+                    @onclick="() => _runner.RunAsync(Control.StartAsync)">
+                <Icon Name="play" /> Start job
+            </button>
+        </div>
+    }
+</section>
+
+@code {
+    private sealed record OriginLook(string Label, string Hint);
+
+    private static readonly IReadOnlyDictionary<WorkOriginChoice, OriginLook> OriginChoices = new Dictionary<WorkOriginChoice, OriginLook>
+    {
+        [WorkOriginChoice.Keep] = new("Keep", "The work origin stays where it is."),
+        [WorkOriginChoice.BedCorner] = new("Bed corner", "The bed's reference corner plus the offset becomes X/Y zero when the job starts."),
+        [WorkOriginChoice.HeadPosition] = new("Head position", "Where the head is now, plus the offset, becomes X/Y zero when the job starts."),
+        [WorkOriginChoice.XyzProbe] = new("XYZ probe", "Put the probe block on the stock's front left corner and jog the tool above it: the machine touches it from above, the right and the front and makes the stock's corner and top zero."),
+    };
+
+    private enum FileList { None, Machine, Saved }
+
+    private readonly ActionRunner _runner = new();
+    private FileList _list;
+
+    private JobStartOptions Options => Control.Options;
+
+    private (JobStartPlan? Plan, string? Error) PlanOrError()
+    {
+        try { return (Control.Plan(), null); }
+        catch (JobStartException ex) { return (null, ex.Message); }
+    }
+
+    private bool IsSelected(string path) => Control.Program?.Source is MachineProgram { MachinePath: var p } && p == path;
+
+    private async Task ToggleMachineFilesAsync()
+    {
+        _list = FileList.Machine;
+        await _runner.RunAsync(Control.RefreshFilesAsync);
+    }
+
+    private void ToggleSaved() => _list = _list == FileList.Saved ? FileList.None : FileList.Saved;
+
+    private Task ChooseAsync(string path) => _runner.RunAsync(() => Control.LoadFromMachineAsync(path));
+
+    private Task LoadLocalAsync(InputFileChangeEventArgs e) =>
+        _runner.RunAsync(async () => Control.LoadLocal(e.File.Name, await ReadAsync(e.File)));
+
+    private static string Mm(double value) => value.ToString("0.#", CultureInfo.InvariantCulture);
+    private static string Percent(double fraction) => (fraction * 100).ToString("0.#", CultureInfo.InvariantCulture) + "%";
+
+    private static string Size(long bytes) =>
+        bytes >= 1024 * 1024 ? $"{bytes / 1024d / 1024:0.0} MB" : $"{Math.Max(1, bytes / 1024)} kB";
+}

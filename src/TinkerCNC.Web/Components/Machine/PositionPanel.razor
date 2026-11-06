@@ -1,0 +1,62 @@
+@inherits SessionComponent
+
+<PanelSection Title="Position">
+    <Tools>
+        <div class="seg seg-sm">
+            <button class="@(_work ? "active" : "")" @onclick="() => _work = true">Work</button>
+            <button class="@(!_work ? "active" : "")" @onclick="() => _work = false">Machine</button>
+        </div>
+    </Tools>
+    <ChildContent>
+        <div class="dro">
+            @for (var i = 0; i < Axes.Length; i++)
+            {
+                var primary = (_work ? Work : Machine) is { } p && p.Length > i ? p[i] : (double?)null;
+                var secondary = (_work ? Machine : Work) is { } q && q.Length > i ? q[i] : (double?)null;
+                <div class="dro-cell">
+                    <span class="dro-axis">@Axes[i]</span>
+                    <span class="dro-value">@Fmt(primary, i == 3)</span>
+                    <span class="dro-sub">@(_work ? "M" : "W") @Fmt(secondary, i == 3)</span>
+                </div>
+            }
+        </div>
+
+        @if (Status is { } st)
+        {
+            <details class="raw">
+                <summary>More status fields</summary>
+                <dl class="status-fields">
+                    @foreach (var field in StatusFields.Describe(st))
+                    {
+                        <dt title="Status field @field.Key">@field.Name@(field.IsKnown ? " " : "")@if (field.IsKnown) { <span class="mono muted">@field.Key</span> }</dt>
+                        <dd>
+                            @foreach (var value in field.Values)
+                            {
+                                <span class="status-value">@if (value.Label.Length > 0) { <span class="muted">@value.Label</span> } <span class="mono">@value.Text</span></span>
+                            }
+                        </dd>
+                    }
+                </dl>
+                <code>@st.Raw</code>
+            </details>
+        }
+        else
+        {
+            <p class="muted small pad">@(Connected ? "Waiting for the first status report…" : "Connect to see live position and status.")</p>
+        }
+    </ChildContent>
+</PanelSection>
+
+@code {
+    private static readonly string[] Axes = { "X", "Y", "Z", "A" };
+
+
+    private bool _work = true;
+
+    private StatusReport? Status => Session.Status;
+    private double[]? Work => Status?.WorkPosition;
+    private double[]? Machine => Status?.MachinePosition;
+
+    private static string Fmt(double? v, bool rotary) =>
+        v is null ? "—" : v.Value.ToString(rotary ? "0.00" : "0.000", CultureInfo.InvariantCulture) + (rotary ? "°" : "");
+}

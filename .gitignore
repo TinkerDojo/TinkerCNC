@@ -1,0 +1,15 @@
+bin/
+obj/
+*.user
+.vs/
+.idea/
+.claude/
+TestResults/
+.DS_Store
+Thumbs.db
+# runtime data written next to the app by earlier versions (machines, cached G-code, recordings): never publish
+**/App_Data/
+**/recordings/
+
+# packaging output (build/pack-*.ps1|sh)
+artifacts/

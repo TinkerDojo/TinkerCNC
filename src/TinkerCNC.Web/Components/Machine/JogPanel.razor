@@ -1,0 +1,49 @@
+@inherits SessionComponent
+
+<PanelSection Title="Jog">
+    <Tools>
+        <div class="seg seg-sm">
+            @foreach (var s in Steps)
+            {
+                <button class="@(_step == s ? "active" : "")" @onclick="() => _step = s">@s.ToString(CultureInfo.InvariantCulture)</button>
+            }
+        </div>
+    </Tools>
+    <ChildContent>
+        <div class="jog">
+            @foreach (var move in JogMove.All)
+            {
+                <button class="jog-btn jog-@move.Slot" disabled="@Disabled" title="@move.Label"
+                        @onclick="() => _runner.RunAsync(() => move.ExecuteAsync(Session, _step))">
+                    <Icon Name="@move.Icon" Size="20" /><small>@move.Label</small>
+                </button>
+            }
+            <span class="jog-center mono">@_step.ToString(CultureInfo.InvariantCulture)<small>mm</small></span>
+        </div>
+
+        @if (Connected && !CanJog)
+        {
+            <p class="hint warn">Jogging is disabled while the machine is <b>@(Session.Status?.State ?? "unknown")</b>.</p>
+        }
+        @if (_runner.Error is not null)
+        {
+            <p class="hint err">@_runner.Error</p>
+        }
+        <p class="hint muted">Sends <code>G91 G0 …</code> then <code>G90</code>. Moves are rapid (G0).</p>
+    </ChildContent>
+</PanelSection>
+
+@code {
+    private static readonly double[] Steps = { 0.1, 1, 10, 50 };
+    private static readonly string[] JoggableStates = { "Idle", "Jog" };
+
+    private readonly ActionRunner _runner = new();
+    private double _step = 1;
+
+    private bool CanJog => Session.Status?.State is { } state
+                           && JoggableStates.Any(s => state.StartsWith(s, StringComparison.OrdinalIgnoreCase));
+
+    private bool Disabled => !Connected || !CanJog;
+
+    protected override void OnInitialized() => MinRenderInterval = TimeSpan.FromMilliseconds(300);
+}

@@ -1,0 +1,198 @@
+@inherits LiveComponent
+@inject CameraService Camera
+@inject IJSRuntime JS
+
+<section class="card video-card">
+    <div class="card-head">
+        <h2><Icon Name="camera" /> Live camera</h2>
+        <div class="head-tools">
+            @if (_feed.Running)
+            {
+                <span class="chip @(_feed.Connected ? "chip-ok" : "chip-warn")">
+                    <span class="dot @(_feed.Connected ? "dot-on" : "dot-wait")"></span>
+                    @(_feed.Connected ? $"{_feed.Fps:0.#} fps" : "connecting…")
+                </span>
+            }
+            <span class="mono small muted">ws://@Host:82/ws_video</span>
+        </div>
+    </div>
+
+    <div class="video-stage" @ref="_stage">
+        @if (_feed.Running)
+        {
+            <img class="video" src="@($"video/{_feed.SourceId}/stream?n={_nonce}")" alt="Live camera" />
+            @if (_feed.Frames == 0)
+            {
+                <div class="video-overlay">
+                    <span class="spinner lg"></span>
+                    <span>@(_feed.LastError is { } e ? e : "Waiting for frames…")</span>
+                </div>
+            }
+            @if (_feed.IsRecording)
+            {
+                <div class="rec-badge"><span class="rec-dot"></span>REC @Elapsed · @_feed.RecordedFrames frames</div>
+            }
+        }
+        else
+        {
+            <div class="video-placeholder">
+                <Icon Name="camera" Size="44" />
+                <p>The camera is off.</p>
+                <button class="btn btn-primary" @onclick="Start"><Icon Name="play" /> Start camera</button>
+                <p class="muted small">Opens the machine's camera WebSocket on port 82 and sends <code>start_stream</code>.</p>
+            </div>
+        }
+    </div>
+
+    <div class="video-bar">
+        @if (_feed.Running)
+        {
+            <button class="btn btn-ghost" @onclick="Stop"><Icon Name="stop" /> Stop</button>
+            @if (_feed.IsRecording)
+            {
+                <button class="btn btn-rec active" @onclick="StopRecording"><Icon Name="stop" /> Stop recording</button>
+            }
+            else
+            {
+                <button class="btn btn-rec" @onclick="StartRecording"><Icon Name="record" /> Record</button>
+            }
+            <button class="btn btn-ghost" disabled="@(_feed.Frames == 0)" @onclick="Snapshot"><Icon Name="snapshot" /> Snapshot</button>
+            <div class="zoom-controls" title="Zoom: mouse wheel or pinch, drag to move, double-click for a close-up">
+                <button class="btn btn-icon" title="Zoom out" @onclick="() => ZoomAsync(1 / ZoomStep)"><Icon Name="zoom-out" /></button>
+                <button class="zoom-level mono" title="Reset zoom" @onclick="ResetZoomAsync">1.0×</button>
+                <button class="btn btn-icon" title="Zoom in" @onclick="() => ZoomAsync(ZoomStep)"><Icon Name="zoom-in" /></button>
+            </div>
+            <button class="btn btn-icon" title="Fullscreen" @onclick="Fullscreen"><Icon Name="fullscreen" /></button>
+        }
+        <div class="spacer"></div>
+        <span class="muted small">@(_feed.Frames > 0 ? $"{_feed.Frames:N0} frames · last {TimeFormat.Ago(_feed.LastFrameUtc)}" : "")</span>
+    </div>
+
+    @if (_saved.Count > 0)
+    {
+        <ul class="files">
+            @foreach (var f in _saved.AsEnumerable().Reverse().Take(5))
+            {
+                <li>
+                    <Icon Name="@(f.EndsWith(".mjpeg") ? "film" : "snapshot")" />
+                    <a href="@($"recordings/{Uri.EscapeDataString(Path.GetFileName(f))}")" target="_blank">@Path.GetFileName(f)</a>
+                    <span class="muted small mono" title="@f">@Path.GetDirectoryName(f)</span>
+                </li>
+            }
+        </ul>
+    }
+    @if (_feed.LastError is { } err && _feed.Frames > 0)
+    {
+        <p class="hint warn">@err</p>
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired] public string Host { get; set; } = "";
+    [Parameter] public string? Label { get; set; }
+
+    private const double ZoomStep = 1.5;
+
+    private CameraFeed _feed = default!;
+    private ElementReference _stage;
+    private IJSObjectReference? _zoomModule;
+    private IJSObjectReference? _zoom;
+    private int _nonce;
+    private DateTime? _recStartedUtc;
+    private readonly List<string> _saved = new();
+
+    private string Elapsed => _recStartedUtc is { } t ? (DateTime.UtcNow - t).ToString(@"mm\:ss") : "";
+
+    protected override void OnInitialized()
+    {
+        Camera.Changed += OnFeedChanged;
+        StartTicker(TimeSpan.FromSeconds(1));
+    }
+
+    protected override void OnParametersSet()
+    {
+        _feed = Camera.Get(Host);
+        if (_feed.IsRecording) _recStartedUtc ??= DateTime.UtcNow;
+    }
+
+    private void OnFeedChanged(CameraFeed feed)
+    {
+        if (ReferenceEquals(feed, _feed)) RequestRender();
+    }
+
+    /// <summary>Zoom and pan of the live image (wwwroot/js/zoom-view.js); a view-only transform.</summary>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        try
+        {
+            _zoomModule = await JS.InvokeAsync<IJSObjectReference>("import", "./js/zoom-view.js");
+            _zoom = await _zoomModule.InvokeAsync<IJSObjectReference>("createZoomView", _stage, ".zoom-level");
+        }
+        catch (JSDisconnectedException) { }
+    }
+
+    private Task ZoomAsync(double factor) => InvokeZoomAsync("zoomBy", factor);
+
+    private Task ResetZoomAsync() => InvokeZoomAsync("reset");
+
+    private async Task InvokeZoomAsync(string method, params object?[] args)
+    {
+        if (_zoom is null) return;
+        try { await _zoom.InvokeVoidAsync(method, args); }
+        catch (JSDisconnectedException) { }
+    }
+
+    private async Task Start()
+    {
+        _nonce++;
+        Camera.Start(Host);
+        await ResetZoomAsync();
+    }
+
+    private void Stop()
+    {
+        if (_feed.RecordingPath is { } p) _saved.Add(p);
+        Camera.Stop(Host);
+        _recStartedUtc = null;
+    }
+
+    private void StartRecording()
+    {
+        Camera.StartRecording(Host, Label);
+        _recStartedUtc = DateTime.UtcNow;
+    }
+
+    private void StopRecording()
+    {
+        if (Camera.StopRecording(Host) is { } path) _saved.Add(path);
+        _recStartedUtc = null;
+    }
+
+    private void Snapshot()
+    {
+        if (Camera.SaveSnapshot(Host, Label) is { } path) _saved.Add(path);
+    }
+
+    private async Task Fullscreen()
+    {
+        try { await JS.InvokeVoidAsync("tinkercnc.fullscreen", _stage); } catch { }
+    }
+
+    protected override void OnDispose()
+    {
+        Camera.Changed -= OnFeedChanged;
+        _ = DisposeZoomAsync();
+    }
+
+    private async Task DisposeZoomAsync()
+    {
+        try
+        {
+            await InvokeZoomAsync("dispose");
+            if (_zoom is not null) await _zoom.DisposeAsync();
+            if (_zoomModule is not null) await _zoomModule.DisposeAsync();
+        }
+        catch (JSDisconnectedException) { }
+    }
+}

@@ -1,0 +1,25 @@
+<span class="state state-@Css @(Small ? "state-sm" : "")">@(string.IsNullOrEmpty(State) ? "—" : State)</span>
+
+@code {
+    [Parameter] public string? State { get; set; }
+    [Parameter] public bool Small { get; set; }
+
+    // States the machine reports: Idle, Run, Hold, Home, Tool, Wait, Jog, Alarm, Sleep.
+    private static readonly IReadOnlyDictionary<string, string> Styles =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Idle"] = "idle",
+            ["Run"] = "run",
+            ["Jog"] = "run",
+            ["Home"] = "run",
+            ["Tool"] = "run",
+            ["Hold"] = "hold",
+            ["Wait"] = "hold",
+            ["Pause"] = "hold",
+            ["Door"] = "hold",
+            ["Alarm"] = "alarm",
+            ["Sleep"] = "sleep",
+        };
+
+    private string Css => Styles.GetValueOrDefault((State ?? "").Split(':')[0], "unknown");
+}

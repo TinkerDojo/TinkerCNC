@@ -1,0 +1,65 @@
+@page "/settings/timelapse"
+@inherits LiveComponent
+@inject MachineDirectory Directory
+@inject MachineSessionManager Sessions
+@inject NavigationManager Navigation
+
+<PageTitle>Time-lapse · Settings · TinkerCNC</PageTitle>
+
+<header class="page-head">
+    <div>
+        <h1>Time-lapse</h1>
+        <p class="muted">Recordings stored on a machine, played through its preview channel.</p>
+    </div>
+    <label class="field-inline">
+        <span class="muted small">Machine</span>
+        <select class="input" value="@Selected?.Address" @onchange="SelectMachine" disabled="@(Machines.Count == 0)">
+            @foreach (var machine in Machines)
+            {
+                <option value="@machine.Address">@machine.Name (@machine.Address)@(machine.Online ? "" : " · offline")</option>
+            }
+        </select>
+    </label>
+</header>
+
+@if (Selected?.Host is { } host)
+{
+    <TimelapsePanel Host="@host" />
+}
+else
+{
+    <div class="empty">No machines known yet. Add or discover one on the <a href="/">Machines</a> page.</div>
+}
+
+@code {
+    /// <summary>Address of the machine, from the query string (<c>?machine=…</c>).</summary>
+    [SupplyParameterFromQuery(Name = "machine")] public string? Machine { get; set; }
+
+    private IReadOnlyList<MachineEntry> Machines => Directory.All.Where(m => m.Address is not null).ToList();
+
+    /// <summary>The requested machine, else the first connected one, else the first online one, else the first known.</summary>
+    private MachineEntry? Selected =>
+        Machines.FirstOrDefault(m => Is(m, Machine))
+        ?? Machines.FirstOrDefault(m => Sessions.Connected.Any(s => Is(m, s.Address)))
+        ?? Machines.FirstOrDefault(m => m.Online)
+        ?? Machines.FirstOrDefault();
+
+    private static bool Is(MachineEntry machine, string? address) =>
+        string.Equals(machine.Address, address, StringComparison.OrdinalIgnoreCase);
+
+    protected override void OnInitialized()
+    {
+        Directory.Changed += RequestRender;
+        Sessions.Changed += RequestRender;
+        MinRenderInterval = TimeSpan.FromSeconds(1);
+    }
+
+    private void SelectMachine(ChangeEventArgs e) =>
+        Navigation.NavigateTo(Navigation.GetUriWithQueryParameter("machine", e.Value?.ToString()));
+
+    protected override void OnDispose()
+    {
+        Directory.Changed -= RequestRender;
+        Sessions.Changed -= RequestRender;
+    }
+}

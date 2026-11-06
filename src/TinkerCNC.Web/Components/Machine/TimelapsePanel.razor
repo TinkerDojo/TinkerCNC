@@ -1,0 +1,121 @@
+@inherits LiveComponent
+@inject TimelapseService Timelapses
+
+<section class="card video-card">
+    <div class="card-head">
+        <h2><Icon Name="film" /> Time-lapse recordings</h2>
+        <div class="head-tools">
+            <span class="chip @StateChips[_player.State]">@_player.State</span>
+            <span class="mono small muted">ws://@Host:82/ws_preview</span>
+        </div>
+    </div>
+
+    <form class="path-form" @onsubmit="OpenAsync">
+        <input class="input mono" placeholder="Path of a recording on the machine, e.g. /sd/…" @bind="_path" @bind:event="oninput" />
+        <button class="btn btn-primary" type="submit" disabled="@(string.IsNullOrWhiteSpace(_path) || LoadingStates.Contains(_player.State))">
+            <Icon Name="play" /> Open
+        </button>
+    </form>
+
+    @if (_player.State is not TimelapseState.Idle)
+    {
+        <div class="video-stage small-stage">
+            <img class="video" src="@($"video/{TimelapseService.SourceIdFor(Host)}/stream?n={_nonce}")" alt="Time-lapse" />
+            @if (_player.FramesReceived == 0 && LoadingStates.Contains(_player.State))
+            {
+                <div class="video-overlay"><span class="spinner lg"></span><span>@_player.State…</span></div>
+            }
+        </div>
+
+        <input class="seek" type="range" min="0" max="1000" title="Seek"
+               value="@((int)(_player.Progress * 1000))" disabled="@(_player.Info is null)"
+               @onchange="SeekAsync" />
+
+        <div class="video-bar">
+            @if (TransportActions.TryGetValue(_player.State, out var action))
+            {
+                <button class="btn btn-ghost" @onclick="() => _runner.RunAsync(() => action.Execute(_player))">
+                    <Icon Name="@action.Icon" /> @action.Label
+                </button>
+            }
+            <button class="btn btn-ghost" @onclick="() => _runner.RunAsync(() => _player.StopAsync())"><Icon Name="stop" /> Close</button>
+            <div class="spacer"></div>
+            @if (_player.Info is { } info)
+            {
+                <span class="muted small mono">
+                    frame @Math.Max(0, _player.CurrentFrame - info.FirstFrameIndex)/@info.TotalFrames
+                    · @(info.Width)×@(info.Height)
+                    @if (info.DurationMs > 0) { <text> · @TimeSpan.FromMilliseconds(info.DurationMs).ToString(@"hh\:mm\:ss")</text> }
+                </span>
+            }
+        </div>
+    }
+
+    @if ((_player.LastError ?? _runner.Error) is { } err)
+    {
+        <p class="hint @(_player.State == TimelapseState.Preempted ? "warn" : "err")">@err</p>
+    }
+    <p class="hint muted">
+        Plays recordings stored on the machine. Only one viewer at a time can play recordings from a machine.
+    </p>
+</section>
+
+@code {
+    [Parameter, EditorRequired] public string Host { get; set; } = "";
+
+    private sealed record PlayerAction(string Label, string Icon, Func<TimelapsePlayer, Task> Execute);
+
+    private static readonly IReadOnlyDictionary<TimelapseState, string> StateChips = new Dictionary<TimelapseState, string>
+    {
+        [TimelapseState.Idle] = "chip-dim",
+        [TimelapseState.Connecting] = "chip-warn",
+        [TimelapseState.Opening] = "chip-warn",
+        [TimelapseState.Playing] = "chip-ok",
+        [TimelapseState.Paused] = "chip-warn",
+        [TimelapseState.Ended] = "chip-dim",
+        [TimelapseState.Preempted] = "chip-warn",
+        [TimelapseState.Error] = "chip-err",
+    };
+
+    // The primary transport button for each state (states without one show only "Close").
+    private static readonly IReadOnlyDictionary<TimelapseState, PlayerAction> TransportActions = new Dictionary<TimelapseState, PlayerAction>
+    {
+        [TimelapseState.Playing] = new("Pause", "pause", p => p.PauseAsync()),
+        [TimelapseState.Paused] = new("Resume", "play", p => p.ResumeAsync()),
+        [TimelapseState.Ended] = new("Replay", "refresh", p => p.PlayAsync()),
+    };
+
+    private static readonly IReadOnlySet<TimelapseState> LoadingStates =
+        new HashSet<TimelapseState> { TimelapseState.Connecting, TimelapseState.Opening, TimelapseState.Playing };
+
+    private readonly ActionRunner _runner = new();
+    private TimelapsePlayer _player = default!;
+    private string? _path;
+    private int _nonce;
+
+    protected override void OnParametersSet()
+    {
+        if (_player is not null) _player.Changed -= RequestRender;
+        _player = Timelapses.Get(Host);
+        _player.Changed += RequestRender;
+        _path ??= _player.FilePath;
+        StartTicker(TimeSpan.FromMilliseconds(500));
+    }
+
+    private async Task OpenAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_path)) return;
+        _nonce++;
+        await _runner.RunAsync(() => _player.OpenAsync(_path.Trim()));
+    }
+
+    private Task SeekAsync(ChangeEventArgs e) =>
+        int.TryParse(e.Value?.ToString(), out var permille)
+            ? _runner.RunAsync(() => _player.SeekAsync(permille / 1000.0))
+            : Task.CompletedTask;
+
+    protected override void OnDispose()
+    {
+        if (_player is not null) _player.Changed -= RequestRender;
+    }
+}

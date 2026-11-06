@@ -1,0 +1,130 @@
+@* Move to typed coordinates, checked against the machine's travel (read from the machine after connecting). *@
+@using TinkerCNC.Motion
+@inherits SessionComponent
+
+<PanelSection Title="Go to">
+    <Tools>
+        <div class="seg seg-sm">
+            @foreach (var frame in Frames)
+            {
+                <button class="@(_frame == frame ? "active" : "")" @onclick="() => SetFrame(frame)">@frame</button>
+            }
+        </div>
+    </Tools>
+    <ChildContent>
+        @if (Travel is not { } travel || Status is not { } status)
+        {
+            <p class="hint muted">@LimitsText</p>
+        }
+        else
+        {
+            <div class="goto-grid">
+                @foreach (var axis in Axes)
+                {
+                    var range = GoToPlanner.RangeIn(_frame, axis, travel, status);
+                    <label class="goto-axis @(_plan?.Errors.ContainsKey(axis) == true ? "invalid" : "")">
+                        <span class="dro-axis">@axis</span>
+                        <input class="input mono" type="number" step="0.1" min="@Css(range.Min)" max="@Css(range.Max)"
+                               placeholder="@Css(Current(axis, status))" value="@(_values.GetValueOrDefault(axis) is { } v ? Css(v) : "")"
+                               @oninput="e => SetValue(axis, e.Value)" />
+                        <span class="goto-range mono" title="Allowed range in @_frame.ToString().ToLowerInvariant() coordinates">@Css(range.Min) … @Css(range.Max)</span>
+                    </label>
+                }
+            </div>
+            @if (_plan is { IsValid: false } invalid)
+            {
+                @foreach (var error in invalid.Errors.Values)
+                {
+                    <p class="hint err">@error</p>
+                }
+            }
+            <div class="goto-actions">
+                <label class="check" title="Raise to the clearance height, move across, then lower (recommended)">
+                    <input type="checkbox" checked="@_liftFirst" @onchange="e => { _liftFirst = e.Value is true; UpdatePlan(); }" /> Lift to clearance first
+                </label>
+                <div class="spacer"></div>
+                <button class="btn btn-sm btn-ghost" title="Fill in the current position" @onclick="UseCurrent">Current</button>
+                <button class="btn btn-sm btn-primary" disabled="@(!CanGo)" title="@GoTitle" @onclick="() => _runner.RunAsync(() => Session.GoToAsync(Request))">
+                    <Icon Name="right" /> Go
+                </button>
+            </div>
+            @if (Connected && !MachineSession.IsIdle(status))
+            {
+                <p class="hint warn">Moves to a position are possible while the machine is idle.</p>
+            }
+        }
+        @if (_runner.Error is not null)
+        {
+            <p class="hint err">@_runner.Error</p>
+        }
+    </ChildContent>
+</PanelSection>
+
+@code {
+    /// <summary>Shows the planned target in the machine view.</summary>
+    [Parameter, EditorRequired] public MoveTargetPreview Preview { get; set; } = default!;
+
+    private static readonly Axis[] Axes = [Axis.X, Axis.Y, Axis.Z];
+    private static readonly CoordinateFrame[] Frames = [CoordinateFrame.Work, CoordinateFrame.Machine];
+
+    private readonly ActionRunner _runner = new();
+    private readonly Dictionary<Axis, double?> _values = new();
+    private CoordinateFrame _frame = CoordinateFrame.Work;
+    private bool _liftFirst = true;
+    private GoToPlan? _plan;
+
+    private StatusReport? Status => Session.Status;
+    private MachineTravel? Travel => Session.Limits.Travel;
+    private GoToRequest Request => new(_values.GetValueOrDefault(Axis.X), _values.GetValueOrDefault(Axis.Y), _values.GetValueOrDefault(Axis.Z), _frame, _liftFirst);
+    private bool HasInput => _values.Values.Any(v => v is not null);
+    private bool CanGo => Connected && HasInput && _plan is { IsValid: true } && MachineSession.IsIdle(Status);
+    private string GoTitle => _plan is { IsValid: true } plan ? "Sends:\n" + string.Join("\n", plan.Commands) : "Enter a position within the limits";
+
+    private string LimitsText => !Connected ? "Connect to read the machine's travel limits."
+        : Session.Limits.Loading ? "Reading the machine's travel limits…"
+        : Session.Limits.Error ?? "Waiting for the machine's position…";
+
+    /// <summary>The plan follows the status too (work coordinates move with the work offset).</summary>
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+        UpdatePlan();
+    }
+
+    protected override bool ShouldRender()
+    {
+        UpdatePlan();
+        return true;
+    }
+
+    private void SetValue(Axis axis, object? value)
+    {
+        _values[axis] = double.TryParse(value?.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var v) ? v : null;
+        UpdatePlan();
+    }
+
+    private void SetFrame(CoordinateFrame frame)
+    {
+        _frame = frame;
+        _values.Clear();
+        UpdatePlan();
+    }
+
+    private void UseCurrent()
+    {
+        if (Status is not { } status) return;
+        foreach (var axis in Axes) _values[axis] = Math.Round(Current(axis, status), 3);
+        UpdatePlan();
+    }
+
+    private void UpdatePlan()
+    {
+        _plan = HasInput && Travel is { } travel && Status is { } status ? GoToPlanner.Plan(Request, status, travel) : null;
+        Preview.Show(_plan is { IsValid: true } plan ? plan.Target : null);
+    }
+
+    private double Current(Axis axis, StatusReport status) =>
+        (_frame == CoordinateFrame.Work ? status.WorkPosition : status.MachinePosition) is { Length: >= 3 } p ? p[(int)axis] : 0;
+
+    private static string Css(double value) => value.ToString("0.###", CultureInfo.InvariantCulture);
+}

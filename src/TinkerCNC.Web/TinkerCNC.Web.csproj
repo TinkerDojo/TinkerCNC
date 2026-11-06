@@ -1,0 +1,53 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\TinkerCNC.Core\TinkerCNC.Core.csproj" />
+    <ProjectReference Include="..\TinkerCNC.Host\TinkerCNC.Host.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Photino.NET" Version="4.0.16" />
+    <PackageReference Include="Velopack" Version="1.2.161" />
+  </ItemGroup>
+
+  <!-- License and notice texts ship with every build and installer (Apache-2.0 §4) and are served under /legal. -->
+  <ItemGroup>
+    <None Include="..\..\LICENSE" Link="legal\LICENSE.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="..\..\NOTICE" Link="legal\NOTICE.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="..\..\COPYRIGHT.md" Link="legal\COPYRIGHT.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="..\..\THIRD-PARTY-NOTICES.md" Link="legal\THIRD-PARTY-NOTICES.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <!-- Window icon (the .exe icon itself comes from ApplicationIcon). -->
+    <None Include="..\..\build\icons\TinkerCNC.ico" Link="icons\TinkerCNC.ico" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!--
+    Release builds (build/pack-*.ps1|sh, the release workflow) pass where installed copies find updates and the source:
+    dotnet publish -p:UpdatesUrl=https://github.com/<owner>/<repo> -p:SourceUrl=… (read by AppUpdates and AppInfo).
+  -->
+  <ItemGroup>
+    <AssemblyMetadata Include="UpdatesUrl" Value="$(UpdatesUrl)" />
+    <AssemblyMetadata Include="SourceUrl" Value="$(SourceUrl)" />
+  </ItemGroup>
+
+  <!--
+    Installer builds (build/pack-*.ps1|sh pass -p:DesktopBuild=true) are window apps without a console. OutputType must
+    stay Exe: Blazor adds its framework scripts (_framework/blazor.web.js) only to Exe projects, and without them the
+    dashboard does not react at all. So only the Windows apphost is marked as a GUI program, through the SDK's own
+    (internal) switch; build/pack-windows.ps1 checks the result.
+  -->
+  <PropertyGroup Condition="'$(DesktopBuild)' == 'true' and $(RuntimeIdentifier.StartsWith('win'))">
+    <_UseWindowsGraphicalUserInterface>true</_UseWindowsGraphicalUserInterface>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
+    <!-- The executable users see (TinkerCNC.exe / TinkerCNC); code stays in TinkerCNC.Web.* -->
+    <AssemblyName>TinkerCNC</AssemblyName>
+    <RootNamespace>TinkerCNC.Web</RootNamespace>
+    <ApplicationIcon>..\..\build\icons\TinkerCNC.ico</ApplicationIcon>
+  </PropertyGroup>
+
+</Project>

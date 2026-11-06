@@ -1,0 +1,27 @@
+<span class="chip @Look.Chip" title="@Session.Error">
+    @if (Look.Spinner)
+    {
+        <span class="spinner"></span>
+    }
+    else
+    {
+        <span class="dot @Look.Dot"></span>
+    }
+    @Look.Label(Session)
+</span>
+
+@code {
+    [Parameter, EditorRequired] public MachineSession Session { get; set; } = default!;
+
+    private sealed record Appearance(string Chip, string Dot, bool Spinner, Func<MachineSession, string> Label);
+
+    private static readonly IReadOnlyDictionary<SessionState, Appearance> Looks = new Dictionary<SessionState, Appearance>
+    {
+        [SessionState.Connected] = new("chip-accent", "dot-on", false, s => $"Connected {TimeFormat.Ago(s.ConnectedSinceUtc)}"),
+        [SessionState.Connecting] = new("chip-warn", "", true, _ => "Connecting"),
+        [SessionState.Failed] = new("chip-err", "dot-err", false, s => s.Error ?? "Failed"),
+        [SessionState.Disconnected] = new("chip-dim", "dot-off", false, _ => "Not connected"),
+    };
+
+    private Appearance Look => Looks[Session.State];
+}

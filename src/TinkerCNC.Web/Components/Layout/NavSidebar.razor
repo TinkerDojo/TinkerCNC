@@ -1,0 +1,75 @@
+@inherits LiveComponent
+@inject MachineDirectory Directory
+@inject MachineSessionManager Sessions
+
+<aside class="sidebar">
+    <a class="brand" href="/">
+        <span class="brand-mark">
+            <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M4 4h16v3.4h-6.3V20h-3.4V7.4H4z"/></svg>
+        </span>
+        <span class="brand-text">Tinker<b>CNC</b></span>
+    </a>
+
+    <nav class="nav">
+        <NavLink class="nav-item" href="/" Match="NavLinkMatch.All">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v4H4zM4 11h16v4H4zM4 17h16v2H4z"/></svg>
+            Machines
+        </NavLink>
+    </nav>
+
+    <div class="nav-section">Connected</div>
+    <nav class="nav">
+        @if (Sessions.Connected.Count == 0)
+        {
+            <span class="nav-empty">No active connections</span>
+        }
+        @foreach (var s in Sessions.Connected)
+        {
+            <NavLink class="nav-item" href="@MachineLink(s.Address)">
+                <span class="dot @(s.State == SessionState.Connected ? "dot-on" : "dot-wait")"></span>
+                <span class="nav-text">@s.Name</span>
+                @if (s.Status is { } st)
+                {
+                    <StateBadge State="@st.State" Small="true" />
+                }
+            </NavLink>
+        }
+    </nav>
+
+    <div class="nav-section">Settings</div>
+    <nav class="nav">
+        @foreach (var settings in SettingsPages.All)
+        {
+            <NavLink class="nav-item" href="@settings.Href">
+                <Icon Name="@settings.Icon" Size="18" />
+                <span class="nav-text">@settings.Title</span>
+            </NavLink>
+        }
+    </nav>
+
+    <div class="sidebar-footer">
+        <div class="discovery-pill @(Directory.Discovery.Listening ? "on" : "off")"
+             title="@(Directory.Discovery.Error ?? "Listening for machine announcements on UDP 3333")">
+            <span class="dot @(Directory.Discovery.Listening ? "dot-on pulse" : "dot-off")"></span>
+            @(Directory.Discovery.Listening ? "Discovery active" : "Discovery offline")
+        </div>
+    </div>
+</aside>
+
+@code {
+    public static string MachineLink(string address) => "machine/" + Uri.EscapeDataString(address);
+
+    protected override void OnInitialized()
+    {
+        Sessions.Changed += RequestRender;
+        Directory.Changed += RequestRender;
+        MinRenderInterval = TimeSpan.FromMilliseconds(500);
+        StartTicker(TimeSpan.FromSeconds(5));
+    }
+
+    protected override void OnDispose()
+    {
+        Sessions.Changed -= RequestRender;
+        Directory.Changed -= RequestRender;
+    }
+}

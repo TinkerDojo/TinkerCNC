@@ -1,0 +1,28 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.{cs,razor}]
+max_line_length = 120
+csharp_style_namespace_declarations = file_scoped:warning
+csharp_prefer_braces = when_multiline
+dotnet_sort_system_directives_first = true
+
+[*.{json,yml,yaml,props,targets,csproj,slnx,md}]
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
+max_line_length = 120
+
+[*.{sh}]
+end_of_line = lf
+
+[*.{ps1,cmd,bat}]
+end_of_line = crlf

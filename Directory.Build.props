@@ -1,0 +1,20 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Release version; build/pack-*.sh|ps1 pass the real one (-p:Version=…). -->
+    <Version>0.1.0</Version>
+    <Product>TinkerCNC</Product>
+    <Company>TinkerDojo</Company>
+    <Authors>TinkerDojo</Authors>
+    <Copyright>Copyright 2026 TinkerDojo. Licensed under the Apache License 2.0.</Copyright>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <!-- Only TinkerCNC.Core (library) and TinkerCNC.Cli (dotnet tool) are published to NuGet. -->
+    <IsPackable>false</IsPackable>
+    <RepositoryUrl>https://github.com/TinkerDojo/TinkerCNC</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageProjectUrl>https://github.com/TinkerDojo/TinkerCNC</PackageProjectUrl>
+  </PropertyGroup>
+</Project>

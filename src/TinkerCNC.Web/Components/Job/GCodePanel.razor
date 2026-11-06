@@ -1,0 +1,63 @@
+@* The program around the line being executed, or around an operation picked on the timeline, in the side rail. *@
+@inherits JobComponent
+
+<RailPanel Title="G-code" Icon="code" Key="@Key" Wide="true">
+    <Tools>
+        @if (Job.Timeline is { } timeline)
+        {
+            <span class="muted small">
+                @if (Job.CurrentLine is { } current)
+                {
+                    <text>Line <b class="mono">@current.ToString("N0")</b> of @timeline.Analysis.LineCount.ToString("N0")</text>
+                }
+                else
+                {
+                    <text>@timeline.Analysis.LineCount.ToString("N0") lines</text>
+                }
+            </span>
+            @if (!Focus.Follow && Job.CurrentLine is not null)
+            {
+                <button class="btn btn-sm btn-ghost" title="Show the line the machine is executing" @onclick="Focus.FollowMachine">Follow</button>
+            }
+        }
+    </Tools>
+    <ChildContent>
+        @if (Job.Timeline is { } timeline)
+        {
+            <GCodeViewer Timeline="timeline" CurrentLine="Job.CurrentLine" FocusLine="Focus.Line" Follow="Focus.Follow" />
+        }
+        else
+        {
+            <p class="muted small pad">No program loaded.</p>
+        }
+    </ChildContent>
+</RailPanel>
+
+@code {
+    private const string Key = "gcode";
+
+    [CascadingParameter] public SideRail Rail { get; set; } = default!;
+
+    /// <summary>Shared with the timeline, which picks the line to show.</summary>
+    [Parameter, EditorRequired] public GCodeFocus Focus { get; set; } = default!;
+
+    protected override void OnInitialized()
+    {
+        Focus.LinePicked += OnLinePicked;
+        Focus.FollowResumed += RequestRender;
+    }
+
+    /// <summary>Picking an operation opens this panel on its code.</summary>
+    private void OnLinePicked() => _ = InvokeAsync(async () =>
+    {
+        await Rail.OpenAsync(Key);
+        StateHasChanged();
+    });
+
+    protected override void OnDispose()
+    {
+        Focus.LinePicked -= OnLinePicked;
+        Focus.FollowResumed -= RequestRender;
+        base.OnDispose();
+    }
+}
