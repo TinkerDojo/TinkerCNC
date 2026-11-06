@@ -13,7 +13,7 @@ UPDATES_URL=https://github.com/<owner>/<repo> SOURCE_URL=https://github.com/<own
 ```
 
 Each run publishes a self-contained build (no .NET install needed) and writes to `artifacts/releases/<runtime>`:
-`TinkerCNC-win-Setup.exe` / a `.pkg`, a portable zip, the `*-full.nupkg` update package and the release index
+`TinkerCNC-win-x64-Setup.exe` / a `.pkg`, a portable zip, the `*-full.nupkg` update package and the release index
 (`releases.<channel>.json`). With the previous release's files in that folder (`dotnet vpk download github …`)
 Velopack also builds a small delta package.
 

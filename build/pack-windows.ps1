@@ -10,7 +10,8 @@
 .PARAMETER SourceUrl
   Where the source of this build lives (shown under Settings → About).
 .NOTES
-  Output: artifacts/releases/win-x64. Keep the previous release's files there (or fetch them with
+  Output: artifacts/releases/win-x64, on the Velopack channel named after the runtime (the release workflow
+  downloads and uploads with the same channel). Keep the previous release's files there (or fetch them with
   "dotnet vpk download github --repoUrl …") so Velopack can build a small delta update next to the full package.
   Without signing, Windows SmartScreen warns users the first time they run Setup.exe.
 #>
@@ -52,7 +53,7 @@ if ($subsystem -ne 2) {
 
 dotnet tool restore
 $pack = @(
-    'pack', '--packId', 'TinkerCNC', '--packVersion', $Version, '--packDir', $publish,
+    'pack', '--packId', 'TinkerCNC', '--packVersion', $Version, '--packDir', $publish, '--channel', $Runtime,
     '--mainExe', 'TinkerCNC.exe', '--packTitle', 'TinkerCNC', '--packAuthors', 'TinkerDojo',
     '--icon', (Join-Path $PSScriptRoot 'icons/TinkerCNC.ico'), '--outputDir', $releases,
     '--framework', 'webview2'  # the window's web view; Setup installs it when Windows lacks it

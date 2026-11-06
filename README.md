@@ -65,7 +65,7 @@ The complete feature reference is in [`docs/features.md`](docs/features.md).
 
 ### Installer (Windows, macOS)
 
-Download `TinkerCNC-win-Setup.exe` or the macOS `.pkg` from the
+Download `TinkerCNC-win-x64-Setup.exe` or the macOS `.pkg` from the
 [latest release](https://github.com/TinkerDojo/TinkerCNC/releases/latest) and run it. The app installs per user,
 opens in its own window and updates itself from later releases. Unsigned builds make Windows SmartScreen warn once
 and make macOS ask you to allow the app in System Settings (see [`docs/releases.md`](docs/releases.md)).
