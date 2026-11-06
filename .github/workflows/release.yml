@@ -47,7 +47,7 @@ jobs:
       - name: Upload to the GitHub release
         run: dotnet vpk upload github --repoUrl "$env:REPO_URL" --token "${{ secrets.GITHUB_TOKEN }}" --channel win-x64 --outputDir artifacts/releases/win-x64 --tag ${{ github.ref_name }} --releaseName "TinkerCNC ${{ steps.version.outputs.version }}" --merge --publish
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: windows-release
           path: artifacts/releases/win-x64
@@ -86,7 +86,7 @@ jobs:
       - name: Upload to the GitHub release
         run: dotnet vpk upload github --repoUrl "$REPO_URL" --token "${{ secrets.GITHUB_TOKEN }}" --channel ${{ matrix.runtime }} --outputDir artifacts/releases/${{ matrix.runtime }} --tag ${{ github.ref_name }} --releaseName "TinkerCNC ${{ steps.version.outputs.version }}" --merge --publish
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: macos-release-${{ matrix.runtime }}
           path: artifacts/releases/${{ matrix.runtime }}
@@ -112,7 +112,7 @@ jobs:
           dotnet pack src/TinkerCNC.Core/TinkerCNC.Core.csproj -c Release -o artifacts/nuget -p:Version=${{ steps.version.outputs.version }}
           dotnet pack src/TinkerCNC.Cli/TinkerCNC.Cli.csproj -c Release -o artifacts/nuget -p:Version=${{ steps.version.outputs.version }}
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: nuget
           path: artifacts/nuget
