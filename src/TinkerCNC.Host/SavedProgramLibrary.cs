@@ -80,7 +80,7 @@ public sealed class SavedProgramLibrary
             var stored = Store(originalFileName, content);
             try
             {
-                return _repository.Insert(name, notes.Trim(), stored, Path.GetFileName(originalFileName), Md5(content), options, DateTime.UtcNow);
+                return _repository.Insert(name, notes.Trim(), stored, FileNameOf(originalFileName), Md5(content), options, DateTime.UtcNow);
             }
             catch
             {
@@ -126,7 +126,7 @@ public sealed class SavedProgramLibrary
         {
             var program = Active(id);
             var stored = Store(originalFileName, content);
-            _repository.UpdateFile(id, stored, Path.GetFileName(originalFileName), Md5(content), DateTime.UtcNow);
+            _repository.UpdateFile(id, stored, FileNameOf(originalFileName), Md5(content), DateTime.UtcNow);
             File.Delete(PathOf(program));
         });
         return Get(id);
@@ -173,14 +173,22 @@ public sealed class SavedProgramLibrary
         return trimmed;
     }
 
-    /// <summary>The copy's file name: the original name made safe, with a GUID before the extension.</summary>
+    /// <summary>
+    /// The copy's file name: the original name made safe, with a GUID before the extension. Directories are stripped
+    /// and the name split by hand, because <see cref="Path"/> treats ':' as a separator on Windows only and the
+    /// result must be the same on every system.
+    /// </summary>
     public static string StoredFileName(string originalFileName)
     {
-        var name = Path.GetFileName(originalFileName);
-        var stem = new string(Path.GetFileNameWithoutExtension(name).Select(c => InvalidFileNameChars.Contains(c) ? '_' : c).ToArray());
-        var extension = new string(Path.GetExtension(name).Select(c => InvalidFileNameChars.Contains(c) ? '_' : c).ToArray());
+        var safe = new string(FileNameOf(originalFileName).Select(c => InvalidFileNameChars.Contains(c) ? '_' : c).ToArray());
+        var dot = safe.LastIndexOf('.');
+        var (stem, extension) = dot < 0 ? (safe, "") : (safe[..dot], safe[dot..]);
+        if (extension == ".") extension = ""; // a trailing dot is dropped by Windows file systems
         return $"{(stem.Length > 0 ? stem : "program")}_{Guid.NewGuid():N}{extension}";
     }
+
+    /// <summary>The part after the last '/' or '\\', whatever system the path came from.</summary>
+    public static string FileNameOf(string path) => path[(Math.Max(path.LastIndexOf('/'), path.LastIndexOf('\\')) + 1)..];
 
     private SavedProgramEntry Entry(SavedProgram program)
     {
