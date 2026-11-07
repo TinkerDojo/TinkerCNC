@@ -30,10 +30,13 @@
   (a Linux box next to the machine, for instance) and open the dashboard from any browser or tablet on your network.
 - **Knows your job.** Estimated *and measured* operation times, a tool timeline, the predicted clock time of the next
   tool change, and notifications for manual tool changes and alarms even when no browser tab is open.
-- **Starts jobs properly.** Pick a program (saved, on the machine, or dropped in from this computer), choose the work
-  origin, XYZ corner probing, auto Z probe, auto leveling, scan margin and the machine's own job modes, and read what
-  starting will do, step by step, with the exact commands, before pressing Start. Save a program together with all
-  its options and run it again later.
+- **Starts jobs properly.** Pick a program (one of a setup's files, on the machine, or dropped in from this
+  computer), choose the work origin, XYZ corner probing, auto Z probe, auto leveling, scan margin and the machine's
+  own job modes, and read what starting will do, step by step, with the exact commands, before pressing Start. A job
+  that ended early starts again from the tool operation it was in.
+- **Runs batches.** A setup keeps the options once and any number of files, one per piece. Queue them and the
+  machine runs them one after the other, each waiting for the go at the machine's own button, so the laptop can
+  stay where it is.
 - **Keeps the shop running.** Live camera shared by every viewer, snapshots and recordings, a time-lapse of every job
   you ask for, time-lapse playback,
   and bed cleaning that pauses a running job, sweeps, and resumes it.

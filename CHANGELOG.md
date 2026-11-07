@@ -6,6 +6,17 @@ All notable changes to TinkerCNC are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-07
+
+### Added
+- A **job queue** per machine: files run one after the other with a setup's options and repeat counts, from the
+  setup's files or dropped for these runs only. Every queued job starts paused (a buffered `M600`) until the
+  machine's button is held or Resume is pressed, so the piece can be swapped. A failed job stops the queue with a
+  retry from the interrupted tool operation. The queue is stored and survives a restart.
+- **Start from** a tool operation: a program can begin at any of its tool changes with a trimmed copy that restates
+  the modal state; after a job ended early, the Job card offers to run it again from the operation it was in, also
+  for jobs started on the machine itself.
+
 ### Changed
 - The 3D views (toolpath and machine) are navigated like Autodesk Fusion: middle-drag pans, Shift + middle-drag
   orbits about the point under the cursor (constrained to the vertical axis, never past the poles), the wheel zooms
@@ -22,14 +33,9 @@ All notable changes to TinkerCNC are documented here. The format follows
 - The time-lapse job option records a time-lapse from the camera here (one frame every few seconds, into the
   recordings folder) instead of switching on the machine's own time-lapse (`M951`).
 
+## [0.1.0] - 2026-11-06
+
 ### Added
-- A **job queue** per machine: files run one after the other with a setup's options and repeat counts, from the
-  setup's files or dropped for these runs only. Every queued job starts paused (a buffered `M600`) until the
-  machine's button is held or Resume is pressed, so the piece can be swapped. A failed job stops the queue with a
-  retry from the interrupted tool operation. The queue is stored and survives a restart.
-- **Start from** a tool operation: a program can begin at any of its tool changes with a trimmed copy that restates
-  the modal state; after a job ended early, the Job card offers to run it again from the operation it was in, also
-  for jobs started on the machine itself.
 - First public release: machine discovery and manual machines, dashboard with positions, jog, go-to, console,
   air and bed cleaning, machine views (top, side, 3D), job start with work origin, probing, leveling, scan margin
   and job modes, saved programs, job tracking with tool timeline and measured operation times, notifications,
