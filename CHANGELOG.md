@@ -7,6 +7,9 @@ All notable changes to TinkerCNC are documented here. The format follows
 ## [Unreleased]
 
 ### Changed
+- The 3D views (toolpath and machine) are navigated like Autodesk Fusion: middle-drag pans, Shift + middle-drag
+  orbits about the point under the cursor (constrained to the vertical axis, never past the poles), the wheel zooms
+  towards the cursor; left-drag orbits as well, touch gestures stay.
 - Job handling on the machine page is one **Job** card: it offers a program (saved, on the machine, or from this
   computer with drag and drop), sets it up with the options on the left and a step-by-step summary of what
   starting will do, the estimated time and the Start button on the right, and while the job runs shows the time

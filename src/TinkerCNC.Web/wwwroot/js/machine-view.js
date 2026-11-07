@@ -2,7 +2,7 @@
 // (Components/Machine/MachineViewPanel.razor). Coordinates are machine coordinates in mm; Z is up. When the machine
 // is known (Services/MachineModels.cs), its model is shown; a model with a spindle moves it along with the tool.
 import * as THREE from '../lib/three/three.module.min.js';
-import { OrbitControls } from '../lib/three/OrbitControls.js';
+import { FusionControls } from './fusion-controls.js';
 import { loadMachineModel } from './machine-model.js';
 import { createHead } from './toolpath-view.js';
 
@@ -33,7 +33,7 @@ class MachineView {
 
         this.camera = new THREE.PerspectiveCamera(40, 1, 1, 10000);
         this.camera.up.set(0, 0, 1);
-        this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+        this.controls = new FusionControls(this.camera, this.renderer.domElement, () => this.scene.children);
         this.controls.addEventListener('change', () => this.render());
 
         this.frame = new THREE.Group();   // travel box, bed, clearance plane: rebuilt when the travel changes

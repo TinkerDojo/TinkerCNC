@@ -27,7 +27,10 @@ connection shared by every browser tab that opens it.
   of the height; or a 3D view. On a Z1 / Z1 Pro (recognised by its 207 × 206 mm travel) both views
   show its bed: a CAD model by cinetronix (CC BY 4.0, converted once to `wwwroot/models/compact-bed.glb`); the top
   view is a picture of the same model. Models are placed with their L-bracket corner on the machine's `anchor1`; the
-  height is approximate (bed surface at the lowest Z).
+  height is approximate (bed surface at the lowest Z). The 3D views (this one and the toolpath) are navigated like
+  Autodesk Fusion: the middle button drags the view, Shift + middle button orbits (sideways turns about the
+  vertical, up and down tilts, never past the poles) about the point under the cursor, the wheel zooms towards the
+  cursor. The left button orbits too; on a touch screen one finger orbits, two fingers drag and pinch.
 - **Air**: clean the bed 1×, 2× or 3× in a row, or switch the air on and off. The air output depends on the machine,
   recognised by its travel: the Z1's spindle blower (`M811 S100` / `M812`); other
   travels get compressed air (`M7` / `M9`); until the travel is known the air can't be used. A bed cleaning lifts the head to the

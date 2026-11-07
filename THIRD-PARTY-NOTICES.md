@@ -7,7 +7,7 @@ permits redistribution together with this Apache-2.0 licensed software.
 
 | Component | Used for | License | Copyright |
 |---|---|---|---|
-| [three.js](https://threejs.org) r170 incl. OrbitControls, GLTFLoader (`src/TinkerCNC.Web/wwwroot/lib/three`) | 3D views | MIT, see `wwwroot/lib/three/LICENSE` | © 2010-2024 three.js authors |
+| [three.js](https://threejs.org) r170 incl. GLTFLoader (`src/TinkerCNC.Web/wwwroot/lib/three`) | 3D views | MIT, see `wwwroot/lib/three/LICENSE` | © 2010-2024 three.js authors |
 | [.NET runtime and ASP.NET Core](https://github.com/dotnet) | runtime, web server, Blazor | MIT | © .NET Foundation and Contributors |
 | [Microsoft.Data.Sqlite](https://github.com/dotnet/efcore) | operation history and saved programs | MIT | © Microsoft Corporation |
 | [SQLitePCLRaw](https://github.com/ericsink/SQLitePCL.raw) | SQLite native bindings | Apache-2.0 | © 2014-2024 SourceGear, LLC |

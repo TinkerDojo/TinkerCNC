@@ -3,7 +3,7 @@
 // executed are drawn, the camera frames the whole program. Renders only when something changes, so an idle view
 // costs no CPU.
 import * as THREE from '../lib/three/three.module.min.js';
-import { OrbitControls } from '../lib/three/OrbitControls.js';
+import { FusionControls } from './fusion-controls.js';
 
 const MOVE_RAPID = 1; // ToolpathMove (Jump = 0 is never drawn)
 const MOVE_FEED = 2;
@@ -55,13 +55,14 @@ class ToolpathView {
 
         this.camera = new THREE.PerspectiveCamera(40, 1, 0.1, 10000);
         this.camera.up.set(0, 0, 1);
-        this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-        this.controls.addEventListener('change', () => this.requestRender());
-
         this.bounds = new THREE.Box3(new THREE.Vector3(0, 0, -10), new THREE.Vector3(100, 100, 10));
         this.decor = new THREE.Group();
         this.scene.add(this.decor);
         this.passes = [];
+        // the cursor is on the toolpath drawn so far or on the grid: orbits turn about that point, zooms head for it
+        this.controls = new FusionControls(this.camera, this.renderer.domElement,
+            () => [...this.passes.filter(p => p.object.visible).map(p => p.object), this.decor]);
+        this.controls.addEventListener('change', () => this.requestRender());
         this.rapidsVisible = true;
 
         this.head = createHead();
