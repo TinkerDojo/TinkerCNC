@@ -1,0 +1,178 @@
+@* One setup: its facts and files, and (opened with Manage) its details, adding files and deletion. *@
+@using TinkerCNC.Programs
+@inject SetupLibrary Library
+
+@{ var s = Entry.Setup; }
+<div class="setup-item @(s.IsDeleted ? "deleted" : "") @(Active ? "active" : "")">
+    <div class="setup-main">
+        <div class="setup-info">
+            <div class="setup-title">
+                <Icon Name="library" Size="16" />
+                <span>@s.Name</span>
+                @if (s.IsDeleted)
+                {
+                    <span class="tag">deleted @Local(s.DeletedUtc!.Value)</span>
+                }
+            </div>
+            @if (s.Notes.Length > 0)
+            {
+                <div class="setup-notes" title="@s.Notes">@s.Notes</div>
+            }
+            <div class="setup-meta">
+                <span>@Files(Entry.Files.Count)</span>
+                <span>@Runs(s.RunCount, s.LastStartedUtc)</span>
+                <span>saved @Local(s.UpdatedUtc)</span>
+                @if (StartOptionsText.Summary(s.Options).ToList() is { Count: > 0 } summary)
+                {
+                    <span title="Start options">@string.Join(" · ", summary)</span>
+                }
+                else
+                {
+                    <span title="Start options">default options</span>
+                }
+            </div>
+        </div>
+        <div class="setup-actions">
+            @if (s.IsDeleted)
+            {
+                <button class="btn btn-sm btn-ghost" title="Bring it back with its files" @onclick="() => RestoreAsync(null)">Restore</button>
+                @if (_confirm.IsAsking(s.Id))
+                {
+                    <button class="btn btn-sm btn-danger btn-danger-solid" @onclick="() => _runner.Run(() => { _confirm.Clear(); Library.DeleteForever(s.Id); })">Confirm</button>
+                }
+                else
+                {
+                    <button class="btn btn-sm btn-ghost btn-danger" title="Remove it and its files for good" @onclick="() => _confirm.AskAsync(s.Id)"><Icon Name="trash" /> Delete forever</button>
+                }
+            }
+            else
+            {
+                <button class="btn btn-sm btn-ghost @(_manage ? "active" : "")" title="Rename it, change its notes, add or replace files, or delete it"
+                        @onclick="() => _manage = !_manage">
+                    <Icon Name="pencil" /> Manage
+                </button>
+            }
+        </div>
+    </div>
+
+    <div class="setup-files">
+        @if (Entry.Files.Count == 0)
+        {
+            <p class="muted small pad-x">No files yet@(s.IsDeleted ? "" : ": add some with Manage, or save a program to this setup on a machine").</p>
+        }
+        @foreach (var file in Entry.Files)
+        {
+            <SetupFileItem Entry="file" Active="ActiveFileId == file.File.Id" Busy="Busy" Manage="_manage" Locked="s.IsDeleted" OnPick="OnPick" @key="file.File.Id" />
+        }
+    </div>
+
+    @if (_manage && !s.IsDeleted)
+    {
+        <div class="setup-manage">
+            <div class="manage-section">
+                <h4>Details</h4>
+                <label class="field">Name<input class="input" maxlength="@SetupLibrary.MaxNameLength" @bind="_name" /></label>
+                <label class="field">Notes<textarea class="input" rows="3" placeholder="Stock, material, bit…" @bind="_notes"></textarea></label>
+                <div class="form-actions">
+                    <button class="btn btn-sm btn-primary" @onclick="() => _runner.Run(() => Library.Edit(s.Id, _name, _notes))">Save details</button>
+                    <button class="btn btn-sm btn-ghost" @onclick="() => _manage = false">Close</button>
+                </div>
+            </div>
+            <div class="manage-section">
+                <h4>Files</h4>
+                <div class="form-actions">
+                    <label class="btn btn-sm btn-ghost file-btn @(Busy ? "disabled" : "")" title="Add G-code files that run with this setup's options">
+                        <Icon Name="upload" /> Add files…
+                        <InputFile OnChange="AddFilesAsync" accept="@ProgramFiles.Accept" multiple disabled="@Busy" />
+                    </label>
+                </div>
+                <p class="hint muted">Each file above has Replace and Delete while managing.</p>
+                <h4>Delete</h4>
+                <div class="form-actions">
+                    @if (_confirm.IsAsking(s.Id))
+                    {
+                        <button class="btn btn-sm btn-danger btn-danger-solid" @onclick="() => _runner.Run(() => { _confirm.Clear(); Library.Delete(s.Id); })">Confirm delete</button>
+                    }
+                    else
+                    {
+                        <button class="btn btn-sm btn-ghost btn-danger" @onclick="() => _confirm.AskAsync(s.Id)"><Icon Name="trash" /> Delete…</button>
+                    }
+                </div>
+                <p class="hint muted">Moves the setup and its files to the deleted ones, where it can be restored or deleted for good.</p>
+            </div>
+        </div>
+    }
+
+    @if (_restoreAs)
+    {
+        <div class="setup-manage single">
+            <div class="manage-section">
+                <p class="hint err">Another setup is called “@s.Name” now. Restore it under another name:</p>
+                <label class="field">Name<input class="input" maxlength="@SetupLibrary.MaxNameLength" @bind="_name" /></label>
+                <div class="form-actions">
+                    <button class="btn btn-sm btn-primary" @onclick="() => RestoreAsync(_name)">Restore</button>
+                    <button class="btn btn-sm btn-ghost" @onclick="() => _restoreAs = false">Cancel</button>
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (_runner.Error is { } error)
+    {
+        <p class="hint err pad-x">@error</p>
+    }
+</div>
+
+@code {
+    private readonly ActionRunner _runner = new();
+    private readonly ConfirmClick _confirm = new();
+    private bool _manage;
+    private bool _restoreAs;
+    private string _name = "";
+    private string _notes = "";
+
+    [Parameter, EditorRequired] public SetupEntry Entry { get; set; } = default!;
+    [Parameter] public long? ActiveFileId { get; set; }
+    [Parameter] public bool Busy { get; set; }
+    [Parameter] public EventCallback<SetupFile> OnPick { get; set; }
+
+    private bool Active => ActiveFileId is { } id && Entry.Files.Any(f => f.File.Id == id);
+
+    private bool DetailsChanged => _name != Entry.Setup.Name || _notes != Entry.Setup.Notes;
+
+    /// <summary>The form shows the stored details, also after an edit elsewhere, unless it is being edited.</summary>
+    protected override void OnParametersSet()
+    {
+        if (_manage && DetailsChanged) return;
+        (_name, _notes) = (Entry.Setup.Name, Entry.Setup.Notes);
+    }
+
+    /// <summary>Restores it; when its name was taken meanwhile, asks for another one.</summary>
+    private Task RestoreAsync(string? newName) => _runner.RunAsync(() =>
+    {
+        try
+        {
+            Library.Restore(Entry.Setup.Id, newName);
+            _restoreAs = false;
+        }
+        catch (SetupNameTakenException) when (newName is null)
+        {
+            (_restoreAs, _name) = (true, Entry.Setup.Name);
+        }
+        return Task.CompletedTask;
+    });
+
+    private Task AddFilesAsync(InputFileChangeEventArgs e) => _runner.RunAsync(async () =>
+    {
+        foreach (var file in await ProgramFiles.ReadAllAsync(e)) Library.AddFile(Entry.Setup.Id, file.Name, file.Content);
+    });
+
+    private static string Files(int count) => count == 1 ? "1 file" : $"{count} files";
+
+    private static readonly IReadOnlyDictionary<int, string> FewRuns = new Dictionary<int, string> { [0] = "never started", [1] = "started once" };
+
+    public static string Runs(int count, DateTime? last) =>
+        FewRuns.GetValueOrDefault(count, $"started {count} times") + (last is { } l ? $", last {Local(l)}" : "");
+
+    public static string Local(DateTime utc) => utc.ToLocalTime().ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
+}

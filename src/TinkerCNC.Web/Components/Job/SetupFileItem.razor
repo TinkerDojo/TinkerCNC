@@ -1,0 +1,92 @@
+@* One file of a setup: choosing it to run, and (while managing) replacing, deleting or restoring it. *@
+@using TinkerCNC.Programs
+@inject SetupLibrary Library
+
+@{ var f = Entry.File; }
+<div class="file-row @(CanPick ? "pickable" : "") @(Active ? "active" : "") @(f.IsDeleted ? "deleted" : "")" @onclick="PickAsync">
+    <Icon Name="file" Size="14" />
+    <span class="file-name mono">@f.OriginalFileName</span>
+    @if (Active)
+    {
+        <span class="tag tag-accent">loaded</span>
+    }
+    @if (Entry.FileMissing)
+    {
+        <span class="tag tag-err" title="@Entry.FilePath">file missing</span>
+    }
+    @if (f.IsDeleted)
+    {
+        <span class="tag">deleted @SetupItem.Local(f.DeletedUtc!.Value)</span>
+    }
+    <span class="muted small file-meta">@SetupItem.Runs(f.RunCount, f.LastStartedUtc)</span>
+    <span class="spacer"></span>
+    <span class="file-actions" @onclick:stopPropagation="true">
+        @if (f.IsDeleted)
+        {
+            <button class="btn btn-sm btn-ghost" disabled="@Locked" title="Bring the file back" @onclick="() => _runner.Run(() => Library.RestoreFile(f.Id))">Restore</button>
+            @if (_confirm.IsAsking(f.Id))
+            {
+                <button class="btn btn-sm btn-danger btn-danger-solid" @onclick="() => _runner.Run(() => { _confirm.Clear(); Library.DeleteFileForever(f.Id); })">Confirm</button>
+            }
+            else
+            {
+                <button class="btn btn-sm btn-ghost btn-danger" title="Remove the file and its copy for good" @onclick="() => _confirm.AskAsync(f.Id)"><Icon Name="trash" /> Delete forever</button>
+            }
+        }
+        else
+        {
+            @if (OnPick.HasDelegate)
+            {
+                <button class="btn btn-sm btn-primary" disabled="@(!CanPick)" title="Choose it with the setup's options as saved" @onclick="PickAsync">
+                    <Icon Name="check" /> Load
+                </button>
+            }
+            @if (Manage)
+            {
+                <label class="btn btn-sm btn-ghost file-btn @(Busy ? "disabled" : "")" title="Use a new version of this G-code file">
+                    <Icon Name="upload" /> Replace…
+                    <InputFile OnChange="ReplaceAsync" accept="@ProgramFiles.Accept" disabled="@Busy" />
+                </label>
+                @if (_confirm.IsAsking(f.Id))
+                {
+                    <button class="btn btn-sm btn-danger btn-danger-solid" @onclick="() => _runner.Run(() => { _confirm.Clear(); Library.DeleteFile(f.Id); })">Confirm</button>
+                }
+                else
+                {
+                    <button class="btn btn-sm btn-ghost btn-danger" title="Move the file to the deleted ones" @onclick="() => _confirm.AskAsync(f.Id)"><Icon Name="trash" /> Delete…</button>
+                }
+            }
+        }
+    </span>
+</div>
+@if (_runner.Error is { } error)
+{
+    <p class="hint err pad-x">@error</p>
+}
+
+@code {
+    private readonly ActionRunner _runner = new();
+    private readonly ConfirmClick _confirm = new();
+
+    [Parameter, EditorRequired] public SetupFileEntry Entry { get; set; } = default!;
+    [Parameter] public bool Active { get; set; }
+    [Parameter] public bool Busy { get; set; }
+
+    /// <summary>Whether the file's own actions (replace, delete) are shown.</summary>
+    [Parameter] public bool Manage { get; set; }
+
+    /// <summary>The setup is deleted: its files can't be changed until it is restored.</summary>
+    [Parameter] public bool Locked { get; set; }
+
+    [Parameter] public EventCallback<SetupFile> OnPick { get; set; }
+
+    private bool CanPick => OnPick.HasDelegate && !Busy && !Entry.FileMissing && !Entry.File.IsDeleted && !Locked;
+
+    private Task PickAsync() => CanPick ? OnPick.InvokeAsync(Entry.File) : Task.CompletedTask;
+
+    private Task ReplaceAsync(InputFileChangeEventArgs e) => _runner.RunAsync(async () =>
+    {
+        var file = await ProgramFiles.ReadAsync(e.File);
+        Library.ReplaceFile(Entry.File.Id, file.Name, file.Content);
+    });
+}

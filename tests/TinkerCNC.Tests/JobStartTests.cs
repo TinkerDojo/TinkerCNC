@@ -84,13 +84,13 @@ public class JobStartPlanTests
         var options = new JobStartOptions
         {
             WorkOrigin = WorkOriginChoice.BedCorner, OriginOffsetX = 10, OriginOffsetY = 5, ZProbe = true,
-            Modes = { ["blow"] = true, ["timelapse"] = true },
+            Modes = { ["blow"] = true },
         };
         var plan = JobStartPlan.Create(options, Context(tool: 3), "/sd/gcodes/my part.nc");
 
         Assert.Equal(
         [
-            "M331.1", "M332.2", "M332.4", "M332.3", "M951",
+            "M331.1", "M332.2", "M332.4", "M332.3",
             "G10 L2 P0 X-180.3 Y-189.114",
             "buffer M495 X10 Y20 O0 F0",
             "buffer M6 T3",
@@ -430,7 +430,7 @@ public class JobOptionsStoreTests
             var options = new JobStartOptions
             {
                 WorkOrigin = WorkOriginChoice.XyzProbe, XyzProbeHeight = 12.5, Leveling = true, LevelingPointsX = 7,
-                Modes = { ["blow"] = true, ["timelapse"] = false },
+                Timelapse = true, Modes = { ["blow"] = true },
             };
 
             new TinkerCNC.Host.JobOptionsStore(paths, log).Save("10.0.0.5:2222", options);

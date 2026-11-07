@@ -1,0 +1,124 @@
+@* Adding to the queue: a setup, which of its files, files from this computer, and how often each runs. *@
+@using TinkerCNC.Programs
+@inherits JobControlComponent
+@inject SetupLibrary Library
+
+@{ var setups = Library.List(includeDeleted: false); }
+<Dialog Title="Add to the queue" Icon="queue" Class="dialog-wide" OnClose="OnClose">
+    <ChildContent>
+        @if (setups.Count == 0)
+        {
+            <p class="muted">No setups yet. Save a program with its options on the Job card first, or create a setup on the Setups page.</p>
+        }
+        else
+        {
+            var setup = setups.FirstOrDefault(s => s.Setup.Id == _setupId) ?? setups[0];
+            <div class="save-form">
+                <label class="field">Setup (its options run every file below)
+                    <select class="input" @bind="_setupId">
+                        @foreach (var s in setups)
+                        {
+                            <option value="@s.Setup.Id">@s.Setup.Name</option>
+                        }
+                    </select>
+                </label>
+                <label class="field">Runs of each file
+                    <input class="input mono" type="number" min="1" max="@JobQueue.MaxRepeat" @bind="_repeat" />
+                </label>
+                <div class="field save-form-extra">
+                    <span>The setup's files</span>
+                    @if (setup.Files.Count == 0)
+                    {
+                        <p class="hint muted">This setup has no files; queue files from this computer below.</p>
+                    }
+                    else
+                    {
+                        <div class="queue-pick">
+                            @foreach (var file in setup.Files)
+                            {
+                                var f = file.File;
+                                <label class="check @(file.FileMissing ? "disabled" : "")">
+                                    <input type="checkbox" checked="@_ticked.Contains(f.Id)" disabled="@file.FileMissing" @onchange="ev => Tick(f.Id, ev.Value is true)" />
+                                    <span class="mono">@f.OriginalFileName</span>
+                                    @if (file.FileMissing)
+                                    {
+                                        <span class="tag tag-err">file missing</span>
+                                    }
+                                </label>
+                            }
+                            <button class="btn btn-sm btn-ghost" @onclick="() => TickAll(setup)">@(_ticked.Count == setup.Files.Count(x => !x.FileMissing) ? "None" : "All")</button>
+                        </div>
+                    }
+                </div>
+                <div class="field save-form-extra">
+                    <span>Files from this computer, queued for these runs only</span>
+                    <ChosenFilesList Files="_files" OnChanged="files => _files = files" />
+                </div>
+                <div class="save-form-foot">
+                    @if (_error is not null)
+                    {
+                        <span class="hint err">@_error</span>
+                    }
+                    else
+                    {
+                        <span class="muted small">@Summary()</span>
+                    }
+                    <span class="spacer"></span>
+                    <button class="btn btn-sm btn-primary" disabled="@(_ticked.Count + _files.Count == 0)" @onclick="() => AddAsync(setup.Setup.Id)">
+                        <Icon Name="plus" /> Add to the queue
+                    </button>
+                    <button class="btn btn-sm btn-ghost" @onclick="OnClose">Cancel</button>
+                </div>
+            </div>
+        }
+    </ChildContent>
+</Dialog>
+
+@code {
+    private readonly HashSet<long> _ticked = [];
+    private IReadOnlyList<ChosenFile> _files = [];
+    private long _setupId;
+    private int _repeat = 1;
+    private string? _error;
+
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    protected override void OnInitialized() =>
+        _setupId = Control.Setup?.Id ?? Library.List(includeDeleted: false).FirstOrDefault()?.Setup.Id ?? 0;
+
+    private void Tick(long fileId, bool on)
+    {
+        if (on) _ticked.Add(fileId);
+        else _ticked.Remove(fileId);
+    }
+
+    private void TickAll(SetupEntry setup)
+    {
+        var all = setup.Files.Where(f => !f.FileMissing).Select(f => f.File.Id).ToList();
+        if (_ticked.Count == all.Count) _ticked.Clear();
+        else foreach (var id in all) _ticked.Add(id);
+    }
+
+    private string Summary()
+    {
+        var files = _ticked.Count + _files.Count;
+        var runs = files * Math.Max(1, _repeat);
+        return files == 0 ? "Tick or add files to queue." : $"{files} file{(files == 1 ? "" : "s")}, {runs} job{(runs == 1 ? "" : "s")}";
+    }
+
+    private async Task AddAsync(long setupId)
+    {
+        _error = null;
+        try
+        {
+            foreach (var id in _ticked) Queue.AddSetupFile(id, _repeat);
+            foreach (var file in _files) Queue.AddCopy(setupId, file.Name, file.Content, _repeat);
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+            return;
+        }
+        await OnClose.InvokeAsync();
+    }
+}

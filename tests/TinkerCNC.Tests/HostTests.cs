@@ -72,7 +72,8 @@ public class AppPathsTests
         var paths = Paths(("TinkerCNC:DataDirectory", "/data"));
         Assert.Equal(Path.Combine("/data", "tinkercnc.db"), paths.HistoryDatabase);
         Assert.Equal(Path.Combine("/data", "gcode"), paths.GCodeCache);
-        Assert.Equal(Path.Combine("/data", "programs"), paths.SavedPrograms);
+        Assert.Equal(Path.Combine("/data", "programs"), paths.SetupFiles);
+        Assert.Equal(Path.Combine("/data", "queue"), paths.QueuedFiles);
         Assert.Equal(Path.Combine("/data", "recordings"), paths.Recordings);
         Assert.Equal(Path.Combine("/data", "machines.json"), paths.ManualMachines);
         Assert.Equal(Path.Combine("/app", "App_Data", "machines.json"), paths.LegacyManualMachines);

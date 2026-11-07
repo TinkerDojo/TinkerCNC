@@ -60,6 +60,12 @@ public sealed class JobStartOptions
     /// <summary>Job options by <see cref="JobMode.Key"/>; missing ones are off.</summary>
     public Dictionary<string, bool> Modes { get; set; } = new();
 
+    /// <summary>
+    /// Record a time-lapse of the job with the machine's camera: one frame every few seconds from the start to the
+    /// end of playback, written to the recordings folder here. Nothing is sent to the machine for it.
+    /// </summary>
+    public bool Timelapse { get; set; }
+
     [JsonIgnore]
     public bool UsesProbe => ScanMargin || ZProbe || Leveling;
 

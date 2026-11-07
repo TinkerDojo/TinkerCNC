@@ -1,0 +1,85 @@
+@* The programs folder on the machine; choosing a file downloads it to analyse it. *@
+@using TinkerCNC.Transfer
+@inherits JobControlComponent
+
+<div class="list-tools">
+    <input class="input list-search" placeholder="Filter by name" @bind="_filter" @bind:event="oninput" />
+    <span class="muted small mono">@RemotePath.GCodeDirectory</span>
+    <span class="spacer"></span>
+    <button class="btn btn-sm btn-ghost" disabled="@(!Connected || Control.ListingFiles)" title="List the folder again" @onclick="RefreshAsync">
+        @if (Control.ListingFiles)
+        {
+            <span class="spinner"></span>
+        }
+        else
+        {
+            <Icon Name="refresh" />
+        }
+        Refresh
+    </button>
+</div>
+
+@if (!Connected)
+{
+    <p class="muted small pad">Connect to the machine to list its programs.</p>
+}
+else if (Control.MachineFiles is not { } files)
+{
+    <p class="muted small pad">Listing the programs folder…</p>
+}
+else
+{
+    var shown = files.Where(Matches).ToList();
+    <div class="pick-list">
+        @if (shown.Count == 0)
+        {
+            <p class="muted small pad">@(files.Count == 0 ? $"No files in {RemotePath.GCodeDirectory}." : "No file matches the filter.")</p>
+        }
+        @foreach (var file in shown)
+        {
+            var path = RemotePath.Combine(RemotePath.GCodeDirectory, file.Name);
+            <button class="pick-row @(IsChosen(path) ? "active" : "")" disabled="@Control.IsBusy" title="Choose @file.Name" @onclick="() => ChooseAsync(path)">
+                <span class="pick-name mono">@file.Name</span>
+                <span class="muted small">@ProgramFiles.Size(file.Size)</span>
+                <span class="muted small pick-date">@(file.Modified?.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture) ?? "")</span>
+            </button>
+        }
+    </div>
+}
+
+@if (Control.Phase == JobControlPhase.Loading && Control.Download is { } dl)
+{
+    <div class="download">
+        <span class="muted small">Reading the program from the machine · packet @dl.Packet/@dl.TotalPackets</span>
+        <div class="bar"><div style="width:@((dl.Fraction * 100).ToString("0.#", CultureInfo.InvariantCulture))%"></div></div>
+    </div>
+}
+@if ((Control.LastError ?? _runner.Error) is { } error)
+{
+    <p class="hint err">@error</p>
+}
+
+@code {
+    private readonly ActionRunner _runner = new();
+    private string _filter = "";
+
+    /// <summary>A file was chosen and read.</summary>
+    [Parameter] public EventCallback OnPicked { get; set; }
+
+    protected override void OnInitialized()
+    {
+        if (Connected && Control.MachineFiles is null && !Control.ListingFiles) _ = RefreshAsync();
+    }
+
+    private Task RefreshAsync() => _runner.RunAsync(Control.RefreshFilesAsync);
+
+    private bool Matches(RemoteEntry file) => file.Name.Contains(_filter.Trim(), StringComparison.OrdinalIgnoreCase);
+
+    private bool IsChosen(string path) => Control.Program?.Source is MachineProgram { MachinePath: var p } && p == path;
+
+    private async Task ChooseAsync(string path)
+    {
+        await _runner.RunAsync(() => Control.LoadFromMachineAsync(path));
+        if (_runner.Error is null && Control.LastError is null) await OnPicked.InvokeAsync();
+    }
+}

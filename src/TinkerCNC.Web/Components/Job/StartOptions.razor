@@ -1,0 +1,10 @@
+@* The start options of the chosen program, one row per setting; locked while the job is being started. *@
+@using TinkerCNC.Web.Components.Job.Options
+@inherits JobControlComponent
+
+<fieldset class="job-options" disabled="@Control.IsBusy" title="@(Control.IsBusy ? "Fixed while the job is being started" : null)">
+    <WorkOriginRow Session="Session" />
+    <ZProbeRow Session="Session" />
+    <LevelingRow Session="Session" />
+    <ModesRow Session="Session" />
+</fieldset>

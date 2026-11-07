@@ -1,0 +1,12 @@
+@* Probing a grid over the program's area and following the measured surface. *@
+@inherits JobControlComponent
+
+<OptionRow Title="Auto leveling" Hint="For uneven stock and shallow cuts (engraving, PCBs)"
+          On="Options.Leveling" OnChanged="on => Options.Leveling = on">
+    <div class="opt-line">
+        <label class="inline-field">Points X <input class="input mono" type="number" step="1" min="@JobStartOptions.MinLevelingPoints" max="@JobStartOptions.MaxLevelingPoints" @bind="Options.LevelingPointsX" /></label>
+        <label class="inline-field">Points Y <input class="input mono" type="number" step="1" min="@JobStartOptions.MinLevelingPoints" max="@JobStartOptions.MaxLevelingPoints" @bind="Options.LevelingPointsY" /></label>
+        <label class="inline-field">Height <input class="input mono" type="number" step="0.5" min="0.5" @bind="Options.LevelingHeight" /> mm</label>
+    </div>
+    <p class="hint muted">Probes @Options.LevelingPointsX × @Options.LevelingPointsY points over the program's area, moving @Options.LevelingHeight mm above the surface between them.</p>
+</OptionRow>

@@ -1,0 +1,99 @@
+@* One queue entry: what runs, how often, its state, and what can be done with it. *@
+@using TinkerCNC.Queue
+@inherits JobControlComponent
+
+@{ var e = Item.Entry; }
+<li class="queue-row @e.State.ToString().ToLowerInvariant()">
+    <span class="queue-pos muted">@(Index + 1)</span>
+    <div class="queue-text">
+        <div class="queue-title">
+            <b>@Item.SetupName</b>
+            <span class="mono">@Item.FileName</span>
+            @if (e.Repeat > 1)
+            {
+                <span class="tag" title="Runs done of the runs queued">@e.Done of @e.Repeat runs</span>
+            }
+            @if (e.IsQueuedCopy)
+            {
+                <span class="tag" title="A copy queued for these runs only; it goes when they are done">copy</span>
+            }
+            @if (Item.FileMissing)
+            {
+                <span class="tag tag-err">file missing</span>
+            }
+            @if (e.State == QueueEntryState.Running)
+            {
+                <span class="tag tag-accent">on the machine</span>
+            }
+            @if (e.RestartSegment is { } from && Operation(from) is { } op && e.State != QueueEntryState.Failed)
+            {
+                <span class="tag tag-warn" title="The next run begins at that operation">from @op.Label</span>
+            }
+        </div>
+        @if (e.State == QueueEntryState.Failed)
+        {
+            <div class="hint err">@e.Error</div>
+        }
+    </div>
+    <div class="queue-actions" @onclick:stopPropagation="true">
+        @if (e.State == QueueEntryState.Failed)
+        {
+            <label class="inline-field">Retry from
+                <select class="input" @bind="_from">
+                    <option value="0">the beginning</option>
+                    @foreach (var segment in Operations.Skip(1))
+                    {
+                        <option value="@segment.Index">@segment.Label@(e.RestartSegment == segment.Index ? " · interrupted" : "")</option>
+                    }
+                </select>
+            </label>
+            <button class="btn btn-sm btn-primary" title="Queue it again; then start the queue" @onclick="() => _runner.Run(() => Queue.Retry(e.Id, _from))">
+                <Icon Name="refresh" /> Retry
+            </button>
+        }
+        @if (e.State == QueueEntryState.Pending)
+        {
+            <label class="inline-field" title="How often it runs">×
+                <input class="input mono" type="number" min="1" max="@JobQueue.MaxRepeat" value="@e.Repeat"
+                       @onchange="ev => _runner.Run(() => Queue.SetRepeat(e.Id, int.TryParse((string?)ev.Value, out var n) ? n : e.Repeat))" />
+            </label>
+            <button class="btn btn-sm btn-icon" disabled="@(Index == 0)" title="Earlier" @onclick="() => _runner.Run(() => Queue.Move(e.Id, -1))"><Icon Name="up" /></button>
+            <button class="btn btn-sm btn-icon" disabled="@(Index == Count - 1)" title="Later" @onclick="() => _runner.Run(() => Queue.Move(e.Id, 1))"><Icon Name="down" /></button>
+        }
+        @if (e.IsQueuedCopy && e.State != QueueEntryState.Running)
+        {
+            <button class="btn btn-sm btn-ghost" title="Make the copy one of the setup's files, so it stays" @onclick="() => _runner.Run(() => Queue.KeepInSetup(e.Id))">
+                <Icon Name="save" /> Keep in setup
+            </button>
+        }
+        @if (e.State != QueueEntryState.Running)
+        {
+            <button class="btn btn-sm btn-icon" title="Take it out of the queue" @onclick="() => _runner.Run(() => Queue.Remove(e.Id))"><Icon Name="x" /></button>
+        }
+    </div>
+    @if (_runner.Error is { } error)
+    {
+        <p class="hint err queue-error">@error</p>
+    }
+</li>
+
+@code {
+    private readonly ActionRunner _runner = new();
+    private IReadOnlyList<ToolSegment>? _operations;
+    private int _from;
+
+    [Parameter, EditorRequired] public QueueItem Item { get; set; } = default!;
+    [Parameter] public int Index { get; set; }
+    [Parameter] public int Count { get; set; }
+
+    /// <summary>The file's tool operations, analysed once they are needed.</summary>
+    private IReadOnlyList<ToolSegment> Operations => _operations ??= Queue.OperationsOf(Item.Entry.Id);
+
+    private ToolSegment? Operation(int index) => Operations.ElementAtOrDefault(index);
+
+    protected override void OnParametersSet()
+    {
+        _from = Item.Entry.RestartSegment ?? 0;
+        base.OnParametersSet();
+    }
+}

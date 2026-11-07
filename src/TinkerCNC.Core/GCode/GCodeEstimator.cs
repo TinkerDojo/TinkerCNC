@@ -21,8 +21,18 @@ internal sealed class EstimatorState(EstimatorSettings settings)
     public double UnitScale { get; set; } = 1;
     public double FeedMmPerMin { get; set; }
     public IMotionMode Motion { get; set; } = MotionModes.Rapid;
+    public int MotionCode { get; set; }
+    public int Plane { get; set; } = ModalState.Default.Plane;
+    public int WorkOffset { get; set; } = ModalState.Default.WorkOffset;
+    public int? Spindle { get; set; }
+    public double SpindleSpeed { get; set; }
+    public bool Mist { get; set; }
+    public bool Flood { get; set; }
     public int? Tool { get; set; }
     public int? PendingTool { get; set; }
+
+    /// <summary>The modal state as it is now, for a program that starts here.</summary>
+    public ModalState Modal => new(UnitScale, Absolute, Plane, WorkOffset, FeedMmPerMin, MotionCode, Spindle, SpindleSpeed, Mist, Flood);
 
     // Per-line results
     public double LineSeconds { get; set; }
@@ -31,6 +41,12 @@ internal sealed class EstimatorState(EstimatorSettings settings)
     public bool FeedMove { get; set; }
 
     public double EffectiveFeed => FeedMmPerMin > 0 ? FeedMmPerMin : Settings.DefaultFeedMmPerMin;
+
+    public void Move(IMotionMode motion, int code)
+    {
+        Motion = motion;
+        MotionCode = code;
+    }
 
     public Point4 TargetOf(GCodeLine line)
     {
@@ -55,15 +71,24 @@ public static class GCodeEstimator
     private static readonly IReadOnlyDictionary<int, Action<EstimatorState, GCodeLine>> GCodes =
         new Dictionary<int, Action<EstimatorState, GCodeLine>>
         {
-            [0] = (s, _) => s.Motion = MotionModes.Rapid,
-            [1] = (s, _) => s.Motion = MotionModes.Linear,
-            [2] = (s, _) => s.Motion = MotionModes.ArcClockwise,
-            [3] = (s, _) => s.Motion = MotionModes.ArcCounterClockwise,
+            [0] = (s, _) => s.Move(MotionModes.Rapid, 0),
+            [1] = (s, _) => s.Move(MotionModes.Linear, 1),
+            [2] = (s, _) => s.Move(MotionModes.ArcClockwise, 2),
+            [3] = (s, _) => s.Move(MotionModes.ArcCounterClockwise, 3),
             [4] = (s, l) => { s.LineSeconds += DwellSeconds(l); s.SuppressMotion = true; },
             [10] = (s, _) => s.SuppressMotion = true,
+            [17] = (s, _) => s.Plane = 17,
+            [18] = (s, _) => s.Plane = 18,
+            [19] = (s, _) => s.Plane = 19,
             [20] = (s, _) => s.UnitScale = 25.4,
             [21] = (s, _) => s.UnitScale = 1,
             [28] = (s, _) => s.SuppressMotion = true,
+            [54] = (s, _) => s.WorkOffset = 54,
+            [55] = (s, _) => s.WorkOffset = 55,
+            [56] = (s, _) => s.WorkOffset = 56,
+            [57] = (s, _) => s.WorkOffset = 57,
+            [58] = (s, _) => s.WorkOffset = 58,
+            [59] = (s, _) => s.WorkOffset = 59,
             [90] = (s, _) => s.Absolute = true,
             [91] = (s, _) => s.Absolute = false,
             [92] = (s, l) => { s.Position = s.TargetOf(l); s.SuppressMotion = true; },
@@ -72,12 +97,18 @@ public static class GCodeEstimator
     private static readonly IReadOnlyDictionary<int, Action<EstimatorState, GCodeLine>> MCodes =
         new Dictionary<int, Action<EstimatorState, GCodeLine>>
         {
+            [3] = (s, _) => s.Spindle = 3,
+            [4] = (s, _) => s.Spindle = 4,
+            [5] = (s, _) => s.Spindle = null,
             [6] = (s, _) =>
             {
                 s.Tool = s.PendingTool;
                 s.LineSeconds += s.Settings.ToolChangeSeconds;
                 s.ToolChanged = true;
             },
+            [7] = (s, _) => s.Mist = true,
+            [8] = (s, _) => s.Flood = true,
+            [9] = (s, _) => s.Mist = s.Flood = false,
         };
 
     public static GCodeAnalysis Analyze(string text, EstimatorSettings? settings = null) =>
@@ -107,8 +138,10 @@ public static class GCodeEstimator
         state.SuppressMotion = false;
         state.FeedMove = false;
 
+        var modalBefore = line.Codes('M').Contains(6) ? state.Modal : null; // where a program restarted at this tool change begins
         if (line['F'] is { } feed) state.FeedMmPerMin = feed * state.UnitScale;
         if (line['T'] is { } tool) state.PendingTool = (int)Math.Round(tool);
+        if (line['S'] is { } speed && !line.Codes('G').Contains(4)) state.SpindleSpeed = speed; // G4 S is a dwell
 
         foreach (var code in line.Codes('G'))
             GCodes.GetValueOrDefault(code)?.Invoke(state, line);
@@ -125,7 +158,7 @@ public static class GCodeEstimator
             state.FeedMove = state.Motion.IsFeed;
         }
 
-        return new LineStep(state.LineSeconds, state.Tool, state.ToolChanged, state.FeedMove, state.Position, path);
+        return new LineStep(state.LineSeconds, state.Tool, state.ToolChanged, state.FeedMove, state.Position, path, modalBefore);
     }
 
     /// <summary>Smoothieware semantics: G4 P is milliseconds, G4 S is seconds.</summary>
@@ -133,4 +166,6 @@ public static class GCodeEstimator
 }
 
 /// <param name="Path">Points the line's move passes through after its start (empty without a move).</param>
-internal sealed record LineStep(double Seconds, int? Tool, bool ToolChanged, bool FeedMove, Point4 EndPosition, IReadOnlyList<Point4> Path);
+/// <param name="ModalBefore">The modal state before the line, kept for lines with a tool change (null elsewhere).</param>
+internal sealed record LineStep(
+    double Seconds, int? Tool, bool ToolChanged, bool FeedMove, Point4 EndPosition, IReadOnlyList<Point4> Path, ModalState? ModalBefore);

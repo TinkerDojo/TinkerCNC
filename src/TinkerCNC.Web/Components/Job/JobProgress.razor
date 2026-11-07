@@ -1,0 +1,112 @@
+@* The job running now: time left, progress, the tool in use, the next tool change and the timeline. *@
+@inherits JobControlComponent
+
+@if (Job.Phase == JobPhase.Downloading && Job.Download is { } dl)
+{
+    <div class="download">
+        <span class="muted small">Downloading @(Job.File?.FileName) · packet @dl.Packet/@dl.TotalPackets · @dl.Bytes.ToString("N0") bytes</span>
+        <div class="bar"><div style="width:@Css(dl.Fraction * 100)%"></div></div>
+    </div>
+}
+
+@if (Queue.WaitingForGo && Queue.CurrentItem is { } waiting)
+{
+    <div class="notice notice-warn queue-gate">
+        <Icon Name="play" />
+        <span><b>@waiting.Label</b> is on the machine, paused before anything moves. Put the piece in place, then hold the machine's button until it continues, or press Resume.</span>
+    </div>
+}
+
+@if (Job.Timeline is { } timeline)
+{
+    var position = Job.Position;
+    var schedule = Job.Schedule(DateTime.UtcNow);
+    var percent = position is { } f ? timeline.Fraction(f) * 100 : 0;
+    <div class="run-hero">
+        <div class="stat stat-hero">
+            <span class="k">Remaining</span>
+            <span class="v">@(position is { } r ? TimeFormat.Duration(r.RemainingSeconds) : "—")</span>
+            @if (schedule?.FinishUtc is { } finish)
+            {
+                <span class="muted small">ends @TimeFormat.Clock(finish)</span>
+            }
+        </div>
+        <div class="stat stat-progress">
+            <span class="k">Progress</span>
+            <span class="v">@percent.ToString("0", CultureInfo.InvariantCulture) %</span>
+            <div class="bar"><div style="width:@Css(percent)%"></div></div>
+            <span class="muted small">@(position is { } d ? TimeFormat.Duration(d.DoneSeconds) : "—") of @TimeFormat.Duration(timeline.TotalSeconds)</span>
+        </div>
+        <div class="stat">
+            <span class="k">Tool</span>
+            <span class="v">
+                @if (position is { Preparing: true } && timeline.Preparation is not null)
+                {
+                    <text>@JobPreparation.Label</text>
+                }
+                else if (position?.Line is { } line && timeline.Analysis.SegmentAt(line) is { } segment)
+                {
+                    <span class="swatch" style="background:@ToolPalette.ColorFor(segment.ToolNumber)"></span> @segment.Label
+                }
+                else
+                {
+                    <text>—</text>
+                }
+            </span>
+        </div>
+        <div class="stat">
+            <span class="k">Next tool change</span>
+            @if (schedule?.Next is { } next)
+            {
+                var tool = next.Operation.Segment;
+                <span class="v" title="@($"Tool change to {tool.Label} (line {tool.StartLine})")">
+                    <span class="swatch" style="background:@ToolPalette.ColorFor(tool.ToolNumber)"></span>
+                    @TimeFormat.Clock(next.ClockUtc!.Value)
+                </span>
+                <span class="muted small">in @TimeFormat.Duration(next.InSeconds!.Value)</span>
+            }
+            else
+            {
+                <span class="v">—</span>
+                <span class="muted small">none left</span>
+            }
+        </div>
+        <div class="stat">
+            <span class="k" title="Feed override">Feed</span>
+            <span class="v">@Job.FeedOverridePercent.ToString("0", CultureInfo.InvariantCulture) %</span>
+        </div>
+    </div>
+
+    <div class="run-notes">
+        @if (Job.Measuring is { } measuring)
+        {
+            <span class="recording-note"><span class="rec-dot"></span> Timing <b>@measuring.Label</b> (lines @measuring.CuttingStartLine–@measuring.EndLine)</span>
+        }
+        <span class="muted small" title="Operations whose time comes from earlier runs instead of the estimate">
+            @timeline.MeasuredCount of @timeline.Segments.Count operations measured
+        </span>
+    </div>
+
+    <ToolTimeline Timeline="timeline" Position="position" Measuring="Job.Measuring" Schedule="schedule" SegmentSelected="FocusSegment" />
+}
+else
+{
+    <p class="muted small pad">@(Job.Error ?? PhaseTexts.GetValueOrDefault(Job.Phase, "The machine is running a job; fetching the program…"))</p>
+}
+
+@code {
+    private static readonly IReadOnlyDictionary<JobPhase, string> PhaseTexts = new Dictionary<JobPhase, string>
+    {
+        [JobPhase.Resolving] = "Asking the machine which file it is running…",
+        [JobPhase.Downloading] = "Downloading the program from the machine…",
+        [JobPhase.NoFileReported] = "The machine did not say which file it is running; asking again shortly.",
+        [JobPhase.Failed] = "The program could not be fetched; trying again shortly.",
+    };
+
+    /// <summary>Clicking an operation on the timeline shows its code in the G-code panel.</summary>
+    [Parameter, EditorRequired] public GCodeFocus Focus { get; set; } = default!;
+
+    private void FocusSegment(ToolSegment segment) => Focus.Show(segment.StartLine);
+
+    private static string Css(double value) => value.ToString("0.#", CultureInfo.InvariantCulture);
+}

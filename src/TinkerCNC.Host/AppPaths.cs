@@ -16,7 +16,8 @@ public sealed class AppPaths
         DataDirectory = Setting("DataDirectory", UserDataFolders.TinkerCNC);
         HistoryDatabase = Setting("HistoryDatabasePath", Path.Combine(DataDirectory, "tinkercnc.db"));
         GCodeCache = Setting("GCodeCacheDirectory", Path.Combine(DataDirectory, "gcode"));
-        SavedPrograms = Setting("SavedProgramsDirectory", Path.Combine(DataDirectory, "programs"));
+        SetupFiles = Setting("SetupFilesDirectory", Path.Combine(DataDirectory, "programs"));
+        QueuedFiles = Setting("QueuedFilesDirectory", Path.Combine(DataDirectory, "queue"));
         Recordings = Setting("RecordingsDirectory", Path.Combine(DataDirectory, "recordings"));
         ManualMachines = Setting("ManualMachinesPath", Path.Combine(DataDirectory, "machines.json"));
         JobOptions = Setting("JobOptionsPath", Path.Combine(DataDirectory, "job-options.json"));
@@ -25,14 +26,17 @@ public sealed class AppPaths
 
     public string DataDirectory { get; }
 
-    /// <summary>The app's SQLite database: measured operation times and saved programs.</summary>
+    /// <summary>The app's SQLite database: measured operation times, setups with their files, the job queues.</summary>
     public string HistoryDatabase { get; }
 
     /// <summary>Programs downloaded from machines, by MD5.</summary>
     public string GCodeCache { get; }
 
-    /// <summary>The G-code files of saved programs; the database refers to them by file name only.</summary>
-    public string SavedPrograms { get; }
+    /// <summary>The G-code files of the setups; the database refers to them by file name only.</summary>
+    public string SetupFiles { get; }
+
+    /// <summary>Files queued for one run on a machine, removed once their entry is done.</summary>
+    public string QueuedFiles { get; }
 
     /// <summary>Camera recordings (.mjpeg) and snapshots.</summary>
     public string Recordings { get; }

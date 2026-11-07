@@ -1,0 +1,70 @@
+@* No job and no program chosen: where a program can come from. *@
+@inherits JobControlComponent
+
+<div class="job-empty">
+    <p class="muted">
+        Nothing is running. Choose a program to set it up and start it; a job started on the machine itself is picked up
+        here automatically.
+    </p>
+    <div class="source-tiles">
+        <button class="source-tile" @onclick="() => OnPick.InvokeAsync(PickerTab.Setups)">
+            <Icon Name="library" Size="22" />
+            <b>Setups</b>
+            <span>Named start options with their files, shared by all machines.</span>
+        </button>
+        <button class="source-tile" disabled="@(!Connected)" title="@(Connected ? null : "Connect to the machine first")"
+                @onclick="() => OnPick.InvokeAsync(PickerTab.Machine)">
+            <Icon Name="cnc" Size="22" />
+            <b>On the machine</b>
+            <span>The programs folder of the machine's SD card.</span>
+        </button>
+        <label class="source-tile file-btn @(Control.IsBusy ? "disabled" : "")">
+            <Icon Name="upload" Size="22" />
+            <b>This computer</b>
+            <span>A G-code file (@ProgramFiles.AcceptText): drop it here or click to browse. It is uploaded when the job starts.</span>
+            <InputFile OnChange="LoadLocalAsync" accept="@ProgramFiles.Accept" disabled="@Control.IsBusy" />
+        </label>
+    </div>
+    @if (Job.LastRun is { Analysis: not null } run)
+    {
+        <div class="last-job">
+            <Icon Name="file" Size="18" />
+            <div class="last-job-text">
+                <div><b>Last job:</b> <span class="mono">@run.FileName</span></div>
+                <div class="muted small">@Outcome(run) · @TimeFormat.Ago(run.EndedUtc)</div>
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-sm btn-primary" disabled="@Control.IsBusy" title="Choose it again with the options as they are" @onclick="() => _runner.Run(Control.LoadLastRun)">
+                    <Icon Name="play" /> Run again
+                </button>
+                @if (run.Interrupted is { } at)
+                {
+                    <button class="btn btn-sm" disabled="@Control.IsBusy" title="A copy that begins at that operation, probing off, origin kept"
+                            @onclick="() => _runner.Run(() => { Control.LoadLastRun(); Control.StartFrom(at.Index); })">
+                        <Icon Name="play" /> Run again from @at.Label
+                    </button>
+                }
+            </div>
+        </div>
+    }
+    @if (_runner.Error is { } error)
+    {
+        <p class="hint err">@error</p>
+    }
+</div>
+
+@code {
+    private readonly ActionRunner _runner = new();
+
+    [Parameter] public EventCallback<PickerTab> OnPick { get; set; }
+
+    private static string Outcome(JobRun run) => run.EndedEarly
+        ? "ended early" + (run.Interrupted is { } at ? $" at {at.Label}" : "") + (run.Alarm ? ", the machine raised an alarm" : "")
+        : "finished";
+
+    private Task LoadLocalAsync(InputFileChangeEventArgs e) => _runner.RunAsync(async () =>
+    {
+        var file = await ProgramFiles.ReadAsync(e.File);
+        Control.LoadLocal(file.Name, file.Content);
+    });
+}

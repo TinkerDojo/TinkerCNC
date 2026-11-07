@@ -1,0 +1,36 @@
+@* G-code files picked in the browser (several at once), each removable, with a button to add more. *@
+
+<div class="chosen-files">
+    @foreach (var file in Files)
+    {
+        var f = file;
+        <span class="tag mono chosen-file" title="@ProgramFiles.Size(f.Content.Length)">
+            @f.Name
+            <button class="tag-x" type="button" title="Leave it out" @onclick="() => Remove(f)"><Icon Name="x" Size="11" /></button>
+        </span>
+    }
+    <label class="btn btn-sm btn-ghost file-btn @(Busy ? "disabled" : "")" title="@ProgramFiles.AcceptText">
+        <Icon Name="upload" /> @(Files.Count == 0 ? "Choose files…" : "Add more…")
+        <InputFile OnChange="AddAsync" accept="@ProgramFiles.Accept" multiple disabled="@Busy" />
+    </label>
+</div>
+@if (_runner.Error is { } error)
+{
+    <p class="hint err">@error</p>
+}
+
+@code {
+    private readonly ActionRunner _runner = new();
+
+    [Parameter] public IReadOnlyList<ChosenFile> Files { get; set; } = [];
+    [Parameter] public EventCallback<IReadOnlyList<ChosenFile>> OnChanged { get; set; }
+    [Parameter] public bool Busy { get; set; }
+
+    private Task AddAsync(InputFileChangeEventArgs e) => _runner.RunAsync(async () =>
+    {
+        var added = await ProgramFiles.ReadAllAsync(e);
+        await OnChanged.InvokeAsync([.. Files, .. added]);
+    });
+
+    private Task Remove(ChosenFile file) => OnChanged.InvokeAsync(Files.Where(f => !ReferenceEquals(f, file)).ToList());
+}

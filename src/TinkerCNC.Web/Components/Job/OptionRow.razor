@@ -1,0 +1,34 @@
+@* One setting of the job setup: its name and a short hint on the left, its controls on the right. With On set, the
+   name is a checkbox that switches the setting; the controls fade while it is off. *@
+
+<div class="option-row @(On == false ? "off" : "")">
+    <div class="option-label">
+        @if (On is { } on)
+        {
+            <label class="check option-toggle">
+                <input type="checkbox" checked="@on" @onchange="e => OnChanged.InvokeAsync(e.Value is true)" />
+                <b>@Title</b>
+            </label>
+        }
+        else
+        {
+            <b>@Title</b>
+        }
+        @if (Hint is not null)
+        {
+            <span class="muted small">@Hint</span>
+        }
+    </div>
+    <div class="option-body">@ChildContent</div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = "";
+    [Parameter] public string? Hint { get; set; }
+
+    /// <summary>Whether the setting is on; null for a setting that is always on.</summary>
+    [Parameter] public bool? On { get; set; }
+    [Parameter] public EventCallback<bool> OnChanged { get; set; }
+
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

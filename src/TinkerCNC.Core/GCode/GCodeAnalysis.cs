@@ -10,9 +10,10 @@ namespace TinkerCNC.GCode;
 /// </param>
 /// <param name="ToolChangeSeconds">Estimated time of the tool change itself (0 without one).</param>
 /// <param name="Fingerprint">Hash of the segment's G-code, see <see cref="OperationFingerprint"/>.</param>
+/// <param name="ModalAtStart">The modal state the program is in when the segment begins (<see cref="ProgramRestart"/>).</param>
 public sealed record ToolSegment(
     int Index, int? ToolNumber, ToolInfo? Tool, int StartLine, int EndLine, int CuttingStartLine, int LastFeedLine,
-    double StartSeconds, double Seconds, double ToolChangeSeconds, string Fingerprint)
+    double StartSeconds, double Seconds, double ToolChangeSeconds, string Fingerprint, ModalState ModalAtStart)
 {
     public double EndSeconds => StartSeconds + Seconds;
     public double CuttingSeconds => Seconds - ToolChangeSeconds;
@@ -108,7 +109,8 @@ public sealed class GCodeAnalysis
                 StartSeconds: times.SecondsBefore(first),
                 Seconds: seconds,
                 ToolChangeSeconds: startsWithToolChange ? times.Seconds[first - 1] : 0,
-                Fingerprint: OperationFingerprint.Compute(lines.Skip(first - 1).Take(last - first + 1))));
+                Fingerprint: OperationFingerprint.Compute(lines.Skip(first - 1).Take(last - first + 1)),
+                ModalAtStart: steps[first - 1].ModalBefore ?? ModalState.Default));
         }
         return segments;
     }

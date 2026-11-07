@@ -30,7 +30,7 @@
             }
             @if (_feed.IsRecording)
             {
-                <div class="rec-badge"><span class="rec-dot"></span>REC @Elapsed · @_feed.RecordedFrames frames</div>
+                <div class="rec-badge"><span class="rec-dot"></span>@(_feed.IsTimelapse ? "TIME-LAPSE" : "REC") @Elapsed · @_feed.RecordedFrames frames</div>
             }
         }
         else
@@ -98,10 +98,9 @@
     private IJSObjectReference? _zoomModule;
     private IJSObjectReference? _zoom;
     private int _nonce;
-    private DateTime? _recStartedUtc;
     private readonly List<string> _saved = new();
 
-    private string Elapsed => _recStartedUtc is { } t ? (DateTime.UtcNow - t).ToString(@"mm\:ss") : "";
+    private string Elapsed => _feed.RecordingStartedUtc is { } t ? (DateTime.UtcNow - t).ToString(@"mm\:ss") : "";
 
     protected override void OnInitialized()
     {
@@ -109,11 +108,7 @@
         StartTicker(TimeSpan.FromSeconds(1));
     }
 
-    protected override void OnParametersSet()
-    {
-        _feed = Camera.Get(Host);
-        if (_feed.IsRecording) _recStartedUtc ??= DateTime.UtcNow;
-    }
+    protected override void OnParametersSet() => _feed = Camera.Get(Host);
 
     private void OnFeedChanged(CameraFeed feed)
     {
@@ -154,19 +149,13 @@
     {
         if (_feed.RecordingPath is { } p) _saved.Add(p);
         Camera.Stop(Host);
-        _recStartedUtc = null;
     }
 
-    private void StartRecording()
-    {
-        Camera.StartRecording(Host, Label);
-        _recStartedUtc = DateTime.UtcNow;
-    }
+    private void StartRecording() => Camera.StartRecording(Host, Label);
 
     private void StopRecording()
     {
         if (Camera.StopRecording(Host) is { } path) _saved.Add(path);
-        _recStartedUtc = null;
     }
 
     private void Snapshot()

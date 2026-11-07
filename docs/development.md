@@ -11,7 +11,7 @@
 
 | Path | Contents |
 |---|---|
-| `src/TinkerCNC.Core` | The protocol library (namespaces `TinkerCNC.*`): discovery, transports, packet framing, typed messages and visitors, file transfer, G-code analysis and time estimates, operation history, saved programs, video clients. No UI, no hosting. |
+| `src/TinkerCNC.Core` | The protocol library (namespaces `TinkerCNC.*`): discovery, transports, packet framing, typed messages and visitors, file transfer, G-code analysis and time estimates, operation history, setups and the job queue, video clients. No UI, no hosting. |
 | `src/TinkerCNC.Host` | Machine services shared by every front end: sessions, discovery service, job control and tracking, bed cleaning, camera and time-lapse feeds, notifications, data paths. No UI and no HTTP. |
 | `src/TinkerCNC.Web` | The Blazor Server dashboard, media and toolpath endpoints, the desktop window (Photino) and updates (Velopack). Builds `TinkerCNC.exe` / `TinkerCNC`. |
 | `src/TinkerCNC.Cli` | `tinkercnc-cli`: discovery, query, interactive console over LAN or serial. |
@@ -53,8 +53,8 @@ dotnet run --project tools/TinkerCNC.Simulator -- [--name Simulator] [--ip 127.0
 It announces itself on UDP 3333 and speaks the framed protocol on TCP 2222. On the video port it serves both
 WebSockets: the live view is a top view of the bed with the tool position, and the time-lapse is a generated
 150-frame recording. It takes uploads, lists `/sd/gcodes` (`ls -s`), sets the work offset with `G10 L2`, and runs
-`buffer`ed commands when a program starts: `M495` asks for the probe (with `--manual-tool-change`) and pretends to
-probe for 2 s, `M6 Tn` asks for that tool. Port 82 needs elevated rights on some systems; the dashboard expects the
+`buffer`ed commands when a program starts: `M600` pauses (state `Pause`) until `resume`, `M495` asks for the probe
+(with `--manual-tool-change`) and pretends to probe for 2 s, `M6 Tn` asks for that tool. Port 82 needs elevated rights on some systems; the dashboard expects the
 camera on port 82, so use the default when you want to see the camera.
 
 ## CLI

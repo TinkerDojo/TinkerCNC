@@ -9,11 +9,20 @@ namespace TinkerCNC.Jobs;
 /// Commands that run a program on the machine's SD card (firmware, Player). <c>play &lt;path&gt;</c> starts it
 /// (only when the machine is homed and nothing else is playing); <c>buffer &lt;command&gt;</c> queues a command that runs
 /// once the next program has started, before its first line, and <c>abort</c> stops the program (spindle off,
-/// remaining moves dropped). Pausing is <see cref="JobSuspension"/>.
+/// remaining moves dropped). Pausing is <see cref="JobSuspension"/>; <see cref="Pause"/> does the same from inside
+/// the program.
 /// </summary>
 public static class JobCommands
 {
     public const string Abort = "abort";
+
+    /// <summary>
+    /// <c>M600</c>: the program pauses where it is (firmware, Player: the same as <c>suspend</c>: the queued moves
+    /// finish, the position is saved, the spindle stops and the pause routine runs, if one is configured). Queued
+    /// first with <c>buffer</c>, the machine waits right after <c>play</c>, before any probing and before the first
+    /// line, until <c>resume</c> arrives or the machine's own button is held (its resume while paused).
+    /// </summary>
+    public const string Pause = "M600";
 
     public static string Play(string remotePath) => $"play {RemotePath.Encode(remotePath)}";
 
@@ -38,9 +47,11 @@ public sealed class JobStartException(string message) : InvalidOperationExceptio
 /// <item>the machine's job options (<see cref="JobMode"/>), each switched on or off;</item>
 /// <item>the work origin, when it is set from the bed corner or the head position (<c>G10 L2 P0 X Y</c>: the active
 /// work offset becomes that machine position);</item>
-/// <item>queued with <c>buffer</c>, so they run after the program has started: probing the stock's corner with the XYZ
-/// probe block (<c>M495.3 H D</c>), then the automation before the program (<see cref="Automation"/>), then, when the
-/// program does not change to a tool of its own, the tool that was in the spindle before probing replaced it;</item>
+/// <item>queued with <c>buffer</c>, so they run after the program has started: for a queued job a
+/// pause first (<see cref="JobCommands.Pause"/>: the machine waits for the go before anything moves), then probing
+/// the stock's corner with the XYZ probe block (<c>M495.3 H D</c>), then the automation before the program
+/// (<see cref="Automation"/>), then, when the program does not change to a tool of its own, the tool that was in the
+/// spindle before probing replaced it;</item>
 /// <item><c>play</c>.</item>
 /// </list>
 /// The firmware runs the automation itself and asks for the probe first if another tool is in the spindle.
@@ -51,12 +62,14 @@ public sealed record JobStartPlan(IReadOnlyList<string> Commands, JobPreparation
     private const double MinLevelingHeight = 0.5;
     private const double MaxLevelingHeight = 50;
 
-    public static JobStartPlan Create(JobStartOptions options, JobStartContext context, string remotePath)
+    /// <param name="waitForGo">Pause right after the start, until the user resumes (queued jobs).</param>
+    public static JobStartPlan Create(JobStartOptions options, JobStartContext context, string remotePath, bool waitForGo = false)
     {
         Validate(options, context);
         var origin = WorkOrigins.For(options.WorkOrigin);
         List<string> queued =
         [
+            .. waitForGo ? [JobCommands.Pause] : Array.Empty<string>(),
             .. origin.BeforeProgram(options),
             .. context.Program is { } program ? [Automation(options, program)] : Array.Empty<string>(),
             .. ToolBackAfterProbing(options, context),

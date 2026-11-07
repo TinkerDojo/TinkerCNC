@@ -22,10 +22,10 @@ public static class MachineTypes
 {
     /// <summary>
     /// The compact desktop machine with a 207 × 206 mm travel: it blows chips away with its spindle blower instead of
-    /// compressed air and offers the blow, bed-clean, anti-static, external-output and time-lapse job modes.
+    /// compressed air and offers the blow, bed-clean, anti-static and external-output job modes.
     /// </summary>
     public static readonly MachineType Compact = new("compact", TravelX: 207, TravelY: 206, new SpindleBlower(),
-        [JobModes.Blow, JobModes.BedClean, JobModes.AntiStatic, JobModes.ExternalOutput, JobModes.TimeLapse]);
+        [JobModes.Blow, JobModes.BedClean, JobModes.AntiStatic, JobModes.ExternalOutput]);
 
     public static readonly IReadOnlyList<MachineType> All = [Compact];
 

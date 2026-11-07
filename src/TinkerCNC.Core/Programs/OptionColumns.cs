@@ -10,8 +10,8 @@ namespace TinkerCNC.Programs;
 public sealed record OptionColumn(string Name, Func<JobStartOptions, object> Get, Action<JobStartOptions, object> Set);
 
 /// <summary>
-/// Every <see cref="JobStartOptions"/> value a saved program keeps, one column each. The single list of the options:
-/// the table (<see cref="SavedProgramRepository"/>) and the check for unsaved changes (<see cref="Same"/>) both use it.
+/// Every <see cref="JobStartOptions"/> value a setup keeps, one column each. The single list of the options: the table
+/// (<see cref="SetupRepository"/>) and the check for unsaved changes (<see cref="Same"/>) both use it.
 /// A new option needs a column here and a migration in <see cref="Storage.AppDatabase"/>.
 /// </summary>
 public static class OptionColumns
@@ -37,7 +37,7 @@ public static class OptionColumns
         Mode("mode_blow", JobModes.Blow),
         Mode("mode_bed_clean", JobModes.BedClean),
         Mode("mode_anti_static", JobModes.AntiStatic),
-        Mode("mode_timelapse", JobModes.TimeLapse),
+        Flag("timelapse", o => o.Timelapse, (o, v) => o.Timelapse = v),
     ];
 
     /// <summary>Whether two sets of options start a program the same way (job options missing count as off).</summary>

@@ -1,0 +1,67 @@
+@* The program chosen to start: what it is, where it comes from, its size, and saving it with its options to a setup. *@
+@inherits JobControlComponent
+
+@{ var program = Control.Program!; }
+<div class="program-strip">
+    <div class="program-id">
+        <Icon Name="file" Size="20" />
+        <div class="program-text">
+            <div class="program-name">
+                <span>@(Control.Setup?.Name ?? program.Source.FileName)</span>
+                @if (Control.Setup is not null)
+                {
+                    <span class="mono small muted">@program.Source.FileName</span>
+                    @if (Control.SetupFile is null)
+                    {
+                        <span class="tag" title="Runs with the setup's options but is not one of its files">one-off file</span>
+                    }
+                    @if (Control.SetupChanged)
+                    {
+                        <span class="tag tag-warn" title="The options differ from the setup's">options changed</span>
+                    }
+                }
+            </div>
+            <div class="muted small">@program.Source.Describe()</div>
+        </div>
+    </div>
+    <div class="program-facts">
+        @if (program.Bounds is { } b)
+        {
+            <span class="tag mono" title="Size of the cutting moves in X × Y × Z">@Mm(b.Width) × @Mm(b.Depth) × @Mm(b.MaxZ - b.MinZ) mm</span>
+            <span class="tag mono" title="Front left corner of the cutting moves, in work coordinates">corner X@(Mm(b.MinX)) Y@(Mm(b.MinY))</span>
+        }
+        <span class="tag">@program.Analysis.Segments.Count operations</span>
+        @if (Job.Timeline is { } timeline)
+        {
+            <span class="tag" title="Estimated time, probing included"><Icon Name="stopwatch" Size="12" /> @TimeFormat.Duration(timeline.TotalSeconds)</span>
+        }
+    </div>
+    <div class="program-save">
+        @if (Control.Setup is not null)
+        {
+            <button class="btn btn-sm btn-ghost" disabled="@Control.IsBusy" title="Store the options as they are now in this setup"
+                    @onclick="() => _runner.Run(Control.SaveChanges)">
+                <Icon Name="save" /> Save
+            </button>
+        }
+        <button class="btn btn-sm btn-ghost" disabled="@Control.IsBusy" title="Add the file to a setup, or create a setup with these options"
+                @onclick="() => _dialog = true">
+            <Icon Name="save" /> Save…
+        </button>
+    </div>
+</div>
+@if (_dialog)
+{
+    <SaveToSetupDialog Session="Session" OnClose="() => _dialog = false" />
+}
+@if (_runner.Error is { } error)
+{
+    <p class="hint err">@error</p>
+}
+
+@code {
+    private readonly ActionRunner _runner = new();
+    private bool _dialog;
+
+    private static string Mm(double value) => StartOptionsText.Mm(value);
+}

@@ -14,17 +14,22 @@ public interface IProgramSource
     /// <summary>Where the program is run from on the machine's SD card.</summary>
     string MachinePath { get; }
 
+    /// <summary>Whether starting it transfers the file to the machine first.</summary>
+    bool NeedsUpload { get; }
+
     string Describe();
 
     /// <summary>Makes sure the program is on the machine's SD card.</summary>
     Task PutOnMachineAsync(MachineSession session, IProgress<UploadProgress> progress);
 }
 
-/// <summary>A file kept here (from this computer or a saved program): uploaded to the programs folder before it starts.</summary>
+/// <summary>A file kept here (from this computer, a setup or the queue): uploaded to the programs folder before it starts.</summary>
 /// <param name="Origin">Where it comes from, for <see cref="Describe"/>.</param>
 public sealed record LocalProgram(string FileName, byte[] Content, string Origin = "from this computer") : IProgramSource
 {
     public string MachinePath => RemotePath.ForProgram(FileName);
+
+    public bool NeedsUpload => true;
 
     public string Describe() => $"{Origin}, uploaded to {MachinePath} when started";
 
@@ -36,6 +41,8 @@ public sealed record LocalProgram(string FileName, byte[] Content, string Origin
 public sealed record MachineProgram(string MachinePath) : IProgramSource
 {
     public string FileName => RemotePath.FileName(MachinePath);
+
+    public bool NeedsUpload => false;
 
     public string Describe() => $"on the machine, {MachinePath}";
 
@@ -69,11 +76,12 @@ public sealed partial class JobControl
     private readonly JobTracker _tracker;
     private readonly GCodeCache _cache;
     private readonly JobOptionsStore _store;
-    private readonly SavedProgramLibrary _library;
+    private readonly SetupLibrary _library;
     private readonly IReadOnlyList<(Func<JobControl, bool> Blocks, Func<JobControl, string> Reason)> _startRules;
     private int _busy;
 
-    public JobControl(MachineSession session, JobTracker tracker, GCodeCache cache, JobOptionsStore store, SavedProgramLibrary library)
+    public JobControl(MachineSession session, JobTracker tracker, GCodeCache cache, JobOptionsStore store, SetupLibrary library,
+        CameraService camera)
     {
         _library = library;
         _library.Changed += OnLibraryChanged;
@@ -81,6 +89,7 @@ public sealed partial class JobControl
         _tracker = tracker;
         _cache = cache;
         _store = store;
+        Timelapse = new JobTimelapse(session, camera);
         Options = store.Get(session.Address);
         _startRules =
         [
@@ -94,8 +103,20 @@ public sealed partial class JobControl
         ];
     }
 
-    /// <summary>The options the next start uses; a form edits them in place. Loading a saved program replaces them.</summary>
+    /// <summary>The options the next start uses; a form edits them in place. Loading a setup's file replaces them.</summary>
     public JobStartOptions Options { get; private set; }
+
+    /// <summary>The time-lapse of the job started here, when <see cref="JobStartOptions.Timelapse"/> was on.</summary>
+    public JobTimelapse Timelapse { get; }
+
+    /// <summary>
+    /// Pause right after the start until the user resumes (<see cref="JobCommands.Pause"/>); set by the queue for its
+    /// jobs, so the machine waits for the go before anything moves.
+    /// </summary>
+    public bool WaitForGo { get; set; }
+
+    /// <summary>When Stop was last requested here, so a job that was stopped can be told from one that finished.</summary>
+    public DateTime? StopRequestedUtc { get; private set; }
 
     public SelectedProgram? Program { get; private set; }
     public JobControlPhase Phase { get; private set; }
@@ -122,11 +143,24 @@ public sealed partial class JobControl
     public bool CanResume => JobSuspension.IsSuspended(_session.Status) && !_session.BedCleaning.IsRunning;
     public bool CanStop => _session.Status?.IsPlaying == true && !_session.BedCleaning.IsRunning;
 
+    /// <summary>Forgets the chosen program; the next start needs a new choice. Nothing changes while a job runs.</summary>
+    public void Clear()
+    {
+        if (IsBusy) throw new InvalidOperationException("Busy with the previous request.");
+        Program = null;
+        Setup = null;
+        SetupFile = null;
+        ForgetRestart();
+        LastError = null;
+        _tracker.ClearProgram();
+        _session.NotifyChanged();
+    }
+
     /// <summary>Chooses a file from this computer.</summary>
     public void LoadLocal(string fileName, byte[] content)
     {
         var name = Path.GetFileName(fileName);
-        Use(new LocalProgram(name, content), content, _cache.Add(name, content), saved: null);
+        Use(new LocalProgram(name, content), content, _cache.Add(name, content), setup: null, file: null);
     }
 
     /// <summary>Chooses a file on the machine; it is downloaded (or taken from the cache) to analyse it.</summary>
@@ -136,7 +170,7 @@ public sealed partial class JobControl
         {
             var progress = new Progress<DownloadProgress>(p => { Download = p; _session.NotifyChanged(); });
             var result = await _session.DownloadAsync(machinePath, progress, _cache);
-            Use(new MachineProgram(machinePath), result.Content, _cache.Add(RemotePath.FileName(machinePath), result.Content), saved: null);
+            Use(new MachineProgram(machinePath), result.Content, _cache.Add(RemotePath.FileName(machinePath), result.Content), setup: null, file: null);
         });
         Download = null;
     }
@@ -167,7 +201,7 @@ public sealed partial class JobControl
         var status = _session.Status;
         var context = new JobStartContext(
             travel, program.Bounds, status?.MachinePosition, status?.Tool?.Active, Modes, program.SelectsTool);
-        return JobStartPlan.Create(Options, context, program.Source.MachinePath);
+        return JobStartPlan.Create(Options, context, program.Source.MachinePath, WaitForGo);
     }
 
     /// <summary>Uploads the program if needed and starts it; a failure ends up in <see cref="LastError"/>.</summary>
@@ -180,7 +214,7 @@ public sealed partial class JobControl
             return;
         }
         var program = Program!;
-        var saved = Saved;
+        var (setup, file) = (Setup, SetupFile);
         await RunExclusiveAsync(JobControlPhase.Uploading, async () =>
         {
             var plan = Plan();
@@ -189,7 +223,8 @@ public sealed partial class JobControl
             await program.Source.PutOnMachineAsync(_session, progress);
             SetPhase(JobControlPhase.Starting);
             await RunAsync(plan, program);
-            if (saved is not null) CountStart(saved);
+            if (Options.Timelapse) Timelapse.Begin(program.Source.FileName, _tracker.Timeline?.TotalSeconds ?? 0);
+            if (setup is not null) CountStart(setup, file);
         });
         Upload = null;
     }
@@ -223,18 +258,35 @@ public sealed partial class JobControl
     public Task ResumeAsync() => _session.SendAsync(JobSuspension.ResumeCommand);
 
     /// <summary>Ends the program: the spindle stops and the remaining moves are dropped.</summary>
-    public Task StopAsync() => _session.SendAsync(JobCommands.Abort);
+    public Task StopAsync()
+    {
+        StopRequestedUtc = DateTime.UtcNow;
+        return _session.SendAsync(JobCommands.Abort);
+    }
 
-    /// <param name="saved">The saved program it comes from: its options are used as saved. Any other program gets the
-    /// Z probe in its middle, as an offset from the previous program's corner means nothing for it.</param>
-    private void Use(IProgramSource source, byte[] content, GCodeAnalysis analysis, SavedProgram? saved)
+    /// <summary>Continues a job that waits for the go (<see cref="WaitForGo"/>) or is paused.</summary>
+    public Task ContinueAsync() => ResumeAsync();
+
+    /// <param name="setup">The setup it runs with: its options are used as saved. Any other program gets the Z probe
+    /// in its middle, as an offset from the previous program's corner means nothing for it.</param>
+    /// <param name="file">The setup's file it is, when it is one.</param>
+    private void Use(IProgramSource source, byte[] content, GCodeAnalysis analysis, Setup? setup, SetupFile? file)
     {
         Program = new SelectedProgram(source, content, analysis);
-        Saved = saved;
-        if (saved is null && Options.ZProbe && !Options.ZProbeFromWorkOrigin && Program.Bounds is { } bounds) Options.ZProbeAtCenterOf(bounds);
+        Setup = setup;
+        SetupFile = file;
+        ForgetRestart();
+        if (setup is null && Options.ZProbe && !Options.ZProbeFromWorkOrigin && Program.Bounds is { } bounds) Options.ZProbeAtCenterOf(bounds);
         LastError = null;
-        if (!_tracker.IsPlaying) _tracker.ShowProgram(source.FileName, analysis, () => Program is null ? null : Plan().Preparation);
+        Show();
         _session.NotifyChanged();
+    }
+
+    /// <summary>The chosen program goes on the job's timeline, unless a job is running.</summary>
+    private void Show()
+    {
+        if (_tracker.IsPlaying || Program is not { } program) return;
+        _tracker.ShowProgram(program.Source.FileName, program.Analysis, () => Program is null ? null : Plan().Preparation);
     }
 
     private async Task RunAsync(JobStartPlan plan, SelectedProgram program)
@@ -302,10 +354,10 @@ public sealed partial class JobControl
 }
 
 /// <summary>One <see cref="JobControl"/> per machine session.</summary>
-public sealed class JobControls(JobTrackers trackers, GCodeCache cache, JobOptionsStore store, SavedProgramLibrary library)
+public sealed class JobControls(JobTrackers trackers, GCodeCache cache, JobOptionsStore store, SetupLibrary library, CameraService camera)
 {
     private readonly ConcurrentDictionary<string, JobControl> _controls = new(StringComparer.OrdinalIgnoreCase);
 
     public JobControl Get(MachineSession session) =>
-        _controls.GetOrAdd(session.Address, _ => new JobControl(session, trackers.Get(session), cache, store, library));
+        _controls.GetOrAdd(session.Address, _ => new JobControl(session, trackers.Get(session), cache, store, library, camera));
 }

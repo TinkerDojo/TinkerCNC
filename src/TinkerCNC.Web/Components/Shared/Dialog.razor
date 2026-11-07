@@ -1,0 +1,49 @@
+@* A modal dialog over the page. It closes on the backdrop, the × and Escape. *@
+
+<div class="dialog-backdrop" @onclick="Close">
+    <div class="dialog @Class" role="dialog" aria-modal="true" aria-label="@Title" tabindex="-1" @ref="_dialog"
+         @onclick:stopPropagation="true" @onkeydown="OnKeyDown">
+        <header class="dialog-head">
+            @if (Icon is not null)
+            {
+                <Icon Name="@Icon" Size="18" />
+            }
+            <h2>@Title</h2>
+            @if (Tools is not null)
+            {
+                <div class="head-tools">@Tools</div>
+            }
+            <div class="spacer"></div>
+            <button class="btn btn-icon btn-sm" title="Close" @onclick="Close"><Icon Name="x" /></button>
+        </header>
+        <div class="dialog-body">@ChildContent</div>
+        @if (Footer is not null)
+        {
+            <footer class="dialog-foot">@Footer</footer>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = "";
+    [Parameter] public string? Icon { get; set; }
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public RenderFragment? Tools { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public RenderFragment? Footer { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private ElementReference _dialog;
+
+    /// <summary>Focus goes to the dialog so Escape closes it right away.</summary>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        try { await _dialog.FocusAsync(); }
+        catch (JSDisconnectedException) { }
+    }
+
+    private Task Close() => OnClose.InvokeAsync();
+
+    private Task OnKeyDown(KeyboardEventArgs e) => e.Key == "Escape" ? Close() : Task.CompletedTask;
+}

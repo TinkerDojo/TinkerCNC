@@ -1,0 +1,67 @@
+@* Choosing a program to start: a setup's file, one on the machine, or a file from this computer. *@
+@using TinkerCNC.Programs
+@inherits JobControlComponent
+
+@{ var current = Tabs.First(t => t.Key == _tab); }
+<Dialog Title="Choose a program" Icon="folder" Class="dialog-wide" OnClose="OnClose">
+    <Tools>
+        <div class="seg seg-sm">
+            @foreach (var tab in Tabs)
+            {
+                var t = tab;
+                <button class="@(t.Key == _tab ? "active" : "")" @onclick="() => _tab = t.Key"><Icon Name="@t.Icon" Size="14" /> @t.Label</button>
+            }
+        </div>
+    </Tools>
+    <ChildContent>
+        @current.Page(this)
+        @if (_runner.Error is { } error)
+        {
+            <p class="hint err">@error</p>
+        }
+    </ChildContent>
+</Dialog>
+
+@code {
+    private sealed record TabPage(PickerTab Key, string Label, string Icon, Func<ProgramPicker, RenderFragment> Page);
+
+    private static readonly TabPage[] Tabs =
+    [
+        new(PickerTab.Setups, "Setups", "library", p => p.SetupsPage),
+        new(PickerTab.Machine, "On the machine", "cnc", p => p.MachinePage),
+        new(PickerTab.Computer, "This computer", "upload", p => p.ComputerPage),
+    ];
+
+    private readonly ActionRunner _runner = new();
+    private PickerTab _tab;
+
+    /// <summary>The tab to open on.</summary>
+    [Parameter] public PickerTab Tab { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    protected override void OnInitialized() => _tab = Tab;
+
+    private RenderFragment SetupsPage => @<SetupsList OnPick="PickFileAsync" Busy="Control.IsBusy" ActiveFileId="Control.SetupFile?.Id" />;
+    private RenderFragment MachinePage => @<MachineFilesList Session="Session" OnPicked="OnClose" />;
+    private RenderFragment ComputerPage => @<LocalFileDrop Busy="Control.IsBusy" OnFile="PickLocalAsync" />;
+
+    private async Task PickFileAsync(SetupFile file)
+    {
+        await _runner.RunAsync(() =>
+        {
+            Control.LoadSetupFile(file.Id);
+            return Task.CompletedTask;
+        });
+        if (_runner.Error is null) await OnClose.InvokeAsync();
+    }
+
+    private async Task PickLocalAsync(ChosenFile file)
+    {
+        await _runner.RunAsync(() =>
+        {
+            Control.LoadLocal(file.Name, file.Content);
+            return Task.CompletedTask;
+        });
+        if (_runner.Error is null) await OnClose.InvokeAsync();
+    }
+}

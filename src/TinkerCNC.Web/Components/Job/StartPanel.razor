@@ -1,0 +1,147 @@
+@* Whether the job can start, what starting it will do, and the button that does it. *@
+@inherits JobControlComponent
+
+@{
+    var (plan, planError) = PlanOrError();
+    var blocker = Control.WhyNotStart ?? planError;
+}
+<aside class="start-panel">
+    <div class="start-status @(blocker is null ? "ok" : "warn")">
+        <Icon Name="@(blocker is null ? "check" : "alert")" />
+        <span>@(blocker ?? "The machine is idle and the program is ready.")</span>
+    </div>
+
+    @if (Job.Timeline is { } timeline)
+    {
+        <div class="start-estimate">
+            <span class="k">Estimated</span>
+            <span class="v">@TimeFormat.Duration(timeline.TotalSeconds)</span>
+            @if (timeline.Preparation is { } preparation)
+            {
+                <span class="muted small">incl. @TimeFormat.Duration(preparation.Seconds) probing</span>
+            }
+        </div>
+    }
+
+    @if (Control.Operations.Count > 1)
+    {
+        var interrupted = InterruptedLastTime;
+        <div class="start-from">
+            @if (interrupted is { } at)
+            {
+                <p class="hint warn">The last run of this file ended early, at @at.Label.</p>
+            }
+            <label class="inline-field">Start from
+                <select class="input" value="@(Control.StartSegment?.Index ?? 0)" disabled="@Control.IsBusy"
+                        @onchange="e => _runner.Run(() => Control.StartFrom(int.Parse((string)e.Value!, CultureInfo.InvariantCulture)))">
+                    <option value="0">the beginning (whole file)</option>
+                    @foreach (var op in Control.Operations.Skip(1))
+                    {
+                        <option value="@op.Index">@op.Label, line @op.StartLine@(interrupted?.Index == op.Index ? " · interrupted" : "")</option>
+                    }
+                </select>
+            </label>
+            @if (Control.StartSegment is { } segment)
+            {
+                <p class="hint muted">A copy that begins at @segment.Label is uploaded. Probing is off and the origin kept, as the piece has not moved; switch them back on if it has.</p>
+            }
+        </div>
+    }
+
+    <div>
+        <div class="start-steps-head">What starting does</div>
+        <ol class="start-steps">
+            @foreach (var step in Steps(plan))
+            {
+                <li>@step</li>
+            }
+        </ol>
+    </div>
+
+    @if (Options.UsesProbe)
+    {
+        <p class="hint muted">
+            Probing needs the probe in the spindle: the machine asks for it first (confirm the tool change in the
+            notifications) and changes back to the current tool afterwards.
+        </p>
+    }
+
+    @if (Control.Phase == JobControlPhase.Uploading && Control.Upload is { } up)
+    {
+        <div class="download">
+            <span class="muted small">Uploading · packet @up.Packet/@up.TotalPackets · @up.Bytes.ToString("N0") bytes</span>
+            <div class="bar"><div style="width:@Css(up.Fraction * 100)%"></div></div>
+        </div>
+    }
+    else if (Control.Phase == JobControlPhase.Starting)
+    {
+        <div class="start-busy"><span class="spinner"></span> Starting: waiting for the machine to play…</div>
+    }
+    else
+    {
+        <button class="btn btn-primary btn-lg btn-block" disabled="@(blocker is not null)" @onclick="() => _runner.RunAsync(Control.StartAsync)">
+            <Icon Name="play" Size="18" /> Start job
+        </button>
+    }
+
+    @if ((Control.LastError ?? _runner.Error) is { } error)
+    {
+        <p class="hint err">@error</p>
+    }
+    @if (Control.Timelapse.LastPath is { } path)
+    {
+        <p class="hint muted">Time-lapse of the last job: <a href="@($"recordings/{Uri.EscapeDataString(Path.GetFileName(path))}")" target="_blank">@Path.GetFileName(path)</a></p>
+    }
+
+    <details class="start-plan">
+        <summary>Commands sent when starting</summary>
+        @if (plan is not null)
+        {
+            <pre>@string.Join('\n', plan.Commands)</pre>
+        }
+    </details>
+</aside>
+
+@code {
+    private readonly ActionRunner _runner = new();
+
+    /// <summary>The operation the last run of this file ended in, when it ended early.</summary>
+    private ToolSegment? InterruptedLastTime =>
+        Job.LastRun is { EndedEarly: true } run && run.FileName == Control.WholeFileName ? run.Interrupted : null;
+
+    private (JobStartPlan? Plan, string? Error) PlanOrError()
+    {
+        try { return (Control.Plan(), null); }
+        catch (JobStartException ex) { return (null, ex.Message); }
+    }
+
+    /// <summary>What happens when the job starts, in order, in plain words.</summary>
+    private IEnumerable<string> Steps(JobStartPlan? plan)
+    {
+        var program = Control.Program!;
+        var source = program.Source;
+        if (source.NeedsUpload) yield return $"Upload {source.FileName} to {source.MachinePath}";
+        if (Control.Modes.Count > 0) yield return ModesText();
+        if (Options.WorkOrigin is WorkOriginChoice.BedCorner or WorkOriginChoice.HeadPosition)
+            yield return $"Set the work origin: {WorkOrigins.For(Options.WorkOrigin).Describe(Options)}";
+        foreach (var step in plan?.Preparation?.Steps ?? []) yield return step.Name;
+        var tools = program.Analysis.Segments.Select(s => s.ToolNumber).Distinct().Count();
+        yield return $"Run {source.FileName}: {program.Analysis.Segments.Count} operations, {tools} tool(s)";
+        if (Options.Timelapse)
+        {
+            var interval = JobTimelapse.IntervalFor(Job.Timeline?.TotalSeconds ?? 0);
+            yield return $"Record a time-lapse: one frame every {interval.TotalSeconds.ToString("0.#", CultureInfo.InvariantCulture)} s";
+        }
+    }
+
+    private string ModesText()
+    {
+        var on = Control.Modes.Where(Options.IsOn).Select(m => m.Name).ToList();
+        var off = Control.Modes.Where(m => !Options.IsOn(m)).Select(m => m.Name).ToList();
+        return on.Count == 0
+            ? $"Switch off every job option ({string.Join(", ", off)})"
+            : $"Switch on {string.Join(", ", on)}" + (off.Count > 0 ? $"; off: {string.Join(", ", off)}" : "");
+    }
+
+    private static string Css(double value) => value.ToString("0.#", CultureInfo.InvariantCulture);
+}

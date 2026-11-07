@@ -2,7 +2,6 @@
 @inherits LiveComponent
 @inject MachineDirectory Directory
 @inject MachineSessionManager Sessions
-@inject JobControls JobControls
 
 <PageTitle>@_session.Name · TinkerCNC</PageTitle>
 
@@ -56,11 +55,8 @@
         <CameraPanel Host="@_session.Host" Label="@_session.Name" />
         <ToolpathPanel Session="_session" />
     </div>
-    <JobPanel Session="_session" Focus="_focus" />
-    @if (_session.Status?.IsPlaying != true || JobControls.Get(_session).IsBusy)
-    {
-        <JobStartPanel Session="_session" />
-    }
+    <JobCard Session="_session" Focus="_focus" />
+    <QueueCard Session="_session" />
 </div>
 
 <SideRail>

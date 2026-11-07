@@ -46,6 +46,17 @@ public sealed class MachineNotifications : IDisposable
         Changed?.Invoke();
     }
 
+    /// <summary>Adds a notification raised by a host service (the queue), not by the machine's status.</summary>
+    public void Raise(IMachineNotification notification)
+    {
+        lock (_gate)
+        {
+            _items.Insert(0, notification);
+            if (_items.Count > MaxKept) _items.RemoveRange(MaxKept, _items.Count - MaxKept);
+        }
+        Changed?.Invoke();
+    }
+
     public void Dismiss(IMachineNotification notification)
     {
         notification.Resolve("Dismissed");

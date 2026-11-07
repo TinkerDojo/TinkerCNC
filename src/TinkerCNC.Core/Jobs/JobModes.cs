@@ -14,9 +14,10 @@ public sealed record JobMode(string Key, string Name, string Description, string
 /// <summary>
 /// The known job options. <c>M331</c>/<c>M332</c> (vacuum) and <c>M331.3</c>/<c>M332.3</c> (external output) switch
 /// modes in which that output follows the spindle (firmware, SimpleShell M331/M332). Compact machines also take
-/// <c>M331.1</c>, <c>M331.2</c> and <c>M331.4</c> (off: <c>M332.x</c>) and <c>M951</c>/<c>M952</c>; what exactly
-/// they do is up to its firmware: sent on their own they change nothing visible, as they only take effect while a
-/// program runs.
+/// <c>M331.1</c>, <c>M331.2</c> and <c>M331.4</c> (off: <c>M332.x</c>); what exactly they do is up to its firmware:
+/// sent on their own they change nothing visible, as they only take effect while a program runs. The machine's own
+/// time-lapse (<c>M951</c>/<c>M952</c>, recorded to its SD card) is not used: a time-lapse of a job is recorded here
+/// from the camera (<see cref="JobStartOptions.Timelapse"/>).
 /// </summary>
 public static class JobModes
 {
@@ -35,6 +36,6 @@ public static class JobModes
     public static readonly JobMode AntiStatic = new("antistatic", "Anti-static",
         "Static charge is removed while cutting.", "M331.4", "M332.4");
 
-    public static readonly JobMode TimeLapse = new("timelapse", "Auto time-lapse",
-        "The camera records a time-lapse of the program.", "M951", "M952");
+    /// <summary>Every known job option, for naming one by its key whatever machine it belongs to.</summary>
+    public static IReadOnlyList<JobMode> All { get; } = [Vacuum, ExternalOutput, Blow, BedClean, AntiStatic];
 }

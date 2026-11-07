@@ -1,0 +1,22 @@
+@* A G-code file from this computer: dropped on the zone or picked with the file dialog. *@
+
+<label class="drop-zone @(Busy ? "disabled" : "")">
+    <Icon Name="upload" Size="30" />
+    <b>Drop a G-code file here, or click to browse</b>
+    <span class="muted small">@ProgramFiles.AcceptText · uploaded to the machine's programs folder when the job starts</span>
+    <InputFile OnChange="OnChangeAsync" accept="@ProgramFiles.Accept" disabled="@Busy" />
+</label>
+@if (_runner.Error is { } error)
+{
+    <p class="hint err">@error</p>
+}
+
+@code {
+    private readonly ActionRunner _runner = new();
+
+    [Parameter] public bool Busy { get; set; }
+    [Parameter] public EventCallback<ChosenFile> OnFile { get; set; }
+
+    private Task OnChangeAsync(InputFileChangeEventArgs e) =>
+        _runner.RunAsync(async () => await OnFile.InvokeAsync(await ProgramFiles.ReadAsync(e.File)));
+}

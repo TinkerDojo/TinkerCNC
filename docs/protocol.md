@@ -120,7 +120,12 @@ encoded as above, names starting with a dot are hidden), then `0x84`; a director
   dropped. Pausing is `suspend`/`resume` (below).
 - `buffer <command>` queues a command that runs once the next program has started, before its first line. The queue
   is emptied by `abort` during a program and by any alarm or reset (so also by the not-homed refusal), but not by a
-  `play` that answers with an error.
+  `play` that answers with an error. `play` always begins at the file's first line; the `goto <line>` command jumps
+  inside a program only while it is suspended, without restating what earlier lines set *(firmware, Player)*.
+- `M600` inside a program (or buffered) does what `suspend` does: the queued moves finish, the position is saved, the
+  spindle stops, the pause routine runs if one is configured, and the state turns `Pause` until `resume` (or the
+  machine's own button, held). Buffered first, it makes the machine wait right after `play`, before probing and the
+  first line: TinkerCNC's queue uses it so a piece can be put in place before every job.
 - `G10 L2 P0 X Y` makes that machine position the active work origin (X/Y; Z stays).
 - `M495 X Y …` (normally buffered) runs the automation before a program, with X/Y the front left corner of the
   program's cutting moves (rapids such as the move to a safe height are left out) in work coordinates: `C D` (its
@@ -139,8 +144,10 @@ encoded as above, names starting with a dot are hidden), then `0x84`; a director
   anti-static, `M951`/`M952` time-lapse and the external output (no vacuum: it clears chips with its blower). The
   Z1-only modes take effect only while a program runs, so their exact behaviour is up to its firmware.
 
-TinkerCNC sends, in this order: the job modes, the work origin (`G10`), the buffered `M495.3`, `M495` and `M6 Tn`,
-then `play`, and waits up to 20 s for the status to report the program playing.
+TinkerCNC sends, in this order: the job modes, the work origin (`G10`), the buffered `M600` (queued jobs only),
+`M495.3`, `M495` and `M6 Tn`, then `play`, and waits up to 20 s for the status to report the program playing. To
+restart a program at a tool operation it uploads a trimmed copy (the modal state at that point, then the lines from
+that `M6`), because `play` cannot start later in a file.
 
 ## Air (chip blowing)
 
@@ -175,7 +182,14 @@ On machines without an automatic tool changer, `M6 Tn` moves to the tool change 
 `T:active,offset,target` carries the tool it waits for. The host answers with the plain text command **`M490.2`**,
 after which the firmware calibrates the tool length and the program continues *(firmware, ATCHandler)*. Reserved
 tool numbers: 0 is the probe, 8888 the laser module, 9999 the 3D probe. The dashboard raises a notification when the
-state turns `Tool` (red badge on the rail); its Confirm button sends `M490.2`.
+state turns `Tool` (red badge on the rail); its Confirm button sends `M490.2`. `M490.1` on its own only sets the
+waiting flag (state `Tool`, a beep); the program is held by the tool change script around it, not by the flag, so a
+bare `M490.1` is no way to pause a program.
+
+The machine's own button *(firmware, MainButton)*: a short press confirms the tool change in state `Tool`, resumes a
+feed hold in `Hold`, and **halts** the machine (an alarm) in `Idle`, `Run` or `Home`; a long press resumes a
+suspended program (`Pause`), and in `Idle` does what is configured (repeat the last file from its first line without
+any buffered commands, sleep, or a tool change).
 
 ## Video: WebSocket on port 82
 

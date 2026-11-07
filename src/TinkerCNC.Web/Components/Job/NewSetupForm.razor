@@ -1,0 +1,23 @@
+@* A new setup with the default start options and, optionally, its first files. *@
+@using TinkerCNC.Programs
+@inject SetupLibrary Library
+
+<p class="muted small">The options are the defaults until the setup is loaded on a machine, adjusted and saved there.</p>
+<SetupNameForm SaveLabel="Create setup" Save="Create" OnSaved="OnDone" OnCancel="OnDone">
+    <div class="field">
+        <span>Files</span>
+        <ChosenFilesList Files="_files" OnChanged="files => _files = files" />
+    </div>
+</SetupNameForm>
+
+@code {
+    private IReadOnlyList<ChosenFile> _files = [];
+
+    [Parameter] public EventCallback OnDone { get; set; }
+
+    private void Create(string name, string notes, bool replace)
+    {
+        var setup = Library.Create(name, notes, new JobStartOptions(), replace);
+        foreach (var file in _files) Library.AddFile(setup.Id, file.Name, file.Content);
+    }
+}

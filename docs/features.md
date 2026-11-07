@@ -42,10 +42,12 @@ connection shared by every browser tab that opens it.
 
 ## Start a job
 
-Choose a program on this computer (uploaded to `/sd/gcodes/` when the job starts, replacing a file of that name), in
-the machine's programs folder (listed with `ls`) or from the saved programs, set the start options and start it. The
-options are those of the machine (remembered per machine in `job-options.json` in the data folder), and the card
-shows the exact commands before they are sent:
+The **Job** card on a machine's page shows the job that is running, or the program chosen to run next, or offers a
+program: one of a setup's files, one in the machine's programs folder (listed with `ls`) or a file from this
+computer (uploaded to `/sd/gcodes/` when the job starts, replacing a file of that name). The program is set up in
+one place: the options on the left, and on the right what starting will do, step by step, the estimated time, why
+it can't start yet, the **Start job** button and the exact commands. The options are those of the machine
+(remembered per machine in `job-options.json` in the data folder), or of the setup the file was loaded from:
 
 - **work origin**: keep it, the bed's reference corner (`anchor1`), the head position plus an offset, or probe the
   stock's corner with the XYZ probe block;
@@ -53,32 +55,80 @@ shows the exact commands before they are sent:
   switched on, or with another program chosen, it probes in the middle of the program's area;
 - **auto leveling**: probe a grid of 2–15 × 2–15 points over the program's area;
 - **scan margin**: trace the program's outline first;
-- the machine's **job modes**: on the Z1 auto blow, auto bed clean, anti-static, external output and
-  time-lapse (other travels get the firmware's vacuum and external output modes).
+- **record a time-lapse**: from the moment the machine plays until it stops, the camera records one frame every few
+  seconds (the interval follows the estimated length, aiming at about 300 frames) into a `<program>_timelapse_<time>.mjpeg`
+  file in `recordings/` in the data folder. The camera is started if it is off; a recording that is already running
+  is left alone. Nothing is sent to the machine for it (its own `M951` time-lapse is not used);
+- the machine's **job modes**: on the Z1 auto blow, auto bed clean, anti-static and external output (other travels
+  get the firmware's vacuum and external output modes).
 
 Probing asks for the probe first (a manual tool change to confirm in the notifications) and changes back to the tool
-that was in the spindle. While a program runs, the job card has **Pause** (`suspend`), **Resume** and **Stop**
-(`abort`, confirmed with a second click).
+that was in the spindle. While a program runs, the card shows the time left, the progress, the tool, the next tool
+change and the feed override, with **Pause** (`suspend`), **Resume** and **Stop** (`abort`, confirmed with a second
+click).
 
-## Saved programs
+**Start from** a tool operation: a program with several tool changes can begin at any of them, which is how a job
+that ended early (Stop, an alarm, a lost connection) is taken up again without regenerating the G-code. The
+firmware plays a file from its first line only, so TinkerCNC uploads a trimmed copy named `<file>_from_T6.nc`: a
+comment, the modal state the program was in at that point (units, `G90`/`G91`, plane, work offset, feed, spindle,
+`M7`/`M8`), then the lines from that operation's `M6` to the end. The machine asks for the tool as usual, or carries
+on if it is in the spindle already. Choosing an operation switches scan margin, Z probe and leveling off and keeps the
+work origin, since the piece has not moved; they can be switched back on. After a job ends early, the operation it
+was in is marked in the list, and the Job card's empty state keeps the **last job** with **Run again** and **Run
+again from T…** (also for a job started on the machine itself, from the file downloaded for the timeline).
 
-A chosen program can be saved under a name of its own, with notes and all its start options (work origin, Z probe,
-leveling, scan margin, job modes). Saved programs are shared by all machines (job modes a machine doesn't have are
-left out when it runs there) and listed under **Saved** in the start card:
+## Setups
 
-- each keeps its own copy of the G-code file in `programs/` in the data folder, named after the original file with a
-  GUID before the extension (`my part_<guid>.nc`), so files of the same name can belong to different programs. The
-  database (table `saved_programs` in `tinkercnc.db`, one column per option) stores only that file name, so the data
-  folder can move. Starting one uploads it under its original file name;
-- loading one restores its options exactly as saved; after a change the card offers **Save** (update it) and
-  **Save as…** (a new one). Names are unique, ignoring case; saving under a taken name asks first and moves the other
-  program to the deleted ones;
-- **Replace file** gives a saved program a new version of its G-code and keeps its options (the previous copy is
-  deleted);
-- deleting (confirmed with a second click) keeps the program and its file: **Show deleted** lists them with
-  **Restore** (under a new name when the old one is taken meanwhile) and **Delete forever**;
-- the list shows how often each was started and when last (counted once the machine reports it playing).
+A **setup** is a named set of start options (work origin, Z probe, leveling, scan margin, time-lapse, job modes)
+with notes and the G-code files that run with it, shared by all machines (job modes a machine doesn't have are left
+out when it runs there). One setup, many files: the same job cut with a different file per piece. Setups are picked
+under **Setups** when choosing a program on a machine's page (click a file), and managed there or on the
+**Setups** page (which also creates a setup with the default options and its first files):
 
+- each file keeps its own copy in `programs/` in the data folder, named after the original file with a GUID before
+  the extension (`my part_<guid>.nc`), so files of the same name can belong to different setups or the same one. The
+  database (tables `setups` and `setup_files` in `tinkercnc.db`, one column per option) stores only that file name,
+  so the data folder can move. Starting a file uploads it under its original name;
+- loading a file restores the setup's options exactly as saved; after a change the card offers **Save** (update the
+  setup) and **Save…** (a dialog: add the file to an existing setup, optionally with the options as set, or create a
+  new setup with these options and this file as its first). Names are unique, ignoring case; a taken name asks first
+  and moves the other setup to the deleted ones;
+- **Manage** on a setup renames it, changes its notes, adds files, and on each file replaces its G-code (the options
+  stay, the previous copy is deleted) or deletes it; **Delete…** moves the setup with its files to the deleted ones;
+- deleting (confirmed with a second click) keeps everything: **Show deleted** lists deleted setups and files with
+  **Restore** (a setup under a new name when the old one is taken meanwhile) and **Delete forever**;
+- the list shows how often each setup and each file was started and when last (counted once the machine reports it
+  playing), and the setup's options in a few words. Options are edited on a machine's page, where the machine's own
+  job modes are known.
+
+Saved programs of earlier versions become one setup with one file each when the database is migrated.
+
+## Job queue
+
+The **Queue** card on a machine's page runs jobs one after the other without a trip to the computer in between:
+every entry is a file run with the options of its setup (as they are when it starts), a number of times. **Add…**
+takes a setup, any of its files, and files from this computer, which are queued for these runs only (a copy in
+`queue/` in the data folder that goes when the entry is done; **Keep in setup** makes it one of the setup's files).
+Entries can be reordered, repeated and removed while the queue runs; the running one stays. The queue is stored per
+machine (table `queue_entries`), so it survives a restart of the app, stopped.
+
+Every queued job, the first included, starts with a pause: `M600` is queued with `buffer` before the probing, so the
+machine waits right after `play`, before anything moves, in state `Pause`. Put the piece in place, then hold the
+machine's button until it continues (its resume while paused) or press **Resume** on the dashboard or in the
+notification; probing then asks for the probe as usual (a short press confirms). The next entry starts as soon as the
+machine is idle again. Beware that a short press of the button while the machine is Idle or Run halts it.
+
+A setup whose work origin is "where the head is now" can't be queued: in a queue the head is wherever the previous
+job ended. A Z probe point outside a file's cutting area is moved to the middle of that area, noted in the log.
+
+The queue stops when a job fails: an alarm, Stop (also **Stop queue**, which stops the running job too, confirmed
+with a second click), a start the machine refused, the connection lost, or a job that ended before its last
+operation. The entry stays, marked failed with the reason, with **Retry** from the beginning or from a tool operation
+(the interrupted one is preselected; the retry uploads the trimmed copy described under **Start from**) and
+**Remove**; **Start queue** then goes on. Finished entries drop off and count towards "n of m jobs done"; the ×
+button clears the queue and the count.
+
+## Live camera
 ## Live camera
 
 One upstream connection per machine is shared by every browser tab and served to the page as MJPEG
@@ -87,7 +137,9 @@ which VLC plays; or convert with `ffmpeg -f mjpeg -framerate 10 -i x.mjpeg x.mp4
 
 ## Time-lapse
 
-Settings → Time-lapse plays a recording stored on the machine, by path, with pause, resume and seek.
+Settings → Time-lapse plays a recording stored on the machine, by path, with pause, resume and seek. Time-lapses
+of jobs started here are recorded from the camera into the recordings folder (see [Start a job](#start-a-job)) and
+open in the browser like any recording.
 
 ## Job file cache
 
@@ -125,8 +177,9 @@ estimate on the timeline (stopwatch icon). This happens whether or not the dashb
 
 ## Notifications
 
-The bell in the right tool bar (red badge for open ones) collects manual tool changes to confirm (sends `M490.2`)
-and alarms, whether or not the dashboard is open.
+The bell in the right tool bar (red badge for open ones) collects manual tool changes to confirm (sends `M490.2`),
+alarms, and the queue's messages: a job waiting for the go (with **Resume**), the queue stopped with the reason, and
+the queue finished; whether or not the dashboard is open.
 
 ## Operation history
 
@@ -156,11 +209,11 @@ and alarms, whether or not the dashboard is open.
 
 Everything the app stores lives in the per-user data folder, never next to the app (an installed app's folder is
 replaced by every update): `%APPDATA%\TinkerCNC` on Windows, `~/Library/Application Support/TinkerCNC` on macOS,
-`~/.config/TinkerCNC` on Linux. It holds `tinkercnc.db`, `gcode/`, `programs/`, `recordings/`, `machines.json`,
-`job-options.json` and, for installed copies, `logs/tinkercnc.log`.
+`~/.config/TinkerCNC` on Linux. It holds `tinkercnc.db`, `gcode/`, `programs/`, `queue/`, `recordings/`,
+`machines.json`, `job-options.json` and, for installed copies, `logs/tinkercnc.log`.
 
 `appsettings.json` (section `TinkerCNC`) can move the whole folder (`DataDirectory`) or single parts
-(`HistoryDatabasePath`, `GCodeCacheDirectory`, `SavedProgramsDirectory`, `RecordingsDirectory`, `ManualMachinesPath`,
-`JobOptionsPath`), and sets `Window` (open the dashboard in the app's own window), `SourceUrl` (shown under
+(`HistoryDatabasePath`, `GCodeCacheDirectory`, `SetupFilesDirectory`, `QueuedFilesDirectory`, `RecordingsDirectory`,
+`ManualMachinesPath`, `JobOptionsPath`), and sets `Window` (open the dashboard in the app's own window), `SourceUrl` (shown under
 Settings → About) and the update feed (`Updates:Url`). Every setting can also be given on the command line
 (`--TinkerCNC:Window=true`) or as an environment variable (`TinkerCNC__DataDirectory=/data`).

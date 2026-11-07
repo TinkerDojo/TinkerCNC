@@ -1,0 +1,72 @@
+@* The setups with their files (shared by all machines): pick a file to run (with OnPick), and manage them. *@
+@using TinkerCNC.Programs
+@inherits LiveComponent
+@inject SetupLibrary Library
+
+<div class="list-tools">
+    <input class="input list-search" placeholder="Search by name, notes or file" @bind="_filter" @bind:event="oninput" />
+    <span class="muted small">@Count(Entries.Count, _showDeleted)</span>
+    <span class="spacer"></span>
+    <label class="check small"><input type="checkbox" @bind="_showDeleted" @bind:after="Reload" /> Show deleted</label>
+</div>
+
+@{ var shown = Entries.Where(Matches).ToList(); }
+<div class="setup-list">
+    @if (shown.Count == 0)
+    {
+        <p class="muted small pad">@EmptyText(Entries.Count)</p>
+    }
+    @foreach (var entry in shown)
+    {
+        <SetupItem Entry="entry" ActiveFileId="ActiveFileId" Busy="Busy" OnPick="OnPick" @key="entry.Setup.Id" />
+    }
+</div>
+
+@code {
+    private IReadOnlyList<SetupEntry>? _entries;
+    private bool _showDeleted;
+    private string _filter = "";
+
+    /// <summary>Choosing a file to run; without it, the list only manages setups.</summary>
+    [Parameter] public EventCallback<SetupFile> OnPick { get; set; }
+
+    /// <summary>Picking and changing files is off while a job is being started.</summary>
+    [Parameter] public bool Busy { get; set; }
+
+    /// <summary>The file loaded right now, highlighted.</summary>
+    [Parameter] public long? ActiveFileId { get; set; }
+
+    private IReadOnlyList<SetupEntry> Entries => _entries ??= Library.List(_showDeleted);
+
+    protected override void OnInitialized() => Library.Changed += Reload;
+
+    protected override void OnDispose()
+    {
+        Library.Changed -= Reload;
+        base.OnDispose();
+    }
+
+    private bool Matches(SetupEntry entry)
+    {
+        var text = _filter.Trim();
+        var s = entry.Setup;
+        return text.Length == 0
+            || s.Name.Contains(text, StringComparison.OrdinalIgnoreCase)
+            || s.Notes.Contains(text, StringComparison.OrdinalIgnoreCase)
+            || entry.Files.Any(f => f.File.OriginalFileName.Contains(text, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string Count(int count, bool withDeleted) =>
+        $"{count} setup{(count == 1 ? "" : "s")}{(withDeleted ? ", deleted included" : "")}";
+
+    private string EmptyText(int total) => total == 0
+        ? "No setups yet. Choose a program on a machine, set its options and use “Save…”, or create one here."
+        : $"No setup matches “{_filter.Trim()}”.";
+
+    /// <summary>Lists again on the next render: the library changed (here, in another window or for another machine).</summary>
+    private void Reload()
+    {
+        _entries = null;
+        RequestRender();
+    }
+}

@@ -30,10 +30,12 @@
   (a Linux box next to the machine, for instance) and open the dashboard from any browser or tablet on your network.
 - **Knows your job.** Estimated *and measured* operation times, a tool timeline, the predicted clock time of the next
   tool change, and notifications for manual tool changes and alarms even when no browser tab is open.
-- **Starts jobs properly.** Upload a program, choose the work origin, XYZ corner probing, auto Z probe, auto leveling,
-  scan margin and the machine's own job modes, and read the exact commands before they are sent. Save a program
-  together with all its options and run it again later.
-- **Keeps the shop running.** Live camera shared by every viewer, snapshots and recordings, time-lapse playback,
+- **Starts jobs properly.** Pick a program (saved, on the machine, or dropped in from this computer), choose the work
+  origin, XYZ corner probing, auto Z probe, auto leveling, scan margin and the machine's own job modes, and read what
+  starting will do, step by step, with the exact commands, before pressing Start. Save a program together with all
+  its options and run it again later.
+- **Keeps the shop running.** Live camera shared by every viewer, snapshots and recordings, a time-lapse of every job
+  you ask for, time-lapse playback,
   and bed cleaning that pauses a running job, sweeps, and resumes it.
 - **Familiar if you have used a G-code sender** such as UGS, Candle or bCNC: TinkerCNC plays that role for the Z1,
   with the machine-specific parts (framed protocol, probing automation, job modes, spindle blower, camera) built in.
@@ -48,14 +50,15 @@
 | Control | Positions (X/Y/Z/A, work and machine), hold / resume / home / unlock / reset, jog, go-to with travel checks, console with history, alarm banner |
 | Machine views | Top view (tool, work origin, bed corner, program area, target), side view, 3D view with the Z1's bed as a model |
 | Air | The Z1's spindle blower on/off, and bed cleaning in 1–3 passes that pauses and resumes a running job |
-| Start a job | Programs from this computer, the machine's SD card or the saved library; work origin, XYZ probe block, auto Z probe, auto leveling, scan margin, job modes; command preview |
-| Saved programs | Named programs with notes and all start options, versioning of the G-code file, soft delete and restore, run counts |
+| Start a job | Programs from this computer (drag and drop), the machine's SD card or a setup's files; work origin, XYZ probe block, auto Z probe, auto leveling, scan margin, job modes, time-lapse recording; a step-by-step summary and the commands before starting; start from any tool operation, e.g. to take up a job that ended early |
+| Setups | Named start options with notes and any number of G-code files, a Setups page to manage them, replacing files, soft delete and restore, run counts |
+| Job queue | Files queued per machine with a setup's options and repeat counts; every job waits for the go (the machine's button or Resume) before it moves; failures stop the queue with a retry from the interrupted tool operation |
 | Running job | Running file detection (also for jobs started on the machine), download cache by MD5, per-line time estimate, progress and remaining time scaled by the feed override |
 | Tool timeline | One bar per tool operation, probing segment, cursor, predicted tool-change times, measured times replacing estimates after the first run |
-| Notifications | Manual tool changes to confirm (`M490.2`) and alarms, collected server-side |
-| Camera | Live MJPEG from the machine's camera, snapshots, recordings, time-lapse playback with seek |
+| Notifications | Manual tool changes to confirm (`M490.2`), alarms and the queue's go, collected server-side |
+| Camera | Live MJPEG from the machine's camera, snapshots, recordings, time-lapses of jobs, time-lapse playback with seek |
 | Desktop app | Own window (WebView2 / WebKit), per-user install without admin rights, in-app updates via Velopack |
-| Developer tools | `TinkerCNC.Core` library, `tinkercnc-cli`, machine simulator with camera and time-lapse, 129 tests |
+| Developer tools | `TinkerCNC.Core` library, `tinkercnc-cli`, machine simulator with camera and time-lapse, 137 tests |
 
 The complete feature reference is in [`docs/features.md`](docs/features.md).
 

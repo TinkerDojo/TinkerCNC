@@ -1,5 +1,6 @@
 using TinkerCNC.History;
 using TinkerCNC.Programs;
+using TinkerCNC.Queue;
 using TinkerCNC.Storage;
 using TinkerCNC.Host.Notifications;
 
@@ -20,11 +21,13 @@ public static class HostServices
         services.AddSingleton<GCodeCache>();
         services.AddSingleton(sp => new AppDatabase(sp.GetRequiredService<AppPaths>().HistoryDatabase));
         services.AddSingleton(sp => new OperationHistory(sp.GetRequiredService<AppDatabase>()));
-        services.AddSingleton(sp => new SavedProgramRepository(sp.GetRequiredService<AppDatabase>()));
-        services.AddSingleton<SavedProgramLibrary>();
+        services.AddSingleton(sp => new SetupRepository(sp.GetRequiredService<AppDatabase>()));
+        services.AddSingleton<SetupLibrary>();
+        services.AddSingleton(sp => new QueueRepository(sp.GetRequiredService<AppDatabase>()));
         services.AddSingleton<JobTrackers>();
         services.AddSingleton<JobOptionsStore>();
         services.AddSingleton<JobControls>();
+        services.AddSingleton<JobQueues>();
         services.AddSingleton<NotificationCenter>();
         services.AddSingleton<DiscoveryService>();
         services.AddHostedService(sp => sp.GetRequiredService<DiscoveryService>());

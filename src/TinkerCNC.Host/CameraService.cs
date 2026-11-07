@@ -20,6 +20,14 @@ public sealed class CameraFeed
     public long RecordedFrames { get; internal set; }
     public bool IsRecording => RecordingPath is not null;
 
+    public DateTime? RecordingStartedUtc { get; internal set; }
+
+    /// <summary>Time between recorded frames; null records every frame.</summary>
+    public TimeSpan? RecordingInterval { get; internal set; }
+    public bool IsTimelapse => IsRecording && RecordingInterval is not null;
+
+    internal DateTime? LastRecordedUtc;
+
     internal CancellationTokenSource? Cts;
     internal FileStream? Recording;
     internal readonly object Gate = new();
@@ -98,7 +106,9 @@ public sealed class CameraService : IAsyncDisposable
         Changed?.Invoke(feed);
     }
 
-    public string StartRecording(string host, string? label = null)
+    /// <summary>Starts recording (and the camera, if needed); a recording already running is kept as it is.</summary>
+    /// <param name="interval">Keeps one frame per interval (a time-lapse) instead of every frame.</param>
+    public string StartRecording(string host, string? label = null, TimeSpan? interval = null)
     {
         var feed = Get(host);
         if (!feed.Running) Start(host);
@@ -107,6 +117,9 @@ public sealed class CameraService : IAsyncDisposable
             if (feed.Recording is not null) return feed.RecordingPath!;
             feed.Recording = _store.CreateRecording(label ?? host);
             feed.RecordingPath = feed.Recording.Name;
+            feed.RecordingInterval = interval;
+            feed.RecordingStartedUtc = DateTime.UtcNow;
+            feed.LastRecordedUtc = null;
             feed.RecordedFrames = 0;
         }
         Changed?.Invoke(feed);
@@ -123,6 +136,8 @@ public sealed class CameraService : IAsyncDisposable
             feed.Recording?.Dispose();
             feed.Recording = null;
             feed.RecordingPath = null;
+            feed.RecordingInterval = null;
+            feed.RecordingStartedUtc = null;
         }
         if (path is not null) Changed?.Invoke(feed);
         return path;
@@ -144,12 +159,13 @@ public sealed class CameraService : IAsyncDisposable
             feed.LastFrameUtc = now;
             feed.Meter.Tick(now);
 
-            if (feed.Recording is { } rec)
+            if (feed.Recording is { } rec && IsDue(feed, now))
             {
                 try
                 {
                     rec.Write(frame);
                     feed.RecordedFrames++;
+                    feed.LastRecordedUtc = now;
                 }
                 catch (Exception ex)
                 {
@@ -162,6 +178,10 @@ public sealed class CameraService : IAsyncDisposable
         }
         _hub.Publish(feed.SourceId, frame);
     }
+
+    /// <summary>Whether the frame is recorded: every frame, or the first one after the interval has passed.</summary>
+    private static bool IsDue(CameraFeed feed, DateTime now) =>
+        feed.RecordingInterval is not { } interval || feed.LastRecordedUtc is not { } last || now - last >= interval;
 
     public ValueTask DisposeAsync()
     {

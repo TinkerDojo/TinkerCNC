@@ -1,29 +1,44 @@
 using Microsoft.AspNetCore.Components;
-using Microsoft.AspNetCore.Components.Forms;
 using TinkerCNC.Host;
-using TinkerCNC.Web.Components.Machine;
+using TinkerCNC.Jobs;
 
 namespace TinkerCNC.Web.Components.Job;
 
-/// <summary>A panel that starts or controls programs on the session's machine (<see cref="JobControl"/>).</summary>
-public abstract class JobControlComponent : SessionComponent
+/// <summary>
+/// A panel that starts or controls programs on the session's machine (<see cref="JobControl"/>) and its queue
+/// (<see cref="JobQueue"/>); it also sees the job the machine runs (<see cref="JobComponent"/>).
+/// </summary>
+public abstract class JobControlComponent : JobComponent
 {
     [Inject] private JobControls Controls { get; set; } = default!;
+    [Inject] private JobQueues Queues { get; set; } = default!;
+
+    private JobQueue? _queue;
 
     protected JobControl Control => Controls.Get(Session);
 
-    protected bool Playing => Session.Status?.IsPlaying == true;
+    protected JobQueue Queue => _queue!;
 
-    /// <summary>File types offered when choosing a G-code file.</summary>
-    protected const string ProgramFileTypes = ".nc,.gcode,.ngc,.tap,.txt,.cnc";
+    /// <summary>The options the next start uses, edited in place.</summary>
+    protected JobStartOptions Options => Control.Options;
 
-    private const long MaxProgramSize = 100 * 1024 * 1024;
+    protected bool Playing => Job.IsPlaying;
 
-    /// <summary>Reads a G-code file chosen in the browser.</summary>
-    protected static async Task<byte[]> ReadAsync(IBrowserFile file)
+    protected override void OnParametersSet()
     {
-        using var buffer = new MemoryStream();
-        await file.OpenReadStream(maxAllowedSize: MaxProgramSize).CopyToAsync(buffer);
-        return buffer.ToArray();
+        var queue = Queues.Get(Session);
+        if (!ReferenceEquals(queue, _queue))
+        {
+            if (_queue is not null) _queue.Changed -= RequestRender;
+            _queue = queue;
+            _queue.Changed += RequestRender;
+        }
+        base.OnParametersSet();
+    }
+
+    protected override void OnDispose()
+    {
+        if (_queue is not null) _queue.Changed -= RequestRender;
+        base.OnDispose();
     }
 }

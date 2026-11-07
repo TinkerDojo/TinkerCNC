@@ -132,15 +132,21 @@ public sealed class JobPlayer(
     }
 
     /// <summary>
-    /// Runs the buffered commands like the firmware's automation would: probing (<c>M495</c>) first asks for the
-    /// probe on a machine without a tool changer, then takes a moment; <c>M6 Tn</c> asks for that tool.
+    /// Runs the buffered commands like the firmware's automation would: <c>M600</c> pauses until <c>resume</c>;
+    /// probing (<c>M495</c>) first asks for the probe on a machine without a tool changer, then takes a moment;
+    /// <c>M6 Tn</c> asks for that tool.
     /// </summary>
     private async Task RunBufferedAsync(CancellationToken ct)
     {
         while (_buffered.TryDequeue(out var command))
         {
             Console.WriteLine($"[auto] {command}");
-            if (command.StartsWith("M495", StringComparison.OrdinalIgnoreCase))
+            if (command.Equals(TinkerCNC.Jobs.JobCommands.Pause, StringComparison.OrdinalIgnoreCase))
+            {
+                Console.WriteLine($"[job] {await SuspendAsync(liftAfterwards: false)}");
+                while (_suspendedAt is not null) await Task.Delay(100, ct);
+            }
+            else if (command.StartsWith("M495", StringComparison.OrdinalIgnoreCase))
             {
                 if (machine.ActiveTool is not (0 or 9999)) await ChangeToolAsync(0, ct);
                 await Task.Delay(TimeSpan.FromSeconds(2), ct);

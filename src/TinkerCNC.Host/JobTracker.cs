@@ -9,6 +9,17 @@ namespace TinkerCNC.Host;
 
 public enum JobPhase { Idle, Resolving, Downloading, Ready, NoFileReported, Failed }
 
+/// <summary>A job as it ended: what ran, where it was and whether it got to its last operation.</summary>
+/// <param name="Path">The file as the machine named it, when it was asked (a job started elsewhere); otherwise the file name.</param>
+/// <param name="LastLine">The last line of the program the machine reported (in the file's numbering).</param>
+/// <param name="EndedEarly">The last line reported lies before the last feed move of the program's last operation.</param>
+/// <param name="Alarm">The machine was in alarm when the job ended.</param>
+public sealed record JobRun(string? FileName, string? Path, GCodeAnalysis? Analysis, int? LastLine, bool EndedEarly, bool Alarm, DateTime EndedUtc)
+{
+    /// <summary>The operation the job was in when it ended early, if known.</summary>
+    public ToolSegment? Interrupted => EndedEarly && Analysis is not null && LastLine is { } line ? Analysis.SegmentAt(line) : null;
+}
+
 /// <summary>
 /// Follows the job running on one machine: when the status reports playback (<c>P</c> field) it asks which file is running (0xB7), downloads it
 /// (cached by MD5) and analyses it. While the job runs, every tool operation is timed (<see cref="OperationRecorder"/>)
@@ -112,6 +123,9 @@ public sealed class JobTracker : IDisposable
     }
 
     public bool IsPlaying => _session.Status?.IsPlaying == true;
+
+    /// <summary>The job that ended last, until the next one starts; null before any ended.</summary>
+    public JobRun? LastRun { get; private set; }
     public JobProgress? Progress => _session.Status?.Job;
     public double FeedOverridePercent => _session.Status?.FeedOverridePercent ?? 100;
 
@@ -136,6 +150,19 @@ public sealed class JobTracker : IDisposable
         _running = null;
         UseProgram(analysis);
         SetPhase(JobPhase.Ready);
+    }
+
+    /// <summary>Stops showing a program that is not running; a running job stays as it is.</summary>
+    public void ClearProgram()
+    {
+        if (IsPlaying) return;
+        File = null;
+        LoadedLocally = false;
+        Error = null;
+        _preview = null;
+        _timeline = null;
+        _shown = null;
+        SetPhase(JobPhase.Idle);
     }
 
     /// <summary>The next job to start is started here with this probing (null: none, or the start failed).</summary>
@@ -170,6 +197,7 @@ public sealed class JobTracker : IDisposable
     {
         var playing = IsPlaying;
         if (playing && !_wasPlaying) OnJobStarted();
+        if (!playing && _wasPlaying) OnJobEnded();
         _wasPlaying = playing;
         RecordSample();
 
@@ -195,6 +223,15 @@ public sealed class JobTracker : IDisposable
             _samples.Clear();
             if (_lastSample is { Playing: false } start) _samples.Add(start); // marks the moment the job started
         }
+    }
+
+    /// <summary>Playback stopped: keep what ran and where it was, before the sample of the stopped machine replaces it.</summary>
+    private void OnJobEnded()
+    {
+        var analysis = _timeline?.Analysis;
+        int? line = _lastSample is { Playing: true } sample ? (_lines is { } map ? sample.InFileLines(map).Line : sample.Line) : null;
+        var endedEarly = analysis?.Segments.LastOrDefault() is { } last && line is { } l && l < last.LastFeedLine;
+        LastRun = new JobRun(File?.FileName, File?.Path, analysis, line, endedEarly, JobSuspension.HasState(_session.Status, "Alarm"), DateTime.UtcNow);
     }
 
     /// <summary>One sample per status report (other session events would only repeat the last status).</summary>
