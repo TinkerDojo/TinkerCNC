@@ -29,14 +29,18 @@
 - **Runs where you are.** Windows and macOS installers with automatic updates, or `dotnet run` on any computer
   (a Linux box next to the machine, for instance) and open the dashboard from any browser or tablet on your network.
 - **Knows your job.** Estimated *and measured* operation times, a tool timeline, the predicted clock time of the next
-  tool change, and notifications for manual tool changes and alarms even when no browser tab is open.
+  tool change, the toolpath drawn in the machine where it really cuts (live, or the whole job as a preview), and
+  notifications for manual tool changes and alarms even when no browser tab is open, also as system notifications.
 - **Starts jobs properly.** Pick a program (one of a setup's files, on the machine, or dropped in from this
   computer), choose the work origin, XYZ corner probing, auto Z probe, auto leveling, scan margin and the machine's
   own job modes, and read what starting will do, step by step, with the exact commands, before pressing Start. A job
   that ended early starts again from the tool operation it was in.
 - **Runs batches.** A setup keeps the options once and any number of files, one per piece. Queue them and the
   machine runs them one after the other, each waiting for the go at the machine's own button, so the laptop can
-  stay where it is.
+  stay where it is. Every job you start is the queue's first, so "five more of these" is one number away.
+- **Picks up where it stopped.** After an emergency stop, an alarm or a power cut, also after closing the app, a job
+  resumes at the line it had reached: work origin restored, tool measured again, the head brought back to that point.
+- **Speaks your language.** English, German, French and Italian, following the browser or the system.
 - **Keeps the shop running.** Live camera shared by every viewer, snapshots and recordings, a time-lapse of every job
   you ask for, time-lapse playback,
   and bed cleaning that pauses a running job, sweeps, and resumes it.
@@ -51,17 +55,20 @@
 |---|---|
 | Machines | UDP discovery with online/busy state, machines added by address, one shared connection per machine for every browser tab |
 | Control | Positions (X/Y/Z/A, work and machine), hold / resume / home / unlock / reset, jog, go-to with travel checks, console with history, alarm banner |
-| Machine views | Top view (tool, work origin, bed corner, program area, target), side view, 3D view with the Z1's bed as a model |
+| Machine views | Top view (tool, work origin, bed corner, program area, target), side view, 3D view with the Z1's bed as a model; heights of the tool's tip with the tool length offset taken out |
+| Toolpath | 3D toolpath coloured by tool, drawn in the machine at the work origin with the stock under it; Live (cut so far) and Preview (the whole job) |
 | Air | The Z1's spindle blower on/off, and bed cleaning in 1–3 passes that pauses and resumes a running job |
 | Start a job | Programs from this computer (drag and drop), the machine's SD card or a setup's files; work origin, XYZ probe block, auto Z probe, auto leveling, scan margin, job modes, time-lapse recording; a step-by-step summary and the commands before starting; start from any tool operation, e.g. to take up a job that ended early |
 | Setups | Named start options with notes and any number of G-code files, a Setups page to manage them, replacing files, soft delete and restore, run counts |
-| Job queue | Files queued per machine with a setup's options and repeat counts; every job waits for the go (the machine's button or Resume) before it moves; failures stop the queue with a retry from the interrupted tool operation |
+| Job queue | Files queued per machine with a setup's options and repeat counts; a job started on the Job card is the queue's first entry, its repeats can be raised while it runs; every further job waits for the go (the machine's button or Resume) before it moves; failures stop the queue with a retry from the interrupted tool operation; unchanged files are not uploaded again (MD5) |
+| Resume | Where a running job is gets stored per machine (every 30 s, and at once when it ends early); after an E-stop, alarm or power cut it resumes at that line, also after reopening the app |
 | Running job | Running file detection (also for jobs started on the machine), download cache by MD5, per-line time estimate, progress and remaining time scaled by the feed override |
 | Tool timeline | One bar per tool operation, probing segment, cursor, predicted tool-change times, measured times replacing estimates after the first run |
-| Notifications | Manual tool changes to confirm (`M490.2`), alarms and the queue's go, collected server-side |
-| Camera | Live MJPEG from the machine's camera, snapshots, recordings, time-lapses of jobs, time-lapse playback with seek |
+| Notifications | Manual tool changes to confirm (`M490.2`), alarms and the queue's go, collected server-side; optionally as the system's own notifications |
+| Languages | English, German, French and Italian, from the browser's or system's language or chosen under Settings |
+| Camera | Live MJPEG from the machine's camera, snapshots, MP4 recordings (H.264 encoded in-process, no ffmpeg), one-frame-a-second time-lapses of jobs that play 30× faster, time-lapse playback with seek |
 | Desktop app | Own window (WebView2 / WebKit), per-user install without admin rights, in-app updates via Velopack |
-| Developer tools | `TinkerCNC.Core` library, `tinkercnc-cli`, machine simulator with camera and time-lapse, 137 tests |
+| Developer tools | `TinkerCNC.Core` library, `tinkercnc-cli`, machine simulator with camera and time-lapse, 225 tests |
 
 The complete feature reference is in [`docs/features.md`](docs/features.md).
 

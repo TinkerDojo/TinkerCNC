@@ -48,8 +48,8 @@ packages, bakes the repository URL in as update feed and source link, and upload
 of that tag (`dotnet vpk upload github`). Installed copies then update from the release feed.
 
 ```sh
-git tag v0.2.0
-git push origin v0.2.0
+git tag v0.3.0
+git push origin v0.3.0
 ```
 
 The workflow does not sign: add the signing steps and secrets once you have certificates. It was written against

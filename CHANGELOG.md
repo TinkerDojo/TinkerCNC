@@ -6,6 +6,8 @@ All notable changes to TinkerCNC are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-10
+
 ### Added
 - **Resume after a stop**: where a running job is gets stored per machine (every 30 s, and at once when it ends
   early). After an emergency stop, an alarm or the machine switched off, also after reopening the app, the Job card
