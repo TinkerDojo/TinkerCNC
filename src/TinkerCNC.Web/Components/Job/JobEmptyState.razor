@@ -3,25 +3,24 @@
 
 <div class="job-empty">
     <p class="muted">
-        Nothing is running. Choose a program to set it up and start it; a job started on the machine itself is picked up
-        here automatically.
+        @T["Job.Empty.Intro"]
     </p>
     <div class="source-tiles">
         <button class="source-tile" @onclick="() => OnPick.InvokeAsync(PickerTab.Setups)">
             <Icon Name="library" Size="22" />
-            <b>Setups</b>
-            <span>Named start options with their files, shared by all machines.</span>
+            <b>@T["Job.Empty.Setups"]</b>
+            <span>@T["Job.Empty.Setups.Hint"]</span>
         </button>
-        <button class="source-tile" disabled="@(!Connected)" title="@(Connected ? null : "Connect to the machine first")"
+        <button class="source-tile" disabled="@(!Connected)" title="@(Connected ? null : T["Job.Empty.ConnectFirst"])"
                 @onclick="() => OnPick.InvokeAsync(PickerTab.Machine)">
             <Icon Name="cnc" Size="22" />
-            <b>On the machine</b>
-            <span>The programs folder of the machine's SD card.</span>
+            <b>@T["Job.Empty.Machine"]</b>
+            <span>@T["Job.Empty.Machine.Hint"]</span>
         </button>
         <label class="source-tile file-btn @(Control.IsBusy ? "disabled" : "")">
             <Icon Name="upload" Size="22" />
-            <b>This computer</b>
-            <span>A G-code file (@ProgramFiles.AcceptText): drop it here or click to browse. It is uploaded when the job starts.</span>
+            <b>@T["Job.Empty.Computer"]</b>
+            <span>@T["Job.Empty.Computer.Hint", ProgramFiles.AcceptText]</span>
             <InputFile OnChange="LoadLocalAsync" accept="@ProgramFiles.Accept" disabled="@Control.IsBusy" />
         </label>
     </div>
@@ -30,18 +29,18 @@
         <div class="last-job">
             <Icon Name="file" Size="18" />
             <div class="last-job-text">
-                <div><b>Last job:</b> <span class="mono">@run.FileName</span></div>
-                <div class="muted small">@Outcome(run) · @TimeFormat.Ago(run.EndedUtc)</div>
+                <div><b>@T["Job.Empty.LastJob"]</b> <span class="mono">@run.FileName</span></div>
+                <div class="muted small">@T[Outcome(run)] · @T[TimeFormat.Ago(run.EndedUtc)]</div>
             </div>
             <div class="form-actions">
-                <button class="btn btn-sm btn-primary" disabled="@Control.IsBusy" title="Choose it again with the options as they are" @onclick="() => _runner.Run(Control.LoadLastRun)">
-                    <Icon Name="play" /> Run again
+                <button class="btn btn-sm btn-primary" disabled="@Control.IsBusy" title="@T["Job.Empty.RunAgain.Title"]" @onclick="() => _runner.Run(Control.LoadLastRun)">
+                    <Icon Name="play" /> @T["Job.Empty.RunAgain"]
                 </button>
                 @if (run.Interrupted is { } at)
                 {
-                    <button class="btn btn-sm" disabled="@Control.IsBusy" title="A copy that begins at that operation, probing off, origin kept"
+                    <button class="btn btn-sm" disabled="@Control.IsBusy" title="@T["Job.Empty.RunAgainFrom.Title"]"
                             @onclick="() => _runner.Run(() => { Control.LoadLastRun(); Control.StartFrom(at.Index); })">
-                        <Icon Name="play" /> Run again from @at.Label
+                        <Icon Name="play" /> @T["Job.Empty.RunAgainFrom", at.DisplayLabel]
                     </button>
                 }
             </div>
@@ -49,7 +48,7 @@
     }
     @if (_runner.Error is { } error)
     {
-        <p class="hint err">@error</p>
+        <p class="hint err">@T[error]</p>
     }
 </div>
 
@@ -58,9 +57,19 @@
 
     [Parameter] public EventCallback<PickerTab> OnPick { get; set; }
 
-    private static string Outcome(JobRun run) => run.EndedEarly
-        ? "ended early" + (run.Interrupted is { } at ? $" at {at.Label}" : "") + (run.Alarm ? ", the machine raised an alarm" : "")
-        : "finished";
+    /// <summary>How a run that ended early ended, by whether its operation is known and whether there was an alarm.</summary>
+    private static readonly IReadOnlyDictionary<(bool At, bool Alarm), Func<JobRun, Text>> EarlyEndings =
+        new Dictionary<(bool At, bool Alarm), Func<JobRun, Text>>
+        {
+            [(false, false)] = _ => Texts.Of("Job.Empty.Outcome.EndedEarly"),
+            [(false, true)] = _ => Texts.Of("Job.Empty.Outcome.EndedEarlyAlarm"),
+            [(true, false)] = r => Texts.Of("Job.Empty.Outcome.EndedEarlyAt", r.Interrupted!.DisplayLabel),
+            [(true, true)] = r => Texts.Of("Job.Empty.Outcome.EndedEarlyAtAlarm", r.Interrupted!.DisplayLabel),
+        };
+
+    private static Text Outcome(JobRun run) => run.EndedEarly
+        ? EarlyEndings[(run.Interrupted is not null, run.Alarm)](run)
+        : Texts.Of("Job.Empty.Outcome.Finished");
 
     private Task LoadLocalAsync(InputFileChangeEventArgs e) => _runner.RunAsync(async () =>
     {

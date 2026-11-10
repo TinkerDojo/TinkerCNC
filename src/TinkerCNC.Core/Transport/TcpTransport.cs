@@ -1,4 +1,5 @@
 using System.Net.Sockets;
+using TinkerCNC.Localization;
 
 namespace TinkerCNC.Transport;
 
@@ -30,7 +31,7 @@ public sealed class TcpTransport : IMachineTransport
             return new TcpTransport(parts[0], port);
         if (parts.Length == 1 && parts[0].Length > 0)
             return new TcpTransport(parts[0]);
-        throw new FormatException($"Invalid address format: {address}");
+        throw new InvalidAddressException(CoreTexts.Of("Address.Invalid", address));
     }
 
     public async Task<Stream> OpenAsync(CancellationToken cancellationToken = default)
@@ -48,4 +49,10 @@ public sealed class TcpTransport : IMachineTransport
         _client = null;
         return ValueTask.CompletedTask;
     }
+}
+
+/// <summary>An address that is neither "host" nor "host:port"; the reason for people is <see cref="Text"/>.</summary>
+public sealed class InvalidAddressException(Text text) : FormatException(text.ToString()), ILocalizedException
+{
+    public Text Text { get; } = text;
 }

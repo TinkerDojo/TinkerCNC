@@ -1,4 +1,5 @@
 using System.Globalization;
+using TinkerCNC.Localization;
 
 namespace TinkerCNC.Motion;
 
@@ -27,7 +28,7 @@ public sealed record GoToRequest(double? X, double? Y, double? Z, CoordinateFram
 /// <param name="Commands">What to send, in order; empty when the request is invalid.</param>
 /// <param name="Errors">Why the request is invalid, per axis.</param>
 /// <param name="Target">The resulting position in machine coordinates (X, Y, Z).</param>
-public sealed record GoToPlan(IReadOnlyList<string> Commands, IReadOnlyDictionary<Axis, string> Errors, double[] Target)
+public sealed record GoToPlan(IReadOnlyList<string> Commands, IReadOnlyDictionary<Axis, Text> Errors, double[] Target)
 {
     public bool IsValid => Errors.Count == 0;
 }
@@ -39,6 +40,12 @@ public sealed record GoToPlan(IReadOnlyList<string> Commands, IReadOnlyDictionar
 public static class GoToPlanner
 {
     private static readonly Axis[] Axes = [Axis.X, Axis.Y, Axis.Z];
+
+    private static readonly IReadOnlyDictionary<CoordinateFrame, Text> FrameNames = new Dictionary<CoordinateFrame, Text>
+    {
+        [CoordinateFrame.Work] = CoreTexts.Of("GoTo.WorkCoordinates"),
+        [CoordinateFrame.Machine] = CoreTexts.Of("GoTo.MachineCoordinates"),
+    };
 
     /// <summary>The range of an axis in the given frame (for showing limits next to the inputs).</summary>
     public static AxisRange RangeIn(CoordinateFrame frame, Axis axis, MachineTravel travel, StatusReport status)
@@ -52,7 +59,7 @@ public static class GoToPlanner
     {
         var current = status.MachinePosition is { Length: >= 3 } m ? m : null;
         if (current is null)
-            return Invalid(Axis.X, "The machine has not reported its position yet.", [0, 0, 0]);
+            return Invalid(Axis.X, CoreTexts.Of("GoTo.NoPosition"), [0, 0, 0]);
 
         var offset = OffsetOf(request.Frame, status);
         var target = Axes.Select(a => request[a] is { } v ? v + offset[(int)a] : current[(int)a]).ToArray();
@@ -91,9 +98,11 @@ public static class GoToPlanner
             ? [0, 0, 0]
             : [m[0] - w[0], m[1] - w[1], m[2] - w[2]];
 
-    private static string OutOfRange(Axis axis, CoordinateFrame frame, AxisRange range) =>
-        string.Create(CultureInfo.InvariantCulture, $"{axis} must be between {range.Min:0.###} and {range.Max:0.###} ({frame.ToString().ToLowerInvariant()} coordinates).");
+    private static Text OutOfRange(Axis axis, CoordinateFrame frame, AxisRange range) =>
+        CoreTexts.Of("GoTo.OutOfRange", axis.ToString(), Number(range.Min), Number(range.Max), FrameNames[frame]);
 
-    private static GoToPlan Invalid(Axis axis, string error, double[] target) =>
-        new([], new Dictionary<Axis, string> { [axis] = error }, target);
+    private static string Number(double value) => value.ToString("0.###", CultureInfo.InvariantCulture);
+
+    private static GoToPlan Invalid(Axis axis, Text error, double[] target) =>
+        new([], new Dictionary<Axis, Text> { [axis] = error }, target);
 }

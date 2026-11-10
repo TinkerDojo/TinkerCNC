@@ -1,18 +1,18 @@
-<span class="chip @Look.Chip"><span class="dot @Look.Dot"></span>@Look.Label</span>
+<span class="chip @Look.Chip"><span class="dot @Look.Dot"></span>@T[Look.Label]</span>
 
 @code {
     [Parameter, EditorRequired] public MachineEntry Machine { get; set; } = default!;
     [Parameter] public bool Connected { get; set; }
 
-    private sealed record Rule(Func<PresenceChip, bool> Applies, string Chip, string Dot, string Label);
+    private sealed record Rule(Func<PresenceChip, bool> Applies, string Chip, string Dot, Text Label);
 
     // First matching rule wins.
     private static readonly Rule[] Rules =
     {
-        new(c => c.Connected, "chip-accent", "dot-on", "Connected"),
-        new(c => c.Machine.Online && c.Machine.Busy, "chip-warn", "dot-wait", "Busy"),
-        new(c => c.Machine.Online, "chip-ok", "dot-on", "Available"),
-        new(_ => true, "chip-dim", "dot-off", "Offline"),
+        new(c => c.Connected, "chip-accent", "dot-on", Texts.Of("Shared.Presence.Connected")),
+        new(c => c.Machine.Online && c.Machine.Busy, "chip-warn", "dot-wait", Texts.Of("Shared.Presence.Busy")),
+        new(c => c.Machine.Online, "chip-ok", "dot-on", Texts.Of("Shared.Presence.Available")),
+        new(_ => true, "chip-dim", "dot-off", Texts.Of("Shared.Presence.Offline")),
     };
 
     private Rule Look => Rules.First(r => r.Applies(this));

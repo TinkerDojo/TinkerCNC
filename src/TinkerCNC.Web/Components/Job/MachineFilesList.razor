@@ -3,10 +3,10 @@
 @inherits JobControlComponent
 
 <div class="list-tools">
-    <input class="input list-search" placeholder="Filter by name" @bind="_filter" @bind:event="oninput" />
+    <input class="input list-search" placeholder="@T["Setups.Machine.Filter"]" @bind="_filter" @bind:event="oninput" />
     <span class="muted small mono">@RemotePath.GCodeDirectory</span>
     <span class="spacer"></span>
-    <button class="btn btn-sm btn-ghost" disabled="@(!Connected || Control.ListingFiles)" title="List the folder again" @onclick="RefreshAsync">
+    <button class="btn btn-sm btn-ghost" disabled="@(!Connected || Control.ListingFiles)" title="@T["Setups.Machine.RefreshHint"]" @onclick="RefreshAsync">
         @if (Control.ListingFiles)
         {
             <span class="spinner"></span>
@@ -15,17 +15,17 @@
         {
             <Icon Name="refresh" />
         }
-        Refresh
+        @T["Common.Refresh"]
     </button>
 </div>
 
 @if (!Connected)
 {
-    <p class="muted small pad">Connect to the machine to list its programs.</p>
+    <p class="muted small pad">@T["Setups.Machine.NotConnected"]</p>
 }
 else if (Control.MachineFiles is not { } files)
 {
-    <p class="muted small pad">Listing the programs folder…</p>
+    <p class="muted small pad">@T["Setups.Machine.Listing"]</p>
 }
 else
 {
@@ -33,12 +33,12 @@ else
     <div class="pick-list">
         @if (shown.Count == 0)
         {
-            <p class="muted small pad">@(files.Count == 0 ? $"No files in {RemotePath.GCodeDirectory}." : "No file matches the filter.")</p>
+            <p class="muted small pad">@(files.Count == 0 ? T["Setups.Machine.NoFiles", RemotePath.GCodeDirectory] : T["Setups.Machine.NoMatch"])</p>
         }
         @foreach (var file in shown)
         {
             var path = RemotePath.Combine(RemotePath.GCodeDirectory, file.Name);
-            <button class="pick-row @(IsChosen(path) ? "active" : "")" disabled="@Control.IsBusy" title="Choose @file.Name" @onclick="() => ChooseAsync(path)">
+            <button class="pick-row @(IsChosen(path) ? "active" : "")" disabled="@Control.IsBusy" title="@T["Setups.Machine.Choose", file.Name]" @onclick="() => ChooseAsync(path)">
                 <span class="pick-name mono">@file.Name</span>
                 <span class="muted small">@ProgramFiles.Size(file.Size)</span>
                 <span class="muted small pick-date">@(file.Modified?.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture) ?? "")</span>
@@ -50,13 +50,13 @@ else
 @if (Control.Phase == JobControlPhase.Loading && Control.Download is { } dl)
 {
     <div class="download">
-        <span class="muted small">Reading the program from the machine · packet @dl.Packet/@dl.TotalPackets</span>
+        <span class="muted small">@T["Setups.Machine.Reading", dl.Packet, dl.TotalPackets]</span>
         <div class="bar"><div style="width:@((dl.Fraction * 100).ToString("0.#", CultureInfo.InvariantCulture))%"></div></div>
     </div>
 }
 @if ((Control.LastError ?? _runner.Error) is { } error)
 {
-    <p class="hint err">@error</p>
+    <p class="hint err">@T[error]</p>
 }
 
 @code {

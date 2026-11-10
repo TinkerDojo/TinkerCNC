@@ -9,6 +9,14 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.14" />
+    <!-- Decodes camera frames for MP4 recordings (the encoder itself is managed code in TinkerCNC.Core). -->
+    <PackageReference Include="SkiaSharp" Version="4.155.0" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.155.0" />
+  </ItemGroup>
+
+  <!-- The texts, one file per language (see TextCatalog); embedded as <Assembly>.Localization.<code>.json. -->
+  <ItemGroup>
+    <EmbeddedResource Include="Localization\*.json" LogicalName="$(AssemblyName).Localization.%(Filename)%(Extension)" WithCulture="false" />
   </ItemGroup>
 
 </Project>

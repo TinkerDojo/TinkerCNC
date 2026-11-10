@@ -2,27 +2,27 @@
 @inherits JobControlComponent
 
 @{ var look = WorkOriginLooks.For(Options.WorkOrigin); }
-<OptionRow Title="Work origin" Hint="Where X/Y zero is when the program starts">
+<OptionRow Title="@T["Job.Options.WorkOrigin"]" Hint="@T["Job.Options.WorkOrigin.Hint"]">
     <div class="seg seg-sm seg-wrap">
         @foreach (var (choice, item) in WorkOriginLooks.All)
         {
             var c = choice;
-            <button class="@(Options.WorkOrigin == c ? "active" : "")" @onclick="() => Options.WorkOrigin = c">@item.Label</button>
+            <button class="@(Options.WorkOrigin == c ? "active" : "")" @onclick="() => Options.WorkOrigin = c">@T[item.Label]</button>
         }
     </div>
-    <p class="hint muted">@look.Hint</p>
+    <p class="hint muted">@T[look.Hint]</p>
     @if (look.Offset)
     {
         <div class="opt-line">
-            <label class="inline-field">Offset X <input class="input mono" type="number" step="0.1" @bind="Options.OriginOffsetX" /> mm</label>
-            <label class="inline-field">Offset Y <input class="input mono" type="number" step="0.1" @bind="Options.OriginOffsetY" /> mm</label>
+            <label class="inline-field">@T["Job.Options.WorkOrigin.OffsetX"] <input class="input mono" type="number" step="0.1" @bind="Options.OriginOffsetX" /> mm</label>
+            <label class="inline-field">@T["Job.Options.WorkOrigin.OffsetY"] <input class="input mono" type="number" step="0.1" @bind="Options.OriginOffsetY" /> mm</label>
         </div>
     }
     @if (look.ProbeBlock)
     {
         <div class="opt-line">
-            <label class="inline-field">Block height <input class="input mono" type="number" step="0.1" min="0" @bind="Options.XyzProbeHeight" /> mm</label>
-            <label class="inline-field">Tool diameter <input class="input mono" type="number" step="0.001" min="0" @bind="Options.XyzProbeToolDiameter" /> mm</label>
+            <label class="inline-field">@T["Job.Options.WorkOrigin.BlockHeight"] <input class="input mono" type="number" step="0.1" min="0" @bind="Options.XyzProbeHeight" /> mm</label>
+            <label class="inline-field">@T["Job.Options.WorkOrigin.ToolDiameter"] <input class="input mono" type="number" step="0.001" min="0" @bind="Options.XyzProbeToolDiameter" /> mm</label>
         </div>
     }
 </OptionRow>

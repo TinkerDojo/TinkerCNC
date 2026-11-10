@@ -54,6 +54,25 @@ public sealed class SimMachine
     private int _clients;
 
     public string State { get; private set; } = "Idle";
+
+    // States the firmware reports before a feed hold (Kernel::get_state: suspend, wait, tool, alarm, home, hold).
+    private static readonly HashSet<string> AboveFeedHold = ["Pause", "Wait", "Tool", "Alarm", "Home"];
+    private int _heldMoves;
+
+    /// <summary>Feed hold (<c>!</c> until <c>~</c>): a new move waits before it starts; reported as <c>Hold</c>.</summary>
+    public bool FeedHold { get; private set; }
+
+    /// <summary>The state in status reports: <see cref="State"/>, or <c>Hold</c> during a feed hold.</summary>
+    public string ReportedState
+    {
+        get
+        {
+            lock (_gate) return FeedHold && !AboveFeedHold.Contains(State) ? "Hold" : State;
+        }
+    }
+
+    /// <summary>Whether a move waits for the feed hold to go; like the firmware, text commands wait behind it.</summary>
+    public bool MoveHeld => Volatile.Read(ref _heldMoves) > 0;
     // Machine coordinates as on the real machine: homing goes to the far corner (0, 0, 0), everything else is negative.
     public Position MachinePosition { get; private set; } = new(-100, -120, -10, 0);
     public Position WorkOffset { get; private set; } = new(-185, -190, -60, 0);
@@ -102,7 +121,7 @@ public sealed class SimMachine
         {
             var fields = new List<string?>
             {
-                State, $"MPos:{MachinePosition.Format()}", $"WPos:{(MachinePosition - WorkOffset).Format()}",
+                FeedHold && !AboveFeedHold.Contains(State) ? "Hold" : State, $"MPos:{MachinePosition.Format()}", $"WPos:{(MachinePosition - WorkOffset).Format()}",
                 string.Create(CultureInfo.InvariantCulture, $"F:0,0,{FeedOverridePercent:0}"), "S:0,100",
                 $"T:{ActiveTool},0.000,{TargetTool}", "L:0", "V:0",
             };
@@ -126,10 +145,15 @@ public sealed class SimMachine
         lock (_gate) State = state;
     }
 
-    /// <summary>Changes state only if the machine is currently in <paramref name="from"/>.</summary>
-    public void Transition(string from, string to)
+    public void SetFeedHold(bool on)
     {
-        lock (_gate) if (State == from) State = to;
+        lock (_gate) FeedHold = on;
+    }
+
+    /// <summary>Returns once a waiting move went on (text commands are read after it).</summary>
+    public async Task WhileMoveHeldAsync()
+    {
+        while (MoveHeld) await Task.Delay(50);
     }
 
     /// <summary>M6 without a tool changer: wait in state <c>Tool</c> (firmware M490.1).</summary>
@@ -163,7 +187,11 @@ public sealed class SimMachine
 
     public void Reset()
     {
-        lock (_gate) State = InAlarm ? "Alarm" : "Idle";
+        lock (_gate)
+        {
+            State = InAlarm ? "Alarm" : "Idle";
+            FeedHold = false;
+        }
     }
 
     public void SetWorkOrigin()
@@ -184,16 +212,28 @@ public sealed class SimMachine
 
     /// <summary>
     /// Animates a move to <paramref name="target"/>, reporting <paramref name="state"/> meanwhile. While a program is
-    /// paused the state stays <c>Pause</c>, as moves in between do not end the pause.
+    /// paused the state stays <c>Pause</c>, as moves in between do not end the pause; a move of a running program
+    /// leaves it in <c>Run</c>. Like the firmware, a move that goes nowhere is skipped, and a new move waits while the
+    /// feed hold is on.
     /// </summary>
     public async Task MoveToAsync(Position target, string state)
     {
+        if (Distance(MachinePosition, target) < 0.00001) return;
+        Interlocked.Increment(ref _heldMoves);
+        try
+        {
+            while (FeedHold) await Task.Delay(50);
+        }
+        finally
+        {
+            Interlocked.Decrement(ref _heldMoves);
+        }
         Position start;
         string after;
         lock (_gate)
         {
             start = MachinePosition;
-            after = State == JobSuspension.SuspendedState ? State : "Idle";
+            after = State is JobSuspension.SuspendedState or "Run" ? State : "Idle";
             State = after == JobSuspension.SuspendedState ? after : state;
         }
         const int steps = 12;
@@ -206,4 +246,7 @@ public sealed class SimMachine
     }
 
     public Task MoveByAsync(Position delta, string state) => MoveToAsync(MachinePosition + delta, state);
+
+    private static double Distance(Position a, Position b) =>
+        Math.Sqrt((a.X - b.X) * (a.X - b.X) + (a.Y - b.Y) * (a.Y - b.Y) + (a.Z - b.Z) * (a.Z - b.Z) + (a.A - b.A) * (a.A - b.A));
 }

@@ -2,18 +2,15 @@
 @inherits LiveComponent
 @inject SetupLibrary Library
 
-<PageTitle>Setups · TinkerCNC</PageTitle>
+<PageTitle>@T["Setups.Page.PageTitle"]</PageTitle>
 
 <header class="page-head">
     <div>
-        <h1>Setups</h1>
-        <p class="muted">
-            A setup is a named set of start options with the G-code files that run with it, shared by all machines.
-            Open a machine's page to run or queue one.
-        </p>
+        <h1>@T["Setups.Page.Title"]</h1>
+        <p class="muted">@T["Setups.Page.Intro"]</p>
     </div>
     <div class="head-actions">
-        <button class="btn btn-primary @(_adding ? "active" : "")" @onclick="() => _adding = !_adding"><Icon Name="plus" /> New setup</button>
+        <button class="btn btn-primary @(_adding ? "active" : "")" @onclick="() => _adding = !_adding"><Icon Name="plus" /> @T["Setups.NewSetup"]</button>
     </div>
 </header>
 
@@ -28,7 +25,7 @@
     <SetupsList />
 </section>
 
-<p class="hint muted">Each file is kept as a copy in <span class="mono">@Library.Directory</span>; its options are edited on a machine's page.</p>
+<p class="hint muted">@T.Html("Setups.Page.Storage", Library.Directory)</p>
 
 @code {
     private bool _adding;

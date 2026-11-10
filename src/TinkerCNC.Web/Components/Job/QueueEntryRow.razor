@@ -7,73 +7,80 @@
     <span class="queue-pos muted">@(Index + 1)</span>
     <div class="queue-text">
         <div class="queue-title">
-            <b>@Item.SetupName</b>
+            @if (Item.SetupName is { } setupName)
+            {
+                <b>@setupName</b>
+            }
             <span class="mono">@Item.FileName</span>
             @if (e.Repeat > 1)
             {
-                <span class="tag" title="Runs done of the runs queued">@e.Done of @e.Repeat runs</span>
+                <span class="tag" title="@T["Job.QueueEntry.Runs.Title"]">@T.Count("Job.QueueEntry.Runs", e.Repeat, e.Done)</span>
             }
             @if (e.IsQueuedCopy)
             {
-                <span class="tag" title="A copy queued for these runs only; it goes when they are done">copy</span>
+                <span class="tag" title="@T["Job.QueueEntry.Copy.Title"]">@T["Job.QueueEntry.Copy"]</span>
             }
             @if (Item.FileMissing)
             {
-                <span class="tag tag-err">file missing</span>
+                <span class="tag tag-err">@T["Job.FileMissing"]</span>
             }
             @if (e.State == QueueEntryState.Running)
             {
-                <span class="tag tag-accent">on the machine</span>
+                <span class="tag tag-accent">@T["Job.QueueEntry.OnMachine"]</span>
             }
             @if (e.RestartSegment is { } from && Operation(from) is { } op && e.State != QueueEntryState.Failed)
             {
-                <span class="tag tag-warn" title="The next run begins at that operation">from @op.Label</span>
+                <span class="tag tag-warn" title="@T["Job.QueueEntry.From.Title"]">@T["Job.QueueEntry.From", op.DisplayLabel]</span>
             }
         </div>
         @if (e.State == QueueEntryState.Failed)
         {
-            <div class="hint err">@e.Error</div>
+            <div class="hint err">@T[Item.Error]</div>
         }
     </div>
     <div class="queue-actions" @onclick:stopPropagation="true">
         @if (e.State == QueueEntryState.Failed)
         {
-            <label class="inline-field">Retry from
+            <label class="inline-field">@T["Job.QueueEntry.RetryFrom"]
                 <select class="input" @bind="_from">
-                    <option value="0">the beginning</option>
+                    <option value="0">@T["Job.QueueEntry.RetryFrom.Beginning"]</option>
                     @foreach (var segment in Operations.Skip(1))
                     {
-                        <option value="@segment.Index">@segment.Label@(e.RestartSegment == segment.Index ? " · interrupted" : "")</option>
+                        <option value="@segment.Index">@(e.RestartSegment == segment.Index ? T["Job.QueueEntry.RetryFrom.Interrupted", segment.DisplayLabel] : T[segment.DisplayLabel])</option>
                     }
                 </select>
             </label>
-            <button class="btn btn-sm btn-primary" title="Queue it again; then start the queue" @onclick="() => _runner.Run(() => Queue.Retry(e.Id, _from))">
-                <Icon Name="refresh" /> Retry
+            <button class="btn btn-sm btn-primary" title="@T["Job.QueueEntry.Retry.Title"]" @onclick="() => _runner.Run(() => Queue.Retry(e.Id, _from))">
+                <Icon Name="refresh" /> @T["Common.Retry"]
             </button>
+        }
+        @if (e.State is QueueEntryState.Pending or QueueEntryState.Running)
+        {
+            @* The running entry too: more runs of the job on the machine follow it, each waiting for the go. *@
+            <label class="inline-field" title="@(e.State == QueueEntryState.Running ? T["Job.QueueEntry.Repeat.RunningTitle"] : T["Job.QueueEntry.Repeat.Title"])">×
+                <input class="input mono" type="number" min="@LeastRepeat(e)" max="@JobQueue.MaxRepeat" value="@e.Repeat"
+                       @onchange="ev => _runner.Run(() => Queue.SetRepeat(e.Id, int.TryParse((string?)ev.Value, out var n) ? n : e.Repeat))" />
+            </label>
         }
         @if (e.State == QueueEntryState.Pending)
         {
-            <label class="inline-field" title="How often it runs">×
-                <input class="input mono" type="number" min="1" max="@JobQueue.MaxRepeat" value="@e.Repeat"
-                       @onchange="ev => _runner.Run(() => Queue.SetRepeat(e.Id, int.TryParse((string?)ev.Value, out var n) ? n : e.Repeat))" />
-            </label>
-            <button class="btn btn-sm btn-icon" disabled="@(Index == 0)" title="Earlier" @onclick="() => _runner.Run(() => Queue.Move(e.Id, -1))"><Icon Name="up" /></button>
-            <button class="btn btn-sm btn-icon" disabled="@(Index == Count - 1)" title="Later" @onclick="() => _runner.Run(() => Queue.Move(e.Id, 1))"><Icon Name="down" /></button>
+            <button class="btn btn-sm btn-icon" disabled="@(Index == 0)" title="@T["Job.QueueEntry.Earlier"]" @onclick="() => _runner.Run(() => Queue.Move(e.Id, -1))"><Icon Name="up" /></button>
+            <button class="btn btn-sm btn-icon" disabled="@(Index == Count - 1)" title="@T["Job.QueueEntry.Later"]" @onclick="() => _runner.Run(() => Queue.Move(e.Id, 1))"><Icon Name="down" /></button>
         }
-        @if (e.IsQueuedCopy && e.State != QueueEntryState.Running)
+        @if (e.IsQueuedCopy && e.SetupId is not null && e.State != QueueEntryState.Running)
         {
-            <button class="btn btn-sm btn-ghost" title="Make the copy one of the setup's files, so it stays" @onclick="() => _runner.Run(() => Queue.KeepInSetup(e.Id))">
-                <Icon Name="save" /> Keep in setup
+            <button class="btn btn-sm btn-ghost" title="@T["Job.QueueEntry.Keep.Title"]" @onclick="() => _runner.Run(() => Queue.KeepInSetup(e.Id))">
+                <Icon Name="save" /> @T["Job.QueueEntry.Keep"]
             </button>
         }
         @if (e.State != QueueEntryState.Running)
         {
-            <button class="btn btn-sm btn-icon" title="Take it out of the queue" @onclick="() => _runner.Run(() => Queue.Remove(e.Id))"><Icon Name="x" /></button>
+            <button class="btn btn-sm btn-icon" title="@T["Job.QueueEntry.Remove.Title"]" @onclick="() => _runner.Run(() => Queue.Remove(e.Id))"><Icon Name="x" /></button>
         }
     </div>
     @if (_runner.Error is { } error)
     {
-        <p class="hint err queue-error">@error</p>
+        <p class="hint err queue-error">@T[error]</p>
     }
 </li>
 
@@ -90,6 +97,9 @@
     private IReadOnlyList<ToolSegment> Operations => _operations ??= Queue.OperationsOf(Item.Entry.Id);
 
     private ToolSegment? Operation(int index) => Operations.ElementAtOrDefault(index);
+
+    /// <summary>Runs done, plus the one on the machine: fewer can't be asked for.</summary>
+    private static int LeastRepeat(QueueEntry entry) => Math.Max(1, entry.Done + (entry.State == QueueEntryState.Running ? 1 : 0));
 
     protected override void OnParametersSet()
     {

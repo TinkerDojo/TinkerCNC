@@ -9,7 +9,7 @@ the Makera Z1 / Z1 Pro desktop CNC. It has no UI and no hosting dependencies.
 - File upload and download (the XMODEM-like `B1`–`B6` exchange), SD-card listings, the running-file query
 - Job start: work origin, XYZ probe block, auto Z probe, auto leveling, scan margin, job modes
 - G-code analysis: per-line time estimates, tool segments, header metadata, operation fingerprints and history
-- Camera (MJPEG over WebSocket) and time-lapse clients
+- Camera (MJPEG over WebSocket) and time-lapse clients, and an H.264/MP4 writer for recordings (managed code, no native codec)
 
 ```csharp
 await using var machine = MachineConnection.ForAddress("192.168.1.42");   // port 2222 by default

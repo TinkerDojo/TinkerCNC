@@ -11,7 +11,7 @@
                 <span>@s.Name</span>
                 @if (s.IsDeleted)
                 {
-                    <span class="tag">deleted @Local(s.DeletedUtc!.Value)</span>
+                    <span class="tag">@T["Setups.Item.Deleted", Local(s.DeletedUtc!.Value)]</span>
                 }
             </div>
             @if (s.Notes.Length > 0)
@@ -19,37 +19,37 @@
                 <div class="setup-notes" title="@s.Notes">@s.Notes</div>
             }
             <div class="setup-meta">
-                <span>@Files(Entry.Files.Count)</span>
-                <span>@Runs(s.RunCount, s.LastStartedUtc)</span>
-                <span>saved @Local(s.UpdatedUtc)</span>
+                <span>@T.Count("Setups.Item.FileCount", Entry.Files.Count)</span>
+                <span>@Runs(T, s.RunCount, s.LastStartedUtc)</span>
+                <span>@T["Setups.Item.Saved", Local(s.UpdatedUtc)]</span>
                 @if (StartOptionsText.Summary(s.Options).ToList() is { Count: > 0 } summary)
                 {
-                    <span title="Start options">@string.Join(" · ", summary)</span>
+                    <span title="@T["Setups.StartOptions"]">@string.Join(" · ", summary.Select(part => T[part]))</span>
                 }
                 else
                 {
-                    <span title="Start options">default options</span>
+                    <span title="@T["Setups.StartOptions"]">@T["Setups.Item.DefaultOptions"]</span>
                 }
             </div>
         </div>
         <div class="setup-actions">
             @if (s.IsDeleted)
             {
-                <button class="btn btn-sm btn-ghost" title="Bring it back with its files" @onclick="() => RestoreAsync(null)">Restore</button>
+                <button class="btn btn-sm btn-ghost" title="@T["Setups.Item.RestoreHint"]" @onclick="() => RestoreAsync(null)">@T["Common.Restore"]</button>
                 @if (_confirm.IsAsking(s.Id))
                 {
-                    <button class="btn btn-sm btn-danger btn-danger-solid" @onclick="() => _runner.Run(() => { _confirm.Clear(); Library.DeleteForever(s.Id); })">Confirm</button>
+                    <button class="btn btn-sm btn-danger btn-danger-solid" @onclick="() => _runner.Run(() => { _confirm.Clear(); Library.DeleteForever(s.Id); })">@T["Common.Confirm"]</button>
                 }
                 else
                 {
-                    <button class="btn btn-sm btn-ghost btn-danger" title="Remove it and its files for good" @onclick="() => _confirm.AskAsync(s.Id)"><Icon Name="trash" /> Delete forever</button>
+                    <button class="btn btn-sm btn-ghost btn-danger" title="@T["Setups.Item.DeleteForeverHint"]" @onclick="() => _confirm.AskAsync(s.Id)"><Icon Name="trash" /> @T["Setups.DeleteForever"]</button>
                 }
             }
             else
             {
-                <button class="btn btn-sm btn-ghost @(_manage ? "active" : "")" title="Rename it, change its notes, add or replace files, or delete it"
+                <button class="btn btn-sm btn-ghost @(_manage ? "active" : "")" title="@T["Setups.Item.ManageHint"]"
                         @onclick="() => _manage = !_manage">
-                    <Icon Name="pencil" /> Manage
+                    <Icon Name="pencil" /> @T["Setups.Item.Manage"]
                 </button>
             }
         </div>
@@ -58,7 +58,7 @@
     <div class="setup-files">
         @if (Entry.Files.Count == 0)
         {
-            <p class="muted small pad-x">No files yet@(s.IsDeleted ? "" : ": add some with Manage, or save a program to this setup on a machine").</p>
+            <p class="muted small pad-x">@(s.IsDeleted ? T["Setups.Item.NoFiles"] : T["Setups.Item.NoFilesHint"])</p>
         }
         @foreach (var file in Entry.Files)
         {
@@ -70,35 +70,35 @@
     {
         <div class="setup-manage">
             <div class="manage-section">
-                <h4>Details</h4>
-                <label class="field">Name<input class="input" maxlength="@SetupLibrary.MaxNameLength" @bind="_name" /></label>
-                <label class="field">Notes<textarea class="input" rows="3" placeholder="Stock, material, bit…" @bind="_notes"></textarea></label>
+                <h4>@T["Setups.Item.Details"]</h4>
+                <label class="field">@T["Setups.Form.Name"]<input class="input" maxlength="@SetupLibrary.MaxNameLength" @bind="_name" /></label>
+                <label class="field">@T["Setups.Form.Notes"]<textarea class="input" rows="3" placeholder="@T["Setups.Form.NotesPlaceholder"]" @bind="_notes"></textarea></label>
                 <div class="form-actions">
-                    <button class="btn btn-sm btn-primary" @onclick="() => _runner.Run(() => Library.Edit(s.Id, _name, _notes))">Save details</button>
-                    <button class="btn btn-sm btn-ghost" @onclick="() => _manage = false">Close</button>
+                    <button class="btn btn-sm btn-primary" @onclick="() => _runner.Run(() => Library.Edit(s.Id, _name, _notes))">@T["Setups.Item.SaveDetails"]</button>
+                    <button class="btn btn-sm btn-ghost" @onclick="() => _manage = false">@T["Common.Close"]</button>
                 </div>
             </div>
             <div class="manage-section">
-                <h4>Files</h4>
+                <h4>@T["Setups.Files"]</h4>
                 <div class="form-actions">
-                    <label class="btn btn-sm btn-ghost file-btn @(Busy ? "disabled" : "")" title="Add G-code files that run with this setup's options">
-                        <Icon Name="upload" /> Add files…
+                    <label class="btn btn-sm btn-ghost file-btn @(Busy ? "disabled" : "")" title="@T["Setups.Item.AddFilesHint"]">
+                        <Icon Name="upload" /> @T["Setups.Item.AddFiles"]
                         <InputFile OnChange="AddFilesAsync" accept="@ProgramFiles.Accept" multiple disabled="@Busy" />
                     </label>
                 </div>
-                <p class="hint muted">Each file above has Replace and Delete while managing.</p>
-                <h4>Delete</h4>
+                <p class="hint muted">@T["Setups.Item.FilesHint"]</p>
+                <h4>@T["Common.Delete"]</h4>
                 <div class="form-actions">
                     @if (_confirm.IsAsking(s.Id))
                     {
-                        <button class="btn btn-sm btn-danger btn-danger-solid" @onclick="() => _runner.Run(() => { _confirm.Clear(); Library.Delete(s.Id); })">Confirm delete</button>
+                        <button class="btn btn-sm btn-danger btn-danger-solid" @onclick="() => _runner.Run(() => { _confirm.Clear(); Library.Delete(s.Id); })">@T["Setups.Item.ConfirmDelete"]</button>
                     }
                     else
                     {
-                        <button class="btn btn-sm btn-ghost btn-danger" @onclick="() => _confirm.AskAsync(s.Id)"><Icon Name="trash" /> Delete…</button>
+                        <button class="btn btn-sm btn-ghost btn-danger" @onclick="() => _confirm.AskAsync(s.Id)"><Icon Name="trash" /> @T["Setups.DeleteAsk"]</button>
                     }
                 </div>
-                <p class="hint muted">Moves the setup and its files to the deleted ones, where it can be restored or deleted for good.</p>
+                <p class="hint muted">@T["Setups.Item.DeleteHint"]</p>
             </div>
         </div>
     }
@@ -107,11 +107,11 @@
     {
         <div class="setup-manage single">
             <div class="manage-section">
-                <p class="hint err">Another setup is called “@s.Name” now. Restore it under another name:</p>
-                <label class="field">Name<input class="input" maxlength="@SetupLibrary.MaxNameLength" @bind="_name" /></label>
+                <p class="hint err">@T["Setups.Item.NameTaken", s.Name]</p>
+                <label class="field">@T["Setups.Form.Name"]<input class="input" maxlength="@SetupLibrary.MaxNameLength" @bind="_name" /></label>
                 <div class="form-actions">
-                    <button class="btn btn-sm btn-primary" @onclick="() => RestoreAsync(_name)">Restore</button>
-                    <button class="btn btn-sm btn-ghost" @onclick="() => _restoreAs = false">Cancel</button>
+                    <button class="btn btn-sm btn-primary" @onclick="() => RestoreAsync(_name)">@T["Common.Restore"]</button>
+                    <button class="btn btn-sm btn-ghost" @onclick="() => _restoreAs = false">@T["Common.Cancel"]</button>
                 </div>
             </div>
         </div>
@@ -119,7 +119,7 @@
 
     @if (_runner.Error is { } error)
     {
-        <p class="hint err pad-x">@error</p>
+        <p class="hint err pad-x">@T[error]</p>
     }
 </div>
 
@@ -167,12 +167,11 @@
         foreach (var file in await ProgramFiles.ReadAllAsync(e)) Library.AddFile(Entry.Setup.Id, file.Name, file.Content);
     });
 
-    private static string Files(int count) => count == 1 ? "1 file" : $"{count} files";
-
-    private static readonly IReadOnlyDictionary<int, string> FewRuns = new Dictionary<int, string> { [0] = "never started", [1] = "started once" };
-
-    public static string Runs(int count, DateTime? last) =>
-        FewRuns.GetValueOrDefault(count, $"started {count} times") + (last is { } l ? $", last {Local(l)}" : "");
+    /// <summary>How often a setup or file was started, and when last (<paramref name="T"/>: the texts to use).</summary>
+    public static string Runs(Texts T, int count, DateTime? last) =>
+        count == 0 ? T["Setups.Runs.Never"]
+        : last is { } l ? T.Count("Setups.Runs.StartedLast", count, Local(l))
+        : T.Count("Setups.Runs.Started", count);
 
     public static string Local(DateTime utc) => utc.ToLocalTime().ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
 }

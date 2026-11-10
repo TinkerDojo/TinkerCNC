@@ -1,12 +1,12 @@
 @* Probing a grid over the program's area and following the measured surface. *@
 @inherits JobControlComponent
 
-<OptionRow Title="Auto leveling" Hint="For uneven stock and shallow cuts (engraving, PCBs)"
+<OptionRow Title="@T["Job.Options.Leveling"]" Hint="@T["Job.Options.Leveling.Hint"]"
           On="Options.Leveling" OnChanged="on => Options.Leveling = on">
     <div class="opt-line">
-        <label class="inline-field">Points X <input class="input mono" type="number" step="1" min="@JobStartOptions.MinLevelingPoints" max="@JobStartOptions.MaxLevelingPoints" @bind="Options.LevelingPointsX" /></label>
-        <label class="inline-field">Points Y <input class="input mono" type="number" step="1" min="@JobStartOptions.MinLevelingPoints" max="@JobStartOptions.MaxLevelingPoints" @bind="Options.LevelingPointsY" /></label>
-        <label class="inline-field">Height <input class="input mono" type="number" step="0.5" min="0.5" @bind="Options.LevelingHeight" /> mm</label>
+        <label class="inline-field">@T["Job.Options.Leveling.PointsX"] <input class="input mono" type="number" step="1" min="@JobStartOptions.MinLevelingPoints" max="@JobStartOptions.MaxLevelingPoints" @bind="Options.LevelingPointsX" /></label>
+        <label class="inline-field">@T["Job.Options.Leveling.PointsY"] <input class="input mono" type="number" step="1" min="@JobStartOptions.MinLevelingPoints" max="@JobStartOptions.MaxLevelingPoints" @bind="Options.LevelingPointsY" /></label>
+        <label class="inline-field">@T["Job.Options.Leveling.Height"] <input class="input mono" type="number" step="0.5" min="0.5" @bind="Options.LevelingHeight" /> mm</label>
     </div>
-    <p class="hint muted">Probes @Options.LevelingPointsX × @Options.LevelingPointsY points over the program's area, moving @Options.LevelingHeight mm above the surface between them.</p>
+    <p class="hint muted">@T["Job.Options.Leveling.Probes", Options.LevelingPointsX, Options.LevelingPointsY, Options.LevelingHeight]</p>
 </OptionRow>

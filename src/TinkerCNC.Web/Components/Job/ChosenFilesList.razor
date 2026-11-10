@@ -6,17 +6,17 @@
         var f = file;
         <span class="tag mono chosen-file" title="@ProgramFiles.Size(f.Content.Length)">
             @f.Name
-            <button class="tag-x" type="button" title="Leave it out" @onclick="() => Remove(f)"><Icon Name="x" Size="11" /></button>
+            <button class="tag-x" type="button" title="@T["Setups.Chosen.LeaveOut"]" @onclick="() => Remove(f)"><Icon Name="x" Size="11" /></button>
         </span>
     }
-    <label class="btn btn-sm btn-ghost file-btn @(Busy ? "disabled" : "")" title="@ProgramFiles.AcceptText">
-        <Icon Name="upload" /> @(Files.Count == 0 ? "Choose files…" : "Add more…")
+    <label class="btn btn-sm btn-ghost file-btn @(Busy ? "disabled" : "")" title="@T[ProgramFiles.AcceptText]">
+        <Icon Name="upload" /> @(Files.Count == 0 ? T["Setups.Chosen.Choose"] : T["Setups.Chosen.AddMore"])
         <InputFile OnChange="AddAsync" accept="@ProgramFiles.Accept" multiple disabled="@Busy" />
     </label>
 </div>
 @if (_runner.Error is { } error)
 {
-    <p class="hint err">@error</p>
+    <p class="hint err">@T[error]</p>
 }
 
 @code {

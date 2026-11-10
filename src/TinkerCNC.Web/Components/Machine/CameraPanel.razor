@@ -4,13 +4,13 @@
 
 <section class="card video-card">
     <div class="card-head">
-        <h2><Icon Name="camera" /> Live camera</h2>
+        <h2><Icon Name="camera" /> @T["Machine.Camera.Title"]</h2>
         <div class="head-tools">
             @if (_feed.Running)
             {
                 <span class="chip @(_feed.Connected ? "chip-ok" : "chip-warn")">
                     <span class="dot @(_feed.Connected ? "dot-on" : "dot-wait")"></span>
-                    @(_feed.Connected ? $"{_feed.Fps:0.#} fps" : "connecting…")
+                    @(_feed.Connected ? $"{_feed.Fps:0.#} fps" : T["Machine.Camera.Connecting"])
                 </span>
             }
             <span class="mono small muted">ws://@Host:82/ws_video</span>
@@ -20,26 +20,26 @@
     <div class="video-stage" @ref="_stage">
         @if (_feed.Running)
         {
-            <img class="video" src="@($"video/{_feed.SourceId}/stream?n={_nonce}")" alt="Live camera" />
+            <img class="video" src="@($"video/{_feed.SourceId}/stream?n={_nonce}")" alt="@T["Machine.Camera.Title"]" />
             @if (_feed.Frames == 0)
             {
                 <div class="video-overlay">
                     <span class="spinner lg"></span>
-                    <span>@(_feed.LastError is { } e ? e : "Waiting for frames…")</span>
+                    <span>@(_feed.LastError is { } e ? T[e] : T["Machine.Camera.WaitingForFrames"])</span>
                 </div>
             }
             @if (_feed.IsRecording)
             {
-                <div class="rec-badge"><span class="rec-dot"></span>@(_feed.IsTimelapse ? "TIME-LAPSE" : "REC") @Elapsed · @_feed.RecordedFrames frames</div>
+                <div class="rec-badge"><span class="rec-dot"></span>@(_feed.IsTimelapse ? T["Machine.Camera.Badge.Timelapse"] : T["Machine.Camera.Badge.Recording"]) @Elapsed · @T.Count("Machine.Camera.RecordedFrames", _feed.RecordedFrames)</div>
             }
         }
         else
         {
             <div class="video-placeholder">
                 <Icon Name="camera" Size="44" />
-                <p>The camera is off.</p>
-                <button class="btn btn-primary" @onclick="Start"><Icon Name="play" /> Start camera</button>
-                <p class="muted small">Opens the machine's camera WebSocket on port 82 and sends <code>start_stream</code>.</p>
+                <p>@T["Machine.Camera.IsOff"]</p>
+                <button class="btn btn-primary" @onclick="Start"><Icon Name="play" /> @T["Machine.Camera.Start"]</button>
+                <p class="muted small">@T.Html("Machine.Camera.StartHint")</p>
             </div>
         }
     </div>
@@ -47,25 +47,25 @@
     <div class="video-bar">
         @if (_feed.Running)
         {
-            <button class="btn btn-ghost" @onclick="Stop"><Icon Name="stop" /> Stop</button>
+            <button class="btn btn-ghost" @onclick="Stop"><Icon Name="stop" /> @T["Common.Stop"]</button>
             @if (_feed.IsRecording)
             {
-                <button class="btn btn-rec active" @onclick="StopRecording"><Icon Name="stop" /> Stop recording</button>
+                <button class="btn btn-rec active" @onclick="StopRecordingAsync"><Icon Name="stop" /> @T["Machine.Camera.StopRecording"]</button>
             }
             else
             {
-                <button class="btn btn-rec" @onclick="StartRecording"><Icon Name="record" /> Record</button>
+                <button class="btn btn-rec" @onclick="StartRecording"><Icon Name="record" /> @T["Machine.Camera.Record"]</button>
             }
-            <button class="btn btn-ghost" disabled="@(_feed.Frames == 0)" @onclick="Snapshot"><Icon Name="snapshot" /> Snapshot</button>
-            <div class="zoom-controls" title="Zoom: mouse wheel or pinch, drag to move, double-click for a close-up">
-                <button class="btn btn-icon" title="Zoom out" @onclick="() => ZoomAsync(1 / ZoomStep)"><Icon Name="zoom-out" /></button>
-                <button class="zoom-level mono" title="Reset zoom" @onclick="ResetZoomAsync">1.0×</button>
-                <button class="btn btn-icon" title="Zoom in" @onclick="() => ZoomAsync(ZoomStep)"><Icon Name="zoom-in" /></button>
+            <button class="btn btn-ghost" disabled="@(_feed.Frames == 0)" @onclick="Snapshot"><Icon Name="snapshot" /> @T["Machine.Camera.Snapshot"]</button>
+            <div class="zoom-controls" title="@T["Machine.Camera.ZoomHint"]">
+                <button class="btn btn-icon" title="@T["Machine.Camera.ZoomOut"]" @onclick="() => ZoomAsync(1 / ZoomStep)"><Icon Name="zoom-out" /></button>
+                <button class="zoom-level mono" title="@T["Machine.Camera.ZoomReset"]" @onclick="ResetZoomAsync">1.0×</button>
+                <button class="btn btn-icon" title="@T["Machine.Camera.ZoomIn"]" @onclick="() => ZoomAsync(ZoomStep)"><Icon Name="zoom-in" /></button>
             </div>
-            <button class="btn btn-icon" title="Fullscreen" @onclick="Fullscreen"><Icon Name="fullscreen" /></button>
+            <button class="btn btn-icon" title="@T["Machine.Camera.Fullscreen"]" @onclick="Fullscreen"><Icon Name="fullscreen" /></button>
         }
         <div class="spacer"></div>
-        <span class="muted small">@(_feed.Frames > 0 ? $"{_feed.Frames:N0} frames · last {TimeFormat.Ago(_feed.LastFrameUtc)}" : "")</span>
+        <span class="muted small">@(_feed.Frames > 0 ? T.Count("Machine.Camera.FramesSeen", _feed.Frames, TimeFormat.Ago(_feed.LastFrameUtc)) : "")</span>
     </div>
 
     @if (_saved.Count > 0)
@@ -74,7 +74,7 @@
             @foreach (var f in _saved.AsEnumerable().Reverse().Take(5))
             {
                 <li>
-                    <Icon Name="@(f.EndsWith(".mjpeg") ? "film" : "snapshot")" />
+                    <Icon Name="@(RecordingStore.IsVideo(f) ? "film" : "snapshot")" />
                     <a href="@($"recordings/{Uri.EscapeDataString(Path.GetFileName(f))}")" target="_blank">@Path.GetFileName(f)</a>
                     <span class="muted small mono" title="@f">@Path.GetDirectoryName(f)</span>
                 </li>
@@ -83,7 +83,7 @@
     }
     @if (_feed.LastError is { } err && _feed.Frames > 0)
     {
-        <p class="hint warn">@err</p>
+        <p class="hint warn">@T[err]</p>
     }
 </section>
 
@@ -145,17 +145,17 @@
         await ResetZoomAsync();
     }
 
-    private void Stop()
+    private async Task Stop()
     {
-        if (_feed.RecordingPath is { } p) _saved.Add(p);
+        await StopRecordingAsync();
         Camera.Stop(Host);
     }
 
     private void StartRecording() => Camera.StartRecording(Host, Label);
 
-    private void StopRecording()
+    private async Task StopRecordingAsync()
     {
-        if (Camera.StopRecording(Host) is { } path) _saved.Add(path);
+        if (await Camera.StopRecordingAsync(Host) is { } path) _saved.Add(path);
     }
 
     private void Snapshot()

@@ -5,12 +5,12 @@
 @{ var look = Looks.First(l => l.Applies(this)).Look; }
 <section class="card job-card">
     <div class="card-head">
-        <h2><Icon Name="film" /> Job</h2>
+        <h2><Icon Name="film" /> @T["Job.Card.Title"]</h2>
         <div class="head-tools">
-            <span class="chip @look.Chip">@look.Label</span>
+            <span class="chip @look.Chip">@T[look.Label]</span>
             @if (Playing && Queue.Current is not null)
             {
-                <span class="chip chip-accent" title="Started by the queue">queue · job @(Queue.JobsDone + 1) of @Queue.JobsTotal</span>
+                <span class="chip chip-accent" title="@T["Job.Card.FromQueue.Title"]">@T["Job.Card.FromQueue", Queue.JobsDone + 1, Queue.JobsTotal]</span>
             }
             @if (Playing)
             {
@@ -20,9 +20,9 @@
                 }
                 @if (Control.Timelapse.Recording)
                 {
-                    <span class="chip chip-err" title="A time-lapse of this job is being recorded from the camera"><span class="rec-dot sm"></span> time-lapse</span>
+                    <span class="chip chip-err" title="@T["Job.Card.Timelapse.Title"]"><span class="rec-dot sm"></span> @T["Job.Card.Timelapse"]</span>
                 }
-                <button class="btn btn-sm btn-icon" disabled="@(!Connected)" title="Ask the machine which file it is running and download it again"
+                <button class="btn btn-sm btn-icon" disabled="@(!Connected)" title="@T["Job.Card.Refetch.Title"]"
                         @onclick="() => _runner.RunAsync(Job.RefreshAsync)">
                     <Icon Name="refresh" />
                 </button>
@@ -30,10 +30,10 @@
             }
             else if (Control.Program is not null)
             {
-                <button class="btn btn-sm btn-ghost" disabled="@Control.IsBusy" title="Choose another program" @onclick="() => OpenPicker(PickerTab.Setups)">
-                    <Icon Name="folder" /> Change program
+                <button class="btn btn-sm btn-ghost" disabled="@Control.IsBusy" title="@T["Job.Card.ChangeProgram.Title"]" @onclick="() => OpenPicker(PickerTab.Setups)">
+                    <Icon Name="folder" /> @T["Job.Card.ChangeProgram"]
                 </button>
-                <button class="btn btn-sm btn-icon" disabled="@Control.IsBusy" title="Forget the chosen program" @onclick="() => _runner.Run(Control.Clear)">
+                <button class="btn btn-sm btn-icon" disabled="@Control.IsBusy" title="@T["Job.Card.Forget.Title"]" @onclick="() => _runner.Run(Control.Clear)">
                     <Icon Name="x" />
                 </button>
             }
@@ -42,7 +42,37 @@
 
     @if (_runner.Error is { } error)
     {
-        <div class="notice notice-err dismissable" @onclick="_runner.Clear">@error <Icon Name="x" /></div>
+        <div class="notice notice-err dismissable" @onclick="_runner.Clear">@T[error] <Icon Name="x" /></div>
+    }
+
+    @if (!Playing && Recovery.Snapshot is { } stopped && Control.Resuming?.RecordedUtc != stopped.RecordedUtc)
+    {
+        var program = Recovery.SnapshotProgram;
+        <div class="notice notice-warn resume-offer">
+            <span>
+                <Icon Name="alert" />
+                @T["Job.Resume.Offer", stopped.FileName, stopped.Line, stopped.LineCount, (stopped.Fraction * 100).ToString("0", CultureInfo.InvariantCulture),
+                    T[TimeFormat.Ago(stopped.RecordedUtc)]]
+                @if (program?.SegmentAt(stopped.Line) is { } operation)
+                {
+                    <span class="muted">· @T[operation.DisplayLabel]</span>
+                }
+                @if (program is null)
+                {
+                    <span class="muted">· @T["Job.Resume.ProgramGone"]</span>
+                }
+            </span>
+            <span class="resume-actions">
+                @if (program is not null)
+                {
+                    <button class="btn btn-sm btn-primary" disabled="@(Control.IsBusy || Session.Limits.Travel is null)" title="@T["Job.Resume.Load.Title"]"
+                            @onclick="() => _runner.Run(() => Control.LoadResume(stopped, program))">
+                        <Icon Name="play" /> @T["Job.Resume.Load", stopped.Line]
+                    </button>
+                }
+                <button class="btn btn-sm btn-ghost" title="@T["Job.Resume.Discard.Title"]" @onclick="Recovery.Discard">@T["Common.Dismiss"]</button>
+            </span>
+        </div>
     }
 
     @if (Playing)
@@ -73,26 +103,31 @@
 }
 
 @code {
-    private sealed record Look(string Chip, string Label);
+    private sealed record Look(string Chip, Text Label);
 
     /// <summary>The state chip: the first rule that applies.</summary>
     private static readonly (Func<JobCard, bool> Applies, Look Look)[] Looks =
     [
-        (c => c.Playing && c.Queue.WaitingForGo, new("chip-warn", "Waiting for the go")),
-        (c => c.Playing && c.Job.Preparing, new("chip-warn", "Probing")),
-        (c => c.Playing && c.Control.CanResume, new("chip-warn", "Paused")),
-        (c => c.Playing && JobSuspension.HasState(c.Session.Status, "Hold"), new("chip-warn", "Hold")),
-        (c => c.Playing && JobSuspension.HasState(c.Session.Status, "Tool"), new("chip-warn", "Tool change")),
-        (c => c.Playing, new("chip-info", "Running")),
-        (c => c.Control.Phase == JobControlPhase.Uploading, new("chip-warn", "Uploading…")),
-        (c => c.Control.Phase == JobControlPhase.Starting, new("chip-warn", "Starting…")),
-        (c => c.Control.Program is not null && c.Control.WhyNotStart is null, new("chip-ok", "Ready to start")),
-        (c => c.Control.Program is not null, new("chip-accent", "Setting up")),
-        (_ => true, new("chip-dim", "No job")),
+        (c => c.Playing && c.Queue.WaitingForGo, new("chip-warn", Texts.Of("Job.State.WaitingForGo"))),
+        (c => c.Playing && c.Job.Preparing, new("chip-warn", Texts.Of("Job.State.Probing"))),
+        (c => c.Playing && c.Control.CanResume, new("chip-warn", Texts.Of("Job.State.Paused"))),
+        (c => c.Playing && JobSuspension.HasState(c.Session.Status, "Hold"), new("chip-warn", Texts.Of("Job.State.Hold"))),
+        (c => c.Playing && JobSuspension.HasState(c.Session.Status, "Tool"), new("chip-warn", Texts.Of("Job.State.ToolChange"))),
+        (c => c.Playing, new("chip-info", Texts.Of("Job.State.Running"))),
+        (c => c.Control.Phase == JobControlPhase.Uploading, new("chip-warn", Texts.Of("Job.State.Uploading"))),
+        (c => c.Control.Phase == JobControlPhase.Starting, new("chip-warn", Texts.Of("Job.State.Starting"))),
+        (c => c.Control.Program is not null && c.Control.WhyNotStart is null, new("chip-ok", Texts.Of("Job.State.ReadyToStart"))),
+        (c => c.Control.Program is not null, new("chip-accent", Texts.Of("Job.State.SettingUp"))),
+        (_ => true, new("chip-dim", Texts.Of("Job.State.NoJob"))),
     ];
 
     private readonly ActionRunner _runner = new();
     private PickerTab? _picker;
+
+    [Inject] private JobRecoveries Recoveries { get; set; } = default!;
+
+    /// <summary>Where this machine's last job stopped, kept for a resume.</summary>
+    private JobRecovery Recovery => Recoveries.Get(Session);
 
     /// <summary>Clicking an operation on the timeline shows its code in the G-code panel.</summary>
     [Parameter, EditorRequired] public GCodeFocus Focus { get; set; } = default!;

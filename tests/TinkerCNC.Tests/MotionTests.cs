@@ -57,7 +57,7 @@ public class GoToTests
         Assert.False(plan.IsValid);
         Assert.Empty(plan.Commands);
         Assert.Equal([Axis.X, Axis.Y], plan.Errors.Keys.Order());
-        Assert.Equal("X must be between -51 and 320 (work coordinates).", plan.Errors[Axis.X]);
+        Assert.Equal("X must be between -51 and 320 (work coordinates).", plan.Errors[Axis.X].ToString());
         Assert.Equal(new AxisRange(-30, 220), GoToPlanner.RangeIn(CoordinateFrame.Work, Axis.Y, Travel, Status));
     }
 

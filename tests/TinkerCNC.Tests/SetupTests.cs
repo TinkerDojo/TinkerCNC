@@ -445,3 +445,31 @@ public sealed class QueueRepositoryTests : IDisposable
         Assert.Single(queue.List("10.0.0.5:2222"));
     }
 }
+
+public sealed class JobSnapshotRepositoryTests : IDisposable
+{
+    private readonly TempDataFolder _data = new();
+
+    public void Dispose() => _data.Dispose();
+
+    [Fact]
+    public void One_snapshot_per_machine_is_kept_replaced_and_deleted()
+    {
+        var snapshots = new Recovery.JobSnapshotRepository(new AppDatabase(_data.Paths.HistoryDatabase));
+        var utc = new DateTime(2026, 11, 10, 21, 0, 0, DateTimeKind.Utc);
+        Assert.Null(snapshots.Get("10.0.0.5:2222"));
+
+        snapshots.Save(new Recovery.JobSnapshot("10.0.0.5:2222", "part.nc", "abc", 120, 900, [-100.5, -80, -60.25], true, utc));
+        snapshots.Save(new Recovery.JobSnapshot("other", "b.nc", "def", 5, 10, null, false, utc));
+        snapshots.Save(new Recovery.JobSnapshot("10.0.0.5:2222", "part.nc", "abc", 340, 900, [-100.5, -80, -60.25], true, utc.AddSeconds(10)));
+
+        var kept = snapshots.Get("10.0.0.5:2222")!;
+        Assert.Equal((340, 900, true, utc.AddSeconds(10)), (kept.Line, kept.LineCount, kept.Leveled, kept.RecordedUtc));
+        Assert.Equal([-100.5, -80, -60.25], kept.WorkZero!);
+        Assert.Null(snapshots.Get("other")!.WorkZero);
+
+        snapshots.Delete("10.0.0.5:2222");
+        Assert.Null(snapshots.Get("10.0.0.5:2222"));
+        Assert.NotNull(snapshots.Get("other"));
+    }
+}

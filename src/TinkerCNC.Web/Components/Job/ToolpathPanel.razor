@@ -1,19 +1,28 @@
-@* 3D view of the program's toolpath with the tool head at the machine's work position (wwwroot/js/toolpath-view.js). *@
+@* 3D view of the program's toolpath with the tool head, in the machine at the work origin (wwwroot/js/toolpath-view.js):
+   Live shows what has been cut so far, Preview the whole toolpath as it is once the job has run. *@
 @inherits JobComponent
 @inject UiPreferences Preferences
+@inject JobControls Controls
 @inject IJSRuntime JS
 
 <section class="card toolpath-card">
     <div class="card-head">
-        <h2><Icon Name="cube" /> Toolpath</h2>
+        <h2><Icon Name="cube" /> @T["Setups.Toolpath.Title"]</h2>
         <div class="head-tools">
+            <div class="seg seg-sm" role="tablist">
+                @foreach (var tab in Tabs)
+                {
+                    <button role="tab" class="@(Mode == tab.Mode ? "active" : "")" aria-selected="@(Mode == tab.Mode ? "true" : "false")"
+                            title="@T[tab.Title]" @onclick="() => _chosenMode = tab.Mode">@T[tab.Label]</button>
+                }
+            </div>
             <div class="seg seg-sm">
                 @foreach (var view in Views)
                 {
-                    <button title="@view.Title" @onclick="() => InvokeViewAsync(Js.SetView, view.Key)">@view.Label</button>
+                    <button title="@T[view.Title]" @onclick="() => InvokeViewAsync(Js.SetView, view.Key)">@T[view.Label]</button>
                 }
             </div>
-            <label class="check" title="Show rapid moves (G0)">
+            <label class="check" title="@T["Setups.Toolpath.RapidsHint"]">
                 <input type="checkbox" checked="@_rapids" @onchange="ToggleRapidsAsync" /> G0
             </label>
         </div>
@@ -23,24 +32,43 @@
         <div class="toolpath-canvas" @ref="_canvas"></div>
         @if (Job.Timeline is null)
         {
-            <div class="toolpath-empty">No program loaded</div>
+            <div class="toolpath-empty">@T["Setups.Toolpath.NoProgram"]</div>
         }
     </div>
 
-    <p class="hint muted" title="Left-drag orbits too; one finger orbits, two fingers pan and pinch">
-        Cut so far · middle-drag to pan, Shift + middle-drag to orbit about the point under the cursor, wheel to zoom towards the cursor
+    @if (WorkZPending)
+    {
+        <p class="hint warn">@T["Common.WorkZPending"]</p>
+    }
+    else if (Job.Timeline is not null && Session.Limits.Travel is { } travel && MachineFrame.StockHeight(Session.Status, travel) is { } stock)
+    {
+        <p class="hint muted">@T["Common.StockHeight", stock.ToString("0.#", CultureInfo.InvariantCulture)]</p>
+    }
+    <p class="hint muted" title="@T["Setups.Toolpath.GestureHint"]">
+        @T["Setups.Toolpath.Hint"]
     </p>
 </section>
 
 @code {
-    private sealed record ViewButton(string Key, string Label, string Title);
+    private sealed record ViewButton(string Key, Text Label, Text Title);
+
+    /// <summary>A tab: which moves are drawn (<c>live</c>: those executed so far, <c>preview</c>: all).</summary>
+    private sealed record ModeTab(string Mode, Text Label, Text Title);
 
     /// <summary>Colour of the feed moves of one operation (lines inclusive).</summary>
     private sealed record SegmentColor(int FirstLine, int LastLine, string Color);
 
     /// <param name="DoneLine">Line being executed (moves before it are drawn), or null when no job is running.</param>
     /// <param name="Head">Tool tip on the part, or null when the position is unknown.</param>
-    private sealed record ViewState(int? DoneLine, double[]? Head, double? ToolDiameter);
+    /// <param name="WorkOrigin">Work zero in machine coordinates (<see cref="StatusReport.WorkZero"/>), or null when unknown.</param>
+    /// <param name="Machine">The machine around the toolpath, or null while its travel is unknown.</param>
+    private sealed record ViewState(int? DoneLine, double[]? Head, double? ToolDiameter, double[]? WorkOrigin, MachineFrame? Machine)
+    {
+        public bool SameAs(ViewState? other) =>
+            other is not null && DoneLine == other.DoneLine && ToolDiameter == other.ToolDiameter
+            && (Head ?? []).SequenceEqual(other.Head ?? []) && (WorkOrigin ?? []).SequenceEqual(other.WorkOrigin ?? [])
+            && (Machine is null ? other.Machine is null : Machine.SameAs(other.Machine));
+    }
 
     /// <summary>Methods of the view object created by <c>createToolpathView</c>.</summary>
     private static class Js
@@ -52,15 +80,26 @@
         public const string Update = "update";
         public const string SetView = "setView";
         public const string ShowRapids = "showRapids";
+        public const string SetMode = "setMode";
         public const string Dispose = "dispose";
     }
 
     private static readonly ViewButton[] Views =
     [
-        new("iso", "Iso", "Isometric view"),
-        new("top", "Top", "View from above"),
-        new("front", "Front", "View from the front"),
-        new("fit", "Fit", "Show the whole toolpath"),
+        new("iso", Texts.Of("Setups.Toolpath.Iso"), Texts.Of("Setups.Toolpath.IsoHint")),
+        new("top", Texts.Of("Setups.Toolpath.Top"), Texts.Of("Setups.Toolpath.TopHint")),
+        new("front", Texts.Of("Setups.Toolpath.Front"), Texts.Of("Setups.Toolpath.FrontHint")),
+        new("fit", Texts.Of("Setups.Toolpath.Fit"), Texts.Of("Setups.Toolpath.FitHint")),
+        new("machine", Texts.Of("Setups.Toolpath.Machine"), Texts.Of("Setups.Toolpath.MachineHint")),
+    ];
+
+    private const string Live = "live";
+    private const string PreviewMode = "preview";
+
+    private static readonly ModeTab[] Tabs =
+    [
+        new(Live, Texts.Of("Setups.Toolpath.Live"), Texts.Of("Setups.Toolpath.LiveHint")),
+        new(PreviewMode, Texts.Of("Setups.Toolpath.Preview"), Texts.Of("Setups.Toolpath.PreviewHint")),
     ];
 
     private const string RapidsKey = "toolpath.rapids";
@@ -71,6 +110,14 @@
     private bool _rapids = true;
     private GCodeAnalysis? _shownProgram;
     private ViewState? _shownState;
+    private string? _chosenMode; // null: Live while a job runs, Preview otherwise
+    private string? _shownMode;
+
+    private string Mode => _chosenMode ?? (Job.IsPlaying ? Live : PreviewMode);
+
+    /// <summary>The chosen program's start probes Z zero and no job runs yet: it is drawn at the machine's current Z zero.</summary>
+    private bool WorkZPending =>
+        Job.Timeline is not null && !Job.IsPlaying && Controls.Get(Session) is { Program: not null, Options.ProbesWorkZ: true };
     private int _loads;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -79,6 +126,14 @@
         if (_view is null) return;
         await ShowProgramAsync();
         await ShowStateAsync();
+        await ShowModeAsync();
+    }
+
+    private Task ShowModeAsync()
+    {
+        if (Mode == _shownMode) return Task.CompletedTask;
+        _shownMode = Mode;
+        return InvokeViewAsync(Js.SetMode, Mode);
     }
 
     private async Task CreateViewAsync()
@@ -116,13 +171,18 @@
             ? new Point4(w[0], w[1], w[2], w.Length > 3 ? w[3] : 0).OnPart()
             : (Point3?)null;
         var diameter = line is { } l ? Job.Timeline?.Analysis.SegmentAt(l)?.Tool?.Diameter : null;
-        var state = new ViewState(line, head is { } h ? [h.X, h.Y, h.Z] : null, diameter);
-        if (_shownState is { } shown && shown.DoneLine == state.DoneLine && shown.ToolDiameter == state.ToolDiameter
-            && (shown.Head ?? []).SequenceEqual(state.Head ?? []))
-            return Task.CompletedTask;
+        var state = new ViewState(line, head is { } h ? [h.X, h.Y, h.Z] : null, diameter, WorkOrigin,
+            Session.Limits.Travel is { } travel ? MachineFrame.For(travel) : null);
+        if (state.SameAs(_shownState)) return Task.CompletedTask;
         _shownState = state;
         return InvokeViewAsync(Js.Update, state);
     }
+
+    /// <summary>
+    /// Work zero in machine coordinates, as the tool's tip sees it (the tool length offset taken out of MPos − WPos,
+    /// see <see cref="StatusReport.WorkZero"/>): where the toolpath sits in the machine.
+    /// </summary>
+    private double[]? WorkOrigin => Session.Status?.WorkZero;
 
     private async Task ToggleRapidsAsync(ChangeEventArgs e)
     {

@@ -7,7 +7,7 @@
     @ChildContent
 </CascadingValue>
 
-<nav class="rail" aria-label="Tools">
+<nav class="rail" aria-label="@T["Shared.Rail.Label"]">
     @foreach (var panel in _panels)
     {
         <button class="rail-btn @(panel.Key == Open ? "active" : "")" aria-pressed="@(panel.Key == Open ? "true" : "false")"

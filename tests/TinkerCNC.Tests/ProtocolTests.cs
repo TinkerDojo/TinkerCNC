@@ -136,3 +136,33 @@ public class ProtocolTests
         listener.Stop();
     }
 }
+
+public class ToolTipTests
+{
+    // A tool 12.5 mm longer than the reference: the firmware reports WPos = MPos − work offset − tool offset.
+    private static readonly StatusReport Calibrated = StatusReport.Parse("<Idle|MPos:10.000,20.000,-30.000,0.000|WPos:5.000,5.000,-40.500,0.000|T:2,12.500,-1>");
+
+    [Fact]
+    public void The_tip_is_below_the_machine_position_by_the_tool_length_offset()
+    {
+        Assert.Equal(12.5, Calibrated.ToolLengthOffset);
+        Assert.Equal([10, 20, -42.5, 0], Calibrated.ToolTip!);
+    }
+
+    [Fact]
+    public void Work_zero_leaves_the_tool_length_offset_out()
+    {
+        // MPos − WPos is 10.5 in Z, of which 12.5 is the tool: the work offset itself is −2.
+        Assert.Equal([5, 15, -2], Calibrated.WorkZero!);
+        // The tip at work zero plus its work position is where it really is.
+        Assert.Equal(Calibrated.ToolTip![2], Calibrated.WorkZero![2] + Calibrated.WorkPosition![2], 6);
+    }
+
+    [Fact]
+    public void Without_a_tool_offset_the_tip_is_the_machine_position()
+    {
+        var status = StatusReport.Parse("<Idle|MPos:1.000,2.000,3.000|WPos:0.000,0.000,1.000>");
+        Assert.Equal([1, 2, 3], status.ToolTip!);
+        Assert.Equal([1, 2, 2], status.WorkZero!);
+    }
+}

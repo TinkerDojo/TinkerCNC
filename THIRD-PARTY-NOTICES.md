@@ -17,6 +17,7 @@ permits redistribution together with this Apache-2.0 licensed software.
 | [Velopack](https://velopack.io) | installer and updates | MIT | © Velopack Ltd. |
 | [Photino.NET](https://www.tryphotino.io) / Photino.Native | the app window | Apache-2.0 | © TryPhotino |
 | [Microsoft Edge WebView2](https://developer.microsoft.com/microsoft-edge/webview2/) loader (Windows) | web view in the window | BSD-3-Clause (loader); the runtime is part of Windows | © Microsoft Corporation |
+| [SkiaSharp](https://github.com/mono/SkiaSharp) (with Skia) | decoding camera frames for MP4 recordings | MIT (SkiaSharp); BSD-3-Clause (Skia) | © Microsoft Corporation (SkiaSharp); © Google LLC (Skia) |
 
 ## Models
 
@@ -28,7 +29,6 @@ permits redistribution together with this Apache-2.0 licensed software.
 
 | Component | Used for | License |
 |---|---|---|
-| [SkiaSharp](https://github.com/mono/SkiaSharp) | simulator camera images | MIT |
 | [xUnit](https://xunit.net), xunit.runner.visualstudio | tests | Apache-2.0 |
 | [coverlet](https://github.com/coverlet-coverage/coverlet) | test coverage | MIT |
 | Microsoft.NET.Test.Sdk | tests | MIT |

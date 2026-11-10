@@ -33,7 +33,7 @@ public sealed class ControlServer(SimContext context)
             int n;
             while ((n = await client.GetStream().ReadAsync(buffer, ct)) > 0)
                 foreach (var packet in reader.Feed(buffer.AsSpan(0, n)))
-                    await IHostMessage.From(packet).AcceptAsync(session);
+                    await session.ReceiveAsync(IHostMessage.From(packet));
         }
         catch (Exception ex) when (ex is IOException or OperationCanceledException)
         {
@@ -54,10 +54,14 @@ public sealed class ControlSession : IHostMessageVisitor, IReplyChannel
     private readonly SemaphoreSlim _writeLock = new(1, 1);
     private IFileTransfer _transfer = NoTransfer.Instance;
 
+    // Text commands run one after the other, behind a move that waits in a feed hold, while real-time characters and
+    // queries are answered at once (firmware: lines in the main loop, real-time characters while idling).
+    private Task _commands = Task.CompletedTask;
+
     private static readonly IReadOnlyDictionary<char, Action<SimContext>> Realtime = new Dictionary<char, Action<SimContext>>
     {
-        [RealtimeCommand.FeedHold.Character] = c => c.Machine.Transition("Run", "Hold"),
-        [RealtimeCommand.CycleStart.Character] = c => c.Machine.Transition("Hold", c.Job.IsPlaying ? "Run" : "Idle"),
+        [RealtimeCommand.FeedHold.Character] = c => c.Machine.SetFeedHold(true),
+        [RealtimeCommand.CycleStart.Character] = c => c.Machine.SetFeedHold(false),
         [RealtimeCommand.Reset.Character] = c => { c.Job.Stop(); c.Machine.Reset(); },
     };
 
@@ -94,6 +98,18 @@ public sealed class ControlSession : IHostMessageVisitor, IReplyChannel
         Console.WriteLine($"[tcp] realtime 0x{(int)message.Character:X2}");
         Realtime.GetValueOrDefault(message.Character)?.Invoke(_context);
         return Task.CompletedTask;
+    }
+
+    /// <summary>Handles a packet: a text command after the ones before it, a transfer after them, anything else now.</summary>
+    public async Task ReceiveAsync(IHostMessage message)
+    {
+        if (message is TextCommand)
+        {
+            _commands = _commands.ContinueWith(_ => message.AcceptAsync(this), TaskScheduler.Default).Unwrap();
+            return;
+        }
+        if (message is FileTransferCommand) await _commands;
+        await message.AcceptAsync(this);
     }
 
     public Task VisitAsync(TextCommand message)

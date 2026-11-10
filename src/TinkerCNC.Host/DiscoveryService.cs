@@ -38,7 +38,7 @@ public sealed class DiscoveryService : BackgroundService
             catch (Exception ex)
             {
                 status.Listening = false;
-                status.Error = ex.Message;
+                status.Error = Text.Of(ex);
                 _log.LogWarning(ex, "UDP discovery failed; retrying in 10 s");
                 try { await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken); }
                 catch (OperationCanceledException) { break; }

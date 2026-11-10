@@ -4,7 +4,7 @@
 @if (Job.Phase == JobPhase.Downloading && Job.Download is { } dl)
 {
     <div class="download">
-        <span class="muted small">Downloading @(Job.File?.FileName) · packet @dl.Packet/@dl.TotalPackets · @dl.Bytes.ToString("N0") bytes</span>
+        <span class="muted small">@T["Job.Progress.Downloading", Job.File?.FileName, dl.Packet, dl.TotalPackets, dl.Bytes.ToString("N0")]</span>
         <div class="bar"><div style="width:@Css(dl.Fraction * 100)%"></div></div>
     </div>
 }
@@ -13,7 +13,7 @@
 {
     <div class="notice notice-warn queue-gate">
         <Icon Name="play" />
-        <span><b>@waiting.Label</b> is on the machine, paused before anything moves. Put the piece in place, then hold the machine's button until it continues, or press Resume.</span>
+        <span>@T.Html("Job.Queue.Gate", waiting.Label)</span>
     </div>
 }
 
@@ -24,29 +24,29 @@
     var percent = position is { } f ? timeline.Fraction(f) * 100 : 0;
     <div class="run-hero">
         <div class="stat stat-hero">
-            <span class="k">Remaining</span>
+            <span class="k">@T["Job.Progress.Remaining"]</span>
             <span class="v">@(position is { } r ? TimeFormat.Duration(r.RemainingSeconds) : "—")</span>
             @if (schedule?.FinishUtc is { } finish)
             {
-                <span class="muted small">ends @TimeFormat.Clock(finish)</span>
+                <span class="muted small">@T["Job.Ends", TimeFormat.Clock(finish, T.Culture)]</span>
             }
         </div>
         <div class="stat stat-progress">
-            <span class="k">Progress</span>
+            <span class="k">@T["Job.Progress.Progress"]</span>
             <span class="v">@percent.ToString("0", CultureInfo.InvariantCulture) %</span>
             <div class="bar"><div style="width:@Css(percent)%"></div></div>
-            <span class="muted small">@(position is { } d ? TimeFormat.Duration(d.DoneSeconds) : "—") of @TimeFormat.Duration(timeline.TotalSeconds)</span>
+            <span class="muted small">@(T["Job.Progress.DoneOf", position is { } d ? TimeFormat.Duration(d.DoneSeconds) : "—", TimeFormat.Duration(timeline.TotalSeconds)])</span>
         </div>
         <div class="stat">
-            <span class="k">Tool</span>
+            <span class="k">@T["Job.Progress.Tool"]</span>
             <span class="v">
                 @if (position is { Preparing: true } && timeline.Preparation is not null)
                 {
-                    <text>@JobPreparation.Label</text>
+                    <text>@T[JobPreparation.Label]</text>
                 }
                 else if (position?.Line is { } line && timeline.Analysis.SegmentAt(line) is { } segment)
                 {
-                    <span class="swatch" style="background:@ToolPalette.ColorFor(segment.ToolNumber)"></span> @segment.Label
+                    <span class="swatch" style="background:@ToolPalette.ColorFor(segment.ToolNumber)"></span> @T[segment.DisplayLabel]
                 }
                 else
                 {
@@ -55,24 +55,24 @@
             </span>
         </div>
         <div class="stat">
-            <span class="k">Next tool change</span>
+            <span class="k">@T["Job.Progress.NextToolChange"]</span>
             @if (schedule?.Next is { } next)
             {
                 var tool = next.Operation.Segment;
-                <span class="v" title="@($"Tool change to {tool.Label} (line {tool.StartLine})")">
+                <span class="v" title="@T["Job.Progress.NextToolChange.Title", tool.DisplayLabel, tool.StartLine]">
                     <span class="swatch" style="background:@ToolPalette.ColorFor(tool.ToolNumber)"></span>
-                    @TimeFormat.Clock(next.ClockUtc!.Value)
+                    @TimeFormat.Clock(next.ClockUtc!.Value, T.Culture)
                 </span>
-                <span class="muted small">in @TimeFormat.Duration(next.InSeconds!.Value)</span>
+                <span class="muted small">@T["Job.Progress.In", TimeFormat.Duration(next.InSeconds!.Value)]</span>
             }
             else
             {
                 <span class="v">—</span>
-                <span class="muted small">none left</span>
+                <span class="muted small">@T["Job.Progress.NoneLeft"]</span>
             }
         </div>
         <div class="stat">
-            <span class="k" title="Feed override">Feed</span>
+            <span class="k" title="@T["Job.Progress.Feed.Title"]">@T["Job.Progress.Feed"]</span>
             <span class="v">@Job.FeedOverridePercent.ToString("0", CultureInfo.InvariantCulture) %</span>
         </div>
     </div>
@@ -80,10 +80,10 @@
     <div class="run-notes">
         @if (Job.Measuring is { } measuring)
         {
-            <span class="recording-note"><span class="rec-dot"></span> Timing <b>@measuring.Label</b> (lines @measuring.CuttingStartLine–@measuring.EndLine)</span>
+            <span class="recording-note"><span class="rec-dot"></span> @T.Html("Job.Progress.Timing", measuring.DisplayLabel, measuring.CuttingStartLine, measuring.EndLine)</span>
         }
-        <span class="muted small" title="Operations whose time comes from earlier runs instead of the estimate">
-            @timeline.MeasuredCount of @timeline.Segments.Count operations measured
+        <span class="muted small" title="@T["Job.Progress.Measured.Title"]">
+            @T.Count("Job.Progress.Measured", timeline.Segments.Count, timeline.MeasuredCount)
         </span>
     </div>
 
@@ -91,16 +91,18 @@
 }
 else
 {
-    <p class="muted small pad">@(Job.Error ?? PhaseTexts.GetValueOrDefault(Job.Phase, "The machine is running a job; fetching the program…"))</p>
+    <p class="muted small pad">@(Job.Error is { } error ? T[error] : T[PhaseTexts.GetValueOrDefault(Job.Phase, Fetching)])</p>
 }
 
 @code {
-    private static readonly IReadOnlyDictionary<JobPhase, string> PhaseTexts = new Dictionary<JobPhase, string>
+    private static readonly Text Fetching = Texts.Of("Job.Progress.Phase.Fetching");
+
+    private static readonly IReadOnlyDictionary<JobPhase, Text> PhaseTexts = new Dictionary<JobPhase, Text>
     {
-        [JobPhase.Resolving] = "Asking the machine which file it is running…",
-        [JobPhase.Downloading] = "Downloading the program from the machine…",
-        [JobPhase.NoFileReported] = "The machine did not say which file it is running; asking again shortly.",
-        [JobPhase.Failed] = "The program could not be fetched; trying again shortly.",
+        [JobPhase.Resolving] = Texts.Of("Job.Progress.Phase.Resolving"),
+        [JobPhase.Downloading] = Texts.Of("Job.Progress.Phase.Downloading"),
+        [JobPhase.NoFileReported] = Texts.Of("Job.Progress.Phase.NoFileReported"),
+        [JobPhase.Failed] = Texts.Of("Job.Progress.Phase.Failed"),
     };
 
     /// <summary>Clicking an operation on the timeline shows its code in the G-code panel.</summary>

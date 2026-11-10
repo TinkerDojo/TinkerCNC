@@ -1,20 +1,22 @@
 using TinkerCNC.Jobs;
+using TinkerCNC.Video;
 
 namespace TinkerCNC.Host;
 
 /// <summary>
 /// Records a time-lapse of a job started here (<see cref="JobStartOptions.Timelapse"/>) with the machine's camera:
-/// from the moment the machine plays until it stops playing, one frame every <see cref="IntervalFor"/> into a
-/// recording in the recordings folder (<see cref="CameraService.StartRecording"/>). The camera is started if it is
-/// off. A recording that was already running is left alone.
+/// from the moment the machine plays until it stops playing, one frame every <see cref="Interval"/> into an MP4
+/// file in the recordings folder that plays <see cref="PlaybackFramesPerSecond"/> frames a second
+/// (<see cref="CameraService.StartRecording"/>). The camera is started if it is off. A recording that was already
+/// running is left alone.
 /// </summary>
 public sealed class JobTimelapse
 {
-    /// <summary>How many frames a time-lapse aims for: at the player's 10 frames per second, half a minute.</summary>
-    public const int TargetFrames = 300;
+    /// <summary>Time between the frames of a time-lapse.</summary>
+    public static readonly TimeSpan Interval = TimeSpan.FromSeconds(1);
 
-    public static readonly TimeSpan MinInterval = TimeSpan.FromSeconds(1);
-    public static readonly TimeSpan MaxInterval = TimeSpan.FromMinutes(1);
+    /// <summary>How fast the time-lapse plays: with one frame a second recorded, 30 times faster than the job.</summary>
+    public const int PlaybackFramesPerSecond = 30;
 
     private readonly MachineSession _session;
     private readonly CameraService _camera;
@@ -30,54 +32,62 @@ public sealed class JobTimelapse
     /// <summary>Whether a time-lapse of the running job is being recorded.</summary>
     public bool Recording { get; private set; }
 
-    /// <summary>Where the last time-lapse was written, once the job ended.</summary>
+    /// <summary>Where the last time-lapse was written, once the job ended and the file was completed.</summary>
     public string? LastPath { get; private set; }
 
     /// <summary>Why the last time-lapse could not be recorded, or null.</summary>
-    public string? Error { get; private set; }
+    public Text? Error { get; private set; }
 
-    /// <summary>Time between frames for a job of that length, so the result has about <see cref="TargetFrames"/>.</summary>
-    public static TimeSpan IntervalFor(double estimatedSeconds)
-    {
-        var seconds = Math.Clamp(estimatedSeconds / TargetFrames, MinInterval.TotalSeconds, MaxInterval.TotalSeconds);
-        return TimeSpan.FromSeconds(Math.Round(seconds, 1));
-    }
+    /// <summary>How much faster than the job the time-lapse plays.</summary>
+    public static double SpeedUp => PlaybackFramesPerSecond * Interval.TotalSeconds;
 
     /// <summary>Starts recording the job that is playing now.</summary>
     /// <param name="label">Start of the file name (the program's name).</param>
-    /// <param name="estimatedSeconds">The job's estimated length, for the interval.</param>
-    public void Begin(string label, double estimatedSeconds)
+    public void Begin(string label)
     {
         Error = null;
         LastPath = null;
         if (_camera.Get(_session.Host).IsRecording)
         {
-            Error = "The camera is already recording; the time-lapse was not started.";
+            Error = HostTexts.Of("Timelapse.CameraBusy");
             _session.Note($"Time-lapse: {Error}");
             return;
         }
         try
         {
-            var interval = IntervalFor(estimatedSeconds);
-            var path = _camera.StartRecording(_session.Host, Path.GetFileNameWithoutExtension(label) + "_timelapse", interval);
+            var plan = RecordingPlan.Timelapse(Interval, PlaybackFramesPerSecond);
+            var path = _camera.StartRecording(_session.Host, Path.GetFileNameWithoutExtension(label) + "_timelapse", plan);
             Recording = true;
             _wasPlaying = true;
-            _session.Note($"Time-lapse: recording one frame every {interval.TotalSeconds:0.#} s to {path}");
+            _session.Note($"Time-lapse: recording one frame every {Interval.TotalSeconds:0.#} s to {path}; it plays {SpeedUp:0}× faster than the job");
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            Error = ex.Message;
+            Error = Text.Of(ex);
             _session.Note($"Time-lapse: could not start recording: {ex.Message}");
         }
     }
 
-    /// <summary>Stops the recording and keeps where it was written.</summary>
+    /// <summary>Stops the recording; the file is completed in the background and its path kept.</summary>
     public void End()
     {
         if (!Recording) return;
         Recording = false;
-        LastPath = _camera.StopRecording(_session.Host);
-        _session.Note($"Time-lapse: saved {LastPath}");
+        _ = FinishAsync();
+    }
+
+    private async Task FinishAsync()
+    {
+        try
+        {
+            LastPath = await _camera.StopRecordingAsync(_session.Host).ConfigureAwait(false);
+            _session.Note(LastPath is null ? "Time-lapse: no frames were recorded" : $"Time-lapse: saved {LastPath}");
+        }
+        catch (Exception ex)
+        {
+            Error = Text.Of(ex);
+            _session.Note($"Time-lapse: could not finish the recording: {ex.Message}");
+        }
     }
 
     /// <summary>The job ended (or the connection dropped): the recording ends with it.</summary>

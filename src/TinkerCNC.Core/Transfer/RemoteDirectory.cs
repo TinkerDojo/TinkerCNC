@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using TinkerCNC.Protocol;
+using TinkerCNC.Localization;
 
 namespace TinkerCNC.Transfer;
 
@@ -57,7 +58,7 @@ public sealed class RemoteDirectoryReader(MachineConnection machine)
         {
             var left = deadline - DateTime.UtcNow;
             var message = left > TimeSpan.Zero ? await inbox.ReadAsync(left, cancellationToken).ConfigureAwait(false) : null;
-            if (message is null) throw new TimeoutException($"The machine did not list {directory} within {Timeout.TotalSeconds:0} s.");
+            if (message is null) throw new LocalizedTimeoutException(CoreTexts.Of("Transfer.ListTimeout", directory, Timeout.TotalSeconds));
             message.Accept(listing);
         }
         return RemoteListing.Parse(listing.Text);
@@ -72,6 +73,6 @@ public sealed class RemoteDirectoryReader(MachineConnection machine)
 
         public override void Visit(LoadInfoMessage message) => _text.Append(message.Text).Append('\n');
         public override void Visit(LoadFinishedMessage message) => IsComplete = true;
-        public override void Visit(LoadErrorMessage message) => throw new FileTransferException(message.Text.Trim());
+        public override void Visit(LoadErrorMessage message) => throw new FileTransferException(Localization.Text.Plain(message.Text.Trim()));
     }
 }

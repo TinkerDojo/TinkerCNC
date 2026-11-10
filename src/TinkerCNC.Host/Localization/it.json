@@ -1,0 +1,149 @@
+{
+  "Air": {
+    "TypeUnknown": "Il tipo di macchina (ricavato dalla sua corsa) non è ancora noto, e quindi nemmeno la sua uscita dell'aria."
+  },
+  "Bed": {
+    "Alarm": "La macchina ha generato un allarme durante il movimento ({0}).",
+    "CantStart": "Impossibile pulire il piano nello stato attuale della macchina ({0}).",
+    "FinishFailed": "Impossibile completare la pulizia del piano: {0}",
+    "NoPosition": "La macchina non ha comunicato la sua posizione.",
+    "NotBack": "La testa non è tornata dove il programma si è fermato ({0}, macchina), quindi il lavoro resta in pausa. Riporta la testa lì, a quell'altezza, prima di riprendere: la ripresa si sposta direttamente a quel punto.",
+    "Running": "La pulizia del piano è già in corso."
+  },
+  "Camera": {
+    "RecordingFailed": "Registrazione non riuscita: {0}"
+  },
+  "GoTo": {
+    "NotIdle": "Gli spostamenti verso una posizione sono possibili solo quando la macchina è pronta (stato: {0})."
+  },
+  "Job": {
+    "Busy": "Richiesta precedente ancora in corso."
+  },
+  "Limits": {
+    "NoSoftLimits": "La configurazione della macchina non definisce limiti software (soft_endstop.x_min/y_min/z_min).",
+    "ReadFailed": "Impossibile leggere i limiti di corsa: {0}",
+    "Unknown": "I limiti di corsa della macchina non sono ancora noti."
+  },
+  "Machine": {
+    "NotConnected": "La macchina non è connessa."
+  },
+  "Notice": {
+    "Alarm.Message": "La macchina ha segnalato un allarme.",
+    "Alarm.Title": "Allarme",
+    "Cleared": "Risolto",
+    "Confirm": "Conferma",
+    "Confirmed": "Confermato",
+    "Continued": "Proseguito",
+    "Dismissed": "Ignorata",
+    "DoneOnMachine": "Fatto sulla macchina",
+    "Insert": "Inserisci {0}",
+    "NamedTool": "{0} ({1})",
+    "NextJob.Message": "{0} è sulla macchina, in attesa prima di qualsiasi movimento. Posiziona il pezzo, poi premi il pulsante della macchina oppure «Riprendi».",
+    "NextJob.Title": "Pronto per il lavoro successivo",
+    "NextTool": "l'utensile successivo",
+    "Over": "Terminato",
+    "Resume": "Riprendi",
+    "Resumed": "Ripreso",
+    "ToolChange.Message": "La macchina attende {0}. Inseriscilo, poi conferma per continuare il lavoro.",
+    "ToolChange.Title": "Cambio utensile in attesa",
+    "Unlock": "Sblocca ($X)",
+    "Unlocked": "Sbloccata"
+  },
+  "Pause": {
+    "CurrentPosition": "la posizione attuale",
+    "HeadMoved": "La macchina ha spostato la testa dopo la pausa (prima: {0}, ora: {1}), probabilmente per una routine di pausa nella sua configurazione.",
+    "NoRest": "La testa non si è fermata dopo la pausa.",
+    "NotPaused": "Non è stato possibile mettere in pausa il programma (stato della macchina: {0}).",
+    "Routine": "La macchina esegue «{0}» dopo la pausa ({1} nel suo config.txt), il che può spostare la testa, quindi il lavoro non è stato messo in pausa. Metti tu in pausa il lavoro per usare la macchina dove si ferma la testa."
+  },
+  "Program": {
+    "ChooseFirst": "Scegli prima un programma.",
+    "FromComputer": "da questo computer",
+    "FromSetup": "configurazione «{0}»",
+    "FromSetupQueued": "configurazione «{0}», dalla coda",
+    "LastJob": "l'ultimo lavoro",
+    "Local": "{0}, caricato in {1} all'avvio",
+    "OnMachine": "sulla macchina, {0}",
+    "Queued": "dalla coda",
+    "Stopped": "il lavoro fermato"
+  },
+  "Queue": {
+    "Alarm": "La macchina ha generato un allarme: {0}.",
+    "AlreadyInSetup": "Questo file fa già parte dei file della configurazione.",
+    "BeforeFailed": "Il lavoro precedente alla coda non è terminato: {0}",
+    "BeforeFailed.Message": "Il lavoro precedente alla coda non è terminato: {0} Riavvia la coda quando la macchina è pronta.",
+    "ConnectionLost": "La connessione è stata persa.",
+    "CopyGone": "La copia in coda non esiste più.",
+    "CopyMissing": "Manca la copia in coda del suo file.",
+    "EndedEarly": "Il lavoro è terminato prima della sua ultima lavorazione.",
+    "EndedEarlyAt": "Il lavoro è terminato prima della sua ultima lavorazione, a {0}.",
+    "EntryFailed": "{0}: {1}",
+    "EntryFailed.Message": "{0}: {1} Riprova la voce (anche dalla lavorazione a cui era arrivata) o rimuovila, poi riavvia la coda.",
+    "EntryGone": "Questa voce non esiste più.",
+    "EntryRunning": "Il lavoro di questa voce è sulla macchina.",
+    "FileDeleted": "«{0}» è stato eliminato dalla configurazione.",
+    "FileGone": "Il suo file è stato eliminato dalla configurazione.",
+    "Finished.Message": "Tutti i lavori della coda sono stati eseguiti ({0}).",
+    "Finished.Title": "Coda completata",
+    "GateJob": "{0} (lavoro {1} di {2})",
+    "HeadPositionOrigin": "«{0}» prende l'origine pezzo dalla posizione della testa, che in una coda è dove è terminato il lavoro precedente. Imposta l'origine a mano una volta e lascia che la configurazione la mantenga, oppure usa l'angolo del piano o il tastatore XYZ.",
+    "HeadPositionRepeat": "Questo lavoro prende l'origine pezzo dalla posizione della testa, il che vale solo per l'esecuzione avviata a mano: per le successive la testa si trova dove è finita la precedente. Per esecuzioni ripetute usa l'angolo del piano o il tastatore XYZ, oppure mantieni l'origine.",
+    "Job": "lavoro",
+    "NoAlarmMessage": "nessun messaggio",
+    "NoSetup": "Questo file non appartiene a nessuna configurazione. Salvalo in una configurazione dalla scheda del lavoro per conservarlo.",
+    "NotReady": "Per avviare la coda la macchina deve essere pronta o eseguire un lavoro (stato: {0}).",
+    "OnlyFailedRetried": "Si può riprovare solo una voce non riuscita.",
+    "SetupGone": "La sua configurazione non esiste più.",
+    "Stopped": "Interrotto.",
+    "Stopped.Title": "Coda interrotta"
+  },
+  "Restart": {
+    "LastProgramUnknown": "Il programma dell'ultimo lavoro non è noto.",
+    "NoLastJob": "Nessun lavoro è ancora terminato.",
+    "NoSuchOperation": "Il programma non ha questa lavorazione."
+  },
+  "Session": {
+    "ClosedByMachine": "Connessione chiusa dalla macchina",
+    "ReplyTimeout": "Nessuna risposta a «{0}» entro {1:0} s.",
+    "StateTimeout": "La macchina non ha raggiunto lo stato previsto entro {0:0} s.",
+    "Transferring": "La macchina è occupata con un trasferimento di file e ignorerebbe il comando; riprova al termine."
+  },
+  "Setup": {
+    "Deleted": "«{0}» è stato eliminato; ripristinalo prima.",
+    "FileGone": "Questo file non esiste più.",
+    "FileMissing": "Il file «{0}» manca ({1}). Sostituiscilo o eliminalo.",
+    "Gone": "Questa configurazione non esiste più.",
+    "NameRequired": "Dai un nome alla configurazione.",
+    "NameTaken": "Esiste già una configurazione chiamata «{0}».",
+    "NameTooLong": "I nomi possono avere al massimo {0} caratteri.",
+    "NoneLoaded": "Nessuna configurazione caricata.",
+    "OnlyDeletedFiles": "Solo i file eliminati possono essere eliminati definitivamente.",
+    "OnlyDeletedSetups": "Solo le configurazioni eliminate possono essere eliminate definitivamente."
+  },
+  "Start": {
+    "Alarm": "La macchina ha generato un allarme invece di avviarsi: {0}",
+    "BedCleaning": "È in corso la pulizia del piano.",
+    "NoFeedHold": "La macchina non ha accettato l'arresto avanzamento (!), quindi il lavoro non ha potuto attendere il via e non è stato avviato. L'arresto avanzamento potrebbe essere disattivato nella configurazione della macchina (enable_feed_hold).",
+    "NotIdle": "I programmi si avviano solo quando la macchina è pronta (stato: {0}).",
+    "NotStarted": "La macchina non ha avviato il programma. I comandi accodati per l'avvio (tastatura, utensile) restano in coda finché non si avvia un programma o la macchina viene resettata, quindi resettala prima di riprovare.",
+    "NotStartedAnswer": "La macchina non ha avviato il programma (la sua ultima risposta: «{0}»). I comandi accodati per l'avvio (tastatura, utensile) restano in coda finché non si avvia un programma o la macchina viene resettata, quindi resettala prima di riprovare.",
+    "Transferring": "La macchina è occupata con un trasferimento di file."
+  },
+  "State": {
+    "NotReporting": "nessuno stato segnalato",
+    "Unknown": "sconosciuto"
+  },
+  "Text": {
+    "Sentences": "{0} {1}"
+  },
+  "Time": {
+    "HoursAgo": "{0} h fa",
+    "JustNow": "proprio ora",
+    "MinutesAgo": "{0} min fa",
+    "Never": "mai",
+    "SecondsAgo": "{0} s fa"
+  },
+  "Timelapse": {
+    "CameraBusy": "La telecamera sta già registrando; il time-lapse non è stato avviato."
+  }
+}

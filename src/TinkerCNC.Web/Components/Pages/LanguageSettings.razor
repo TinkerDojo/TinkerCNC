@@ -1,0 +1,38 @@
+@page "/settings/language"
+@inject NavigationManager Navigation
+
+<PageTitle>@T["Pages.Language.PageTitle"]</PageTitle>
+
+<header class="page-head">
+    <div>
+        <h1>@T["Pages.Language.Title"]</h1>
+        <p class="muted">@T["Pages.Language.Intro"]</p>
+    </div>
+</header>
+
+<section class="card settings-card">
+    <div class="card-head"><h2><Icon Name="globe" /> @T["Pages.Language.Heading"]</h2></div>
+    <div class="language-choices" role="radiogroup" aria-label="@T["Pages.Language.Heading"]">
+        <label class="language-choice @(T.Preference.Chosen is null ? "on" : "")">
+            <input type="radio" name="language" checked="@(T.Preference.Chosen is null)" @onchange="() => Choose(null)" />
+            <span>
+                <b>@T["Pages.Language.Automatic"]</b>
+                <span class="muted small">@T["Pages.Language.AutomaticHint", T.Preference.Browser.NativeName]</span>
+            </span>
+        </label>
+        @foreach (var language in UiLanguages.All)
+        {
+            <label class="language-choice @(T.Preference.Chosen == language ? "on" : "")" lang="@language.Code">
+                <input type="radio" name="language" checked="@(T.Preference.Chosen == language)" @onchange="() => Choose(language)" />
+                <span><b>@language.NativeName</b></span>
+            </label>
+        }
+    </div>
+    <p class="hint muted">@T["Pages.Language.Stored"]</p>
+</section>
+
+@code {
+    // The circuit keeps the language it started with, so a new one loads the page anew (and sets the cookie on the way).
+    private void Choose(UiLanguage? language) =>
+        Navigation.NavigateTo(LanguageEndpoints.Link(language, "/settings/language"), forceLoad: true);
+}

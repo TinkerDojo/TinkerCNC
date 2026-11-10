@@ -1,4 +1,4 @@
-<span class="chip @Look.Chip" title="@Session.Error">
+<span class="chip @Look.Chip" title="@(Session.Error is { } error ? T[error] : null)">
     @if (Look.Spinner)
     {
         <span class="spinner"></span>
@@ -7,20 +7,20 @@
     {
         <span class="dot @Look.Dot"></span>
     }
-    @Look.Label(Session)
+    @T[Look.Label(Session)]
 </span>
 
 @code {
     [Parameter, EditorRequired] public MachineSession Session { get; set; } = default!;
 
-    private sealed record Appearance(string Chip, string Dot, bool Spinner, Func<MachineSession, string> Label);
+    private sealed record Appearance(string Chip, string Dot, bool Spinner, Func<MachineSession, Text> Label);
 
     private static readonly IReadOnlyDictionary<SessionState, Appearance> Looks = new Dictionary<SessionState, Appearance>
     {
-        [SessionState.Connected] = new("chip-accent", "dot-on", false, s => $"Connected {TimeFormat.Ago(s.ConnectedSinceUtc)}"),
-        [SessionState.Connecting] = new("chip-warn", "", true, _ => "Connecting"),
-        [SessionState.Failed] = new("chip-err", "dot-err", false, s => s.Error ?? "Failed"),
-        [SessionState.Disconnected] = new("chip-dim", "dot-off", false, _ => "Not connected"),
+        [SessionState.Connected] = new("chip-accent", "dot-on", false, s => Texts.Of("Shared.Session.ConnectedSince", TimeFormat.Ago(s.ConnectedSinceUtc))),
+        [SessionState.Connecting] = new("chip-warn", "", true, _ => Texts.Of("Shared.Session.Connecting")),
+        [SessionState.Failed] = new("chip-err", "dot-err", false, s => s.Error ?? Texts.Of("Shared.Session.Failed")),
+        [SessionState.Disconnected] = new("chip-dim", "dot-off", false, _ => Texts.Of("Shared.Session.NotConnected")),
     };
 
     private Appearance Look => Looks[Session.State];

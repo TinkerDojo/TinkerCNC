@@ -12,32 +12,33 @@ public sealed class CameraFeed
     public string SourceId => CameraService.SourceIdFor(Host);
     public bool Running { get; internal set; }
     public bool Connected { get; internal set; }
-    public string? LastError { get; internal set; }
+    public Text? LastError { get; internal set; }
     public long Frames { get; internal set; }
     public double Fps => Meter.Fps;
     public DateTime? LastFrameUtc { get; internal set; }
+
+    /// <summary>The file the recording ends up in, while one is running.</summary>
     public string? RecordingPath { get; internal set; }
-    public long RecordedFrames { get; internal set; }
+
+    public long RecordedFrames => Recorder?.FramesWritten ?? 0;
     public bool IsRecording => RecordingPath is not null;
+    public bool IsTimelapse => Recorder?.Plan.IsTimelapse ?? false;
 
     public DateTime? RecordingStartedUtc { get; internal set; }
 
     /// <summary>Time between recorded frames; null records every frame.</summary>
-    public TimeSpan? RecordingInterval { get; internal set; }
-    public bool IsTimelapse => IsRecording && RecordingInterval is not null;
 
-    internal DateTime? LastRecordedUtc;
 
     internal CancellationTokenSource? Cts;
-    internal FileStream? Recording;
+    internal VideoRecorder? Recorder;
     internal readonly object Gate = new();
     internal readonly FrameRateMeter Meter = new(TimeSpan.FromSeconds(2));
 }
 
 /// <summary>
-/// One upstream camera WebSocket per machine, shared by every browser viewer, with optional
-/// recording through <see cref="RecordingStore"/>. Recordings are raw concatenated JPEG frames (.mjpeg),
-/// which VLC/ffmpeg play directly (e.g. <c>ffmpeg -f mjpeg -framerate 10 -i rec.mjpeg out.mp4</c>).
+/// One upstream camera WebSocket per machine, shared by every browser viewer, with optional recording through
+/// <see cref="RecordingStore"/>: MP4 files (H.264) that any player and browser opens, encoded here on a
+/// background task (<see cref="VideoRecorder"/>).
 /// </summary>
 public sealed class CameraService : IAsyncDisposable
 {
@@ -90,10 +91,11 @@ public sealed class CameraService : IAsyncDisposable
         Changed?.Invoke(feed);
     }
 
+    /// <summary>Stops the camera; a running recording is completed in the background.</summary>
     public void Stop(string host)
     {
         if (!_feeds.TryGetValue(host, out var feed)) return;
-        StopRecording(host);
+        FinishInBackground(StopRecordingAsync(host));
         lock (feed.Gate)
         {
             feed.Running = false;
@@ -107,39 +109,44 @@ public sealed class CameraService : IAsyncDisposable
     }
 
     /// <summary>Starts recording (and the camera, if needed); a recording already running is kept as it is.</summary>
-    /// <param name="interval">Keeps one frame per interval (a time-lapse) instead of every frame.</param>
-    public string StartRecording(string host, string? label = null, TimeSpan? interval = null)
+    /// <param name="plan">Which frames to keep and how to time them; <see cref="RecordingPlan.RealTime"/> when omitted.</param>
+    /// <returns>The file the recording ends up in.</returns>
+    public string StartRecording(string host, string? label = null, RecordingPlan? plan = null)
     {
+        plan ??= RecordingPlan.RealTime;
         var feed = Get(host);
         if (!feed.Running) Start(host);
         lock (feed.Gate)
         {
-            if (feed.Recording is not null) return feed.RecordingPath!;
-            feed.Recording = _store.CreateRecording(label ?? host);
-            feed.RecordingPath = feed.Recording.Name;
-            feed.RecordingInterval = interval;
+            if (feed.Recorder is not null) return feed.RecordingPath!;
+            feed.Recorder = _store.CreateRecording(label ?? host, plan);
+            feed.RecordingPath = feed.Recorder.Path;
             feed.RecordingStartedUtc = DateTime.UtcNow;
-            feed.LastRecordedUtc = null;
-            feed.RecordedFrames = 0;
         }
         Changed?.Invoke(feed);
         return feed.RecordingPath!;
     }
 
-    public string? StopRecording(string host)
+    /// <summary>Stops the recording and completes its file. Null when there was none or nothing was recorded.</summary>
+    public async Task<string?> StopRecordingAsync(string host)
     {
         if (!_feeds.TryGetValue(host, out var feed)) return null;
-        string? path;
+        VideoRecorder? recorder;
         lock (feed.Gate)
         {
-            path = feed.RecordingPath;
-            feed.Recording?.Dispose();
-            feed.Recording = null;
+            recorder = feed.Recorder;
+            feed.Recorder = null;
             feed.RecordingPath = null;
-            feed.RecordingInterval = null;
             feed.RecordingStartedUtc = null;
         }
-        if (path is not null) Changed?.Invoke(feed);
+        if (recorder is null) return null;
+        Changed?.Invoke(feed);
+        var path = await recorder.FinishAsync().ConfigureAwait(false);
+        if (recorder.Error is { } error)
+        {
+            feed.LastError = HostTexts.Of("Camera.RecordingFailed", error);
+            Changed?.Invoke(feed);
+        }
         return path;
     }
 
@@ -153,39 +160,33 @@ public sealed class CameraService : IAsyncDisposable
     private void OnFrame(CameraFeed feed, byte[] frame)
     {
         var now = DateTime.UtcNow;
+        var failed = false;
         lock (feed.Gate)
         {
             feed.Frames++;
             feed.LastFrameUtc = now;
             feed.Meter.Tick(now);
 
-            if (feed.Recording is { } rec && IsDue(feed, now))
+            if (feed.Recorder is { } recorder)
             {
-                try
-                {
-                    rec.Write(frame);
-                    feed.RecordedFrames++;
-                    feed.LastRecordedUtc = now;
-                }
-                catch (Exception ex)
-                {
-                    feed.LastError = "Recording failed: " + ex.Message;
-                    rec.Dispose();
-                    feed.Recording = null;
-                    feed.RecordingPath = null;
-                }
+                if (recorder.Error is not null) failed = true;
+                else recorder.Add(frame, now);
             }
         }
+        if (failed) FinishInBackground(StopRecordingAsync(feed.Host));
         _hub.Publish(feed.SourceId, frame);
     }
 
-    /// <summary>Whether the frame is recorded: every frame, or the first one after the interval has passed.</summary>
-    private static bool IsDue(CameraFeed feed, DateTime now) =>
-        feed.RecordingInterval is not { } interval || feed.LastRecordedUtc is not { } last || now - last >= interval;
+    private void FinishInBackground(Task<string?> finishing) =>
+        _ = finishing.ContinueWith(t => _log.LogWarning(t.Exception, "finishing a recording failed"),
+            TaskContinuationOptions.OnlyOnFaulted);
 
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
-        foreach (var host in _feeds.Keys) Stop(host);
-        return ValueTask.CompletedTask;
+        foreach (var host in _feeds.Keys)
+        {
+            await StopRecordingAsync(host).ConfigureAwait(false);
+            Stop(host);
+        }
     }
 }

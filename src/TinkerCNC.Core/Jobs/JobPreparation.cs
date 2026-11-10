@@ -1,11 +1,21 @@
 using System.Security.Cryptography;
 using System.Text;
 using TinkerCNC.GCode;
+using TinkerCNC.Localization;
 
 namespace TinkerCNC.Jobs;
 
 /// <summary>One thing the machine does before the program, with a rough estimate of its time.</summary>
-public sealed record PreparationStep(string Name, double EstimatedSeconds);
+/// <param name="Name">The step in English: part of the preparation's <see cref="JobPreparation.Fingerprint"/>, so it
+/// stays the same whatever language is shown.</param>
+public sealed record PreparationStep(string Name, double EstimatedSeconds)
+{
+    /// <summary>The step for people (<see cref="Name"/> unless made with <see cref="Of"/>).</summary>
+    public Text Label { get; init; } = Text.Plain(Name);
+
+    /// <summary>A step named by <paramref name="label"/>; its <see cref="Name"/> is the English wording.</summary>
+    public static PreparationStep Of(Text label, double estimatedSeconds) => new(label.ToString(), estimatedSeconds) { Label = label };
+}
 
 /// <summary>
 /// What the machine does after <c>play</c> and before the program's first line when a <see cref="JobStartPlan"/> probes:
@@ -17,7 +27,9 @@ public sealed record PreparationStep(string Name, double EstimatedSeconds);
 public sealed record JobPreparation(string Fingerprint, IReadOnlyList<PreparationStep> Steps)
 {
     public const string FingerprintPrefix = "prep:";
-    public const string Label = "Probing";
+
+    /// <summary>What the preparation is called on the job's timeline.</summary>
+    public static Text Label { get; } = CoreTexts.Of("Preparation.Label");
 
     // Rough guesses, only until the preparation has been measured once.
     private const double XyzCornerSeconds = 60;
@@ -36,14 +48,15 @@ public sealed record JobPreparation(string Fingerprint, IReadOnlyList<Preparatio
         var cuttingToolIn = context.ActiveTool is { } tool && ManualToolChange.IsCuttingTool(tool);
         (bool Applies, Func<PreparationStep> Step)[] candidates =
         [
-            (options.WorkOrigin == WorkOriginChoice.XyzProbe, () => new("XYZ probe corner", XyzCornerSeconds)),
-            (options.UsesProbe && cuttingToolIn, () => new("Change to the probe", toolChange)),
+            (options.WorkOrigin == WorkOriginChoice.XyzProbe, () => PreparationStep.Of(CoreTexts.Of("Preparation.XyzCorner"), XyzCornerSeconds)),
+            (options.UsesProbe && cuttingToolIn, () => PreparationStep.Of(CoreTexts.Of("Preparation.ToProbe"), toolChange)),
             (options.ScanMargin && program is not null,
-                () => new("Scan margin", 2 * (program!.Width + program.Depth) / ScanMmPerMinute * 60)),
-            (options.ZProbe, () => new("Z probe", ZProbeSeconds)),
-            (options.Leveling, () => new($"Auto leveling {options.LevelingPointsX} × {options.LevelingPointsY}",
+                () => PreparationStep.Of(CoreTexts.Of("Preparation.ScanMargin"), 2 * (program!.Width + program.Depth) / ScanMmPerMinute * 60)),
+            (options.ZProbe, () => PreparationStep.Of(CoreTexts.Of("Preparation.ZProbe"), ZProbeSeconds)),
+            (options.Leveling, () => PreparationStep.Of(CoreTexts.Of("Preparation.Leveling", options.LevelingPointsX, options.LevelingPointsY),
                 options.LevelingPointsX * options.LevelingPointsY * LevelingSecondsPerPoint)),
-            (queued.Any(c => c.StartsWith("M6 ", StringComparison.OrdinalIgnoreCase)), () => new("Change back to the tool", toolChange)),
+            (queued.Any(c => c.StartsWith("M6 ", StringComparison.OrdinalIgnoreCase)),
+                () => PreparationStep.Of(CoreTexts.Of("Preparation.ToolBack"), toolChange)),
         ];
         var steps = candidates.Where(c => c.Applies).Select(c => c.Step()).ToList();
         if (steps.Count == 0) return null;

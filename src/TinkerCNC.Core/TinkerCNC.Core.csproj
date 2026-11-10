@@ -13,7 +13,7 @@
     <IsPackable>true</IsPackable>
     <PackageId>TinkerCNC.Core</PackageId>
     <Title>TinkerCNC.Core</Title>
-    <Description>Client library for the Makera Z1 / Z1 Pro desktop CNC: UDP discovery, TCP and serial transports with framed packets, typed messages with visitors, file upload and download, job start with probing, G-code time estimates, operation history, camera and time-lapse clients.</Description>
+    <Description>Client library for the Makera Z1 / Z1 Pro desktop CNC: UDP discovery, TCP and serial transports with framed packets, typed messages with visitors, file upload and download, job start with probing, G-code time estimates, operation history, camera and time-lapse clients, an H.264/MP4 recorder in managed code.</Description>
     <PackageTags>cnc;gcode;makera;makera-z1;z1;cnc-controller;desktop-cnc;machine-control;dotnet</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>icon.png</PackageIcon>
@@ -27,8 +27,17 @@
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="TinkerCNC.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.14" />
     <PackageReference Include="System.IO.Ports" Version="10.0.14" />
+  </ItemGroup>
+
+  <!-- The texts, one file per language (see TextCatalog); embedded as <Assembly>.Localization.<code>.json. -->
+  <ItemGroup>
+    <EmbeddedResource Include="Localization\*.json" LogicalName="$(AssemblyName).Localization.%(Filename)%(Extension)" WithCulture="false" />
   </ItemGroup>
 
 </Project>

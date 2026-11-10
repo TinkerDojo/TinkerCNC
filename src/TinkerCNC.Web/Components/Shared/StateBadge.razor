@@ -1,25 +1,35 @@
-<span class="state state-@Css @(Small ? "state-sm" : "")">@(string.IsNullOrEmpty(State) ? "—" : State)</span>
+<span class="state state-@Css @(Small ? "state-sm" : "")">@Label</span>
 
 @code {
     [Parameter] public string? State { get; set; }
     [Parameter] public bool Small { get; set; }
 
-    // States the machine reports: Idle, Run, Hold, Home, Tool, Wait, Jog, Alarm, Sleep.
-    private static readonly IReadOnlyDictionary<string, string> Styles =
-        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    private sealed record Look(string Css, Text Label);
+
+    // States the machine reports: Idle, Run, Hold, Home, Tool, Wait, Jog, Alarm, Sleep (a suffix after ':' is a detail).
+    private static readonly IReadOnlyDictionary<string, Look> Looks =
+        new Dictionary<string, Look>(StringComparer.OrdinalIgnoreCase)
         {
-            ["Idle"] = "idle",
-            ["Run"] = "run",
-            ["Jog"] = "run",
-            ["Home"] = "run",
-            ["Tool"] = "run",
-            ["Hold"] = "hold",
-            ["Wait"] = "hold",
-            ["Pause"] = "hold",
-            ["Door"] = "hold",
-            ["Alarm"] = "alarm",
-            ["Sleep"] = "sleep",
+            ["Idle"] = new("idle", Texts.Of("Shared.State.Idle")),
+            ["Run"] = new("run", Texts.Of("Shared.State.Run")),
+            ["Jog"] = new("run", Texts.Of("Shared.State.Jog")),
+            ["Home"] = new("run", Texts.Of("Shared.State.Home")),
+            ["Tool"] = new("run", Texts.Of("Shared.State.Tool")),
+            ["Hold"] = new("hold", Texts.Of("Shared.State.Hold")),
+            ["Wait"] = new("hold", Texts.Of("Shared.State.Wait")),
+            ["Pause"] = new("hold", Texts.Of("Shared.State.Pause")),
+            ["Door"] = new("hold", Texts.Of("Shared.State.Door")),
+            ["Alarm"] = new("alarm", Texts.Of("Shared.State.Alarm")),
+            ["Sleep"] = new("sleep", Texts.Of("Shared.State.Sleep")),
         };
 
-    private string Css => Styles.GetValueOrDefault((State ?? "").Split(':')[0], "unknown");
+    private Look? Known => Looks.GetValueOrDefault((State ?? "").Split(':')[0]);
+
+    private string Css => Known?.Css ?? "unknown";
+
+    /// <summary>The detail the machine adds after the state (":0" of "Hold:0"), kept as it is.</summary>
+    private string Detail => State?.IndexOf(':') is >= 0 and var colon ? State[colon..] : "";
+
+    /// <summary>A known state in the dashboard's language (with its detail); anything else as the machine reported it.</summary>
+    private string Label => Known is { } look ? T[look.Label] + Detail : string.IsNullOrEmpty(State) ? "—" : State;
 }

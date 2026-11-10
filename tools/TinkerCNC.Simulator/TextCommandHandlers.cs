@@ -146,19 +146,24 @@ public sealed class MachineMoveHandler : ITextCommandHandler
 {
     private static readonly string[] Prefixes = ["G53 G0", "G53 G1"];
 
-    public bool Matches(string command, SimContext context) =>
-        Prefixes.Any(p => command.StartsWith(p, StringComparison.OrdinalIgnoreCase));
+    public bool Matches(string command, SimContext context) => IsMove(command);
+
+    public static bool IsMove(string command) => Prefixes.Any(p => command.StartsWith(p, StringComparison.OrdinalIgnoreCase));
 
     public async Task HandleAsync(string command, SimContext context, IReplyChannel reply)
     {
-        var words = command[Prefixes[0].Length..].Split(' ', StringSplitOptions.RemoveEmptyEntries)
-            .ToDictionary(w => char.ToUpperInvariant(w[0]), w => double.Parse(w[1..], CultureInfo.InvariantCulture));
-        var p = context.Machine.MachinePosition;
-        double Axis(char a, double current) => words.TryGetValue(a, out var v) ? v : current;
-
         await reply.SendAsync(PacketType.NormalInfo, "ok");
         Console.WriteLine($"[move] {command}");
-        await context.Machine.MoveToAsync(new Position(Axis('X', p.X), Axis('Y', p.Y), Axis('Z', p.Z), p.A), "Run");
+        await context.Machine.MoveToAsync(Target(command, context.Machine.MachinePosition), "Run");
+    }
+
+    /// <summary>Where the move goes; axes it leaves out stay where they are.</summary>
+    public static Position Target(string command, Position current)
+    {
+        var words = command[Prefixes[0].Length..].Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .ToDictionary(w => char.ToUpperInvariant(w[0]), w => double.Parse(w[1..], CultureInfo.InvariantCulture));
+        double Axis(char a, double value) => words.TryGetValue(a, out var v) ? v : value;
+        return new Position(Axis('X', current.X), Axis('Y', current.Y), Axis('Z', current.Z), current.A);
     }
 }
 
@@ -248,10 +253,11 @@ public sealed class AbortHandler : ITextCommandHandler
 {
     public bool Matches(string command, SimContext context) => command.Equals("abort", StringComparison.OrdinalIgnoreCase);
 
-    public Task HandleAsync(string command, SimContext context, IReplyChannel reply)
+    public async Task HandleAsync(string command, SimContext context, IReplyChannel reply)
     {
+        await context.Machine.WhileMoveHeldAsync(); // read only once a move waiting in a feed hold went on
         context.Job.Stop();
-        return reply.SendAsync(PacketType.NormalInfo, "ok");
+        await reply.SendAsync(PacketType.NormalInfo, "ok");
     }
 }
 

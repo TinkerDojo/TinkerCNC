@@ -1,10 +1,12 @@
+using TinkerCNC.Localization;
+
 namespace TinkerCNC;
 
 /// <summary>How a machine blows chips away: the commands that switch its air on and off.</summary>
 public interface IAirOutput
 {
     /// <summary>What the air comes from, for showing to users.</summary>
-    string Description { get; }
+    Text Description { get; }
 
     string OnCommand { get; }
     string OffCommand { get; }
@@ -16,7 +18,7 @@ public interface IAirOutput
 /// </summary>
 public sealed record CompressedAir : IAirOutput
 {
-    public string Description => "compressed air";
+    public Text Description => CoreTexts.Of("Air.Compressed");
     public string OnCommand => "M7";
     public string OffCommand => "M9";
 }
@@ -28,7 +30,7 @@ public sealed record CompressedAir : IAirOutput
 /// </summary>
 public sealed record SpindleBlower(int PowerPercent = 100) : IAirOutput
 {
-    public string Description => FormattableString.Invariant($"spindle blower at {PowerPercent} %");
+    public Text Description => CoreTexts.Of("Air.SpindleBlower", PowerPercent);
     public string OnCommand => FormattableString.Invariant($"M811 S{PowerPercent}");
     public string OffCommand => "M812";
 }

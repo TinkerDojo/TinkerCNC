@@ -7,18 +7,18 @@
     var program = Control.Program!;
     var setups = Library.List(includeDeleted: false).Select(e => e.Setup).ToList();
 }
-<Dialog Title="Save to a setup" Icon="save" OnClose="OnClose">
+<Dialog Title="@T["Setups.SaveTo.Title"]" Icon="save" OnClose="OnClose">
     <Tools>
         <div class="seg seg-sm">
-            <button class="@(_existing ? "active" : "")" disabled="@(setups.Count == 0)" @onclick="() => _existing = true">Existing setup</button>
-            <button class="@(_existing ? "" : "active")" @onclick="() => _existing = false">New setup</button>
+            <button class="@(_existing ? "active" : "")" disabled="@(setups.Count == 0)" @onclick="() => _existing = true">@T["Setups.SaveTo.Existing"]</button>
+            <button class="@(_existing ? "" : "active")" @onclick="() => _existing = false">@T["Setups.NewSetup"]</button>
         </div>
     </Tools>
     <ChildContent>
         @if (_existing && setups.Count > 0)
         {
             <div class="save-form">
-                <label class="field">Setup
+                <label class="field">@T["Setups.SaveTo.Setup"]
                     <select class="input" @bind="_setupId" @bind:after="SetupChosen">
                         @foreach (var setup in setups)
                         {
@@ -27,25 +27,25 @@
                     </select>
                 </label>
                 <div class="field">
-                    <span>What is saved</span>
+                    <span>@T["Setups.SaveTo.WhatIsSaved"]</span>
                     <p class="hint muted">@FileText(program.Source.FileName)</p>
-                    <label class="check"><input type="checkbox" @bind="_updateOptions" /> Store the options as set here in the setup</label>
+                    <label class="check"><input type="checkbox" @bind="_updateOptions" /> @T["Setups.SaveTo.StoreOptions"]</label>
                 </div>
                 <div class="save-form-foot">
                     @if (_error is not null)
                     {
-                        <span class="hint err">@_error</span>
+                        <span class="hint err">@T[_error]</span>
                     }
                     <span class="spacer"></span>
-                    <button class="btn btn-sm btn-primary" disabled="@Control.IsBusy" @onclick="SaveAsync">Save</button>
-                    <button class="btn btn-sm btn-ghost" @onclick="OnClose">Cancel</button>
+                    <button class="btn btn-sm btn-primary" disabled="@Control.IsBusy" @onclick="SaveAsync">@T["Common.Save"]</button>
+                    <button class="btn btn-sm btn-ghost" @onclick="OnClose">@T["Common.Cancel"]</button>
                 </div>
             </div>
         }
         else
         {
-            <p class="muted small">A new setup with the options as set here and <span class="mono">@program.Source.FileName</span> as its first file.</p>
-            <SetupNameForm Name="@Path.GetFileNameWithoutExtension(program.Source.FileName)" SaveLabel="Create setup" Busy="Control.IsBusy"
+            <p class="muted small">@T.Html("Setups.SaveTo.NewHint", program.Source.FileName)</p>
+            <SetupNameForm Name="@Path.GetFileNameWithoutExtension(program.Source.FileName)" SaveLabel="@(Texts.Of("Setups.Create"))" Busy="Control.IsBusy"
                            Save="(name, notes, replace) => Control.SaveAsNewSetup(name, notes, replace)" OnSaved="OnClose" OnCancel="OnClose" />
         }
     </ChildContent>
@@ -55,7 +55,7 @@
     private bool _existing;
     private long _setupId;
     private bool _updateOptions;
-    private string? _error;
+    private Text? _error;
 
     [Parameter] public EventCallback OnClose { get; set; }
 
@@ -71,8 +71,8 @@
     private void SetupChosen() => _updateOptions = _setupId == Control.Setup?.Id;
 
     private string FileText(string fileName) => Control.SetupFile?.SetupId == _setupId
-        ? $"{fileName} is one of this setup's files already."
-        : $"{fileName} is added to the setup's files.";
+        ? T["Setups.SaveTo.AlreadyIn", fileName]
+        : T["Setups.SaveTo.Added", fileName];
 
     private async Task SaveAsync()
     {
@@ -83,7 +83,7 @@
         }
         catch (Exception ex)
         {
-            _error = ex.Message;
+            _error = Text.Of(ex);
             return;
         }
         await OnClose.InvokeAsync();

@@ -25,7 +25,7 @@ public sealed class JobPause(MachineSession session)
         var status = await session.WaitForStatusAsync(
             s => JobSuspension.IsSuspended(s) || !s.IsPlaying || JobSuspension.HasState(s, "Alarm"), SuspendTimeout, ct);
         if (!JobSuspension.IsSuspended(status))
-            throw new InvalidOperationException($"The program could not be paused (machine is {status.State}).");
+            throw new LocalizedException(HostTexts.Of("Pause.NotPaused", MachineSession.StateOf(status)));
     }
 
     /// <summary>
@@ -42,21 +42,20 @@ public sealed class JobPause(MachineSession session)
         {
             var next = await session.WaitForStatusAsync(s => !ReferenceEquals(s, previous), RestTimeout, ct);
             if (SamePlace(previous?.MachinePosition, next.MachinePosition)) break;
-            if (DateTime.UtcNow > deadline) throw new TimeoutException("The head did not come to rest after pausing.");
+            if (DateTime.UtcNow > deadline) throw new LocalizedTimeoutException(HostTexts.Of("Pause.NoRest"));
             previous = next;
         }
         if (!SamePlace(paused?.MachinePosition, session.Status?.MachinePosition))
-            throw new InvalidOperationException(
-                $"The machine moved the head after pausing (from {Describe(paused?.WorkPosition)} to {Describe(session.Status?.WorkPosition)}), " +
-                "probably a pause routine in its configuration.");
+            throw new LocalizedException(HostTexts.Of("Pause.HeadMoved", Describe(paused?.WorkPosition), Describe(session.Status?.WorkPosition)));
     }
 
     public static bool SamePlace(double[]? a, double[]? b) =>
         a is { Length: >= 3 } && b is { Length: >= 3 } && Enumerable.Range(0, 3).All(i => Math.Abs(a[i] - b[i]) < SamePlaceMm);
 
-    public static string Describe(double[]? position) => position is { Length: >= 3 }
-        ? FormattableString.Invariant($"X{position[0]:0.###} Y{position[1]:0.###} Z{position[2]:0.###}")
-        : "the current position";
+    /// <summary>"X1 Y2 Z3", or "the current position" when it is not known.</summary>
+    public static Text Describe(double[]? position) => position is { Length: >= 3 }
+        ? Text.Plain(FormattableString.Invariant($"X{position[0]:0.###} Y{position[1]:0.###} Z{position[2]:0.###}"))
+        : HostTexts.Of("Pause.CurrentPosition");
 
     /// <summary>
     /// Refuses when the machine runs its own G-code after a pause: it might move the head away from where the program
@@ -75,8 +74,6 @@ public sealed class JobPause(MachineSession session)
             return;
         }
         if (routine is not null)
-            throw new InvalidOperationException(
-                $"The machine runs \"{routine.Replace('_', ' ')}\" after pausing ({MachineConfig.AfterSuspendGCode} in its config.txt), " +
-                "which may move the head, so the job was not paused. Pause the job yourself to use the machine where the head ends up.");
+            throw new LocalizedException(HostTexts.Of("Pause.Routine", routine.Replace('_', ' '), MachineConfig.AfterSuspendGCode));
     }
 }

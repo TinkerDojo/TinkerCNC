@@ -1,5 +1,6 @@
 using System.Net.WebSockets;
 using System.Text;
+using TinkerCNC.Localization;
 
 namespace TinkerCNC.Video;
 
@@ -35,15 +36,15 @@ public sealed class LiveCameraClient
 
     public event Action<byte[]>? FrameReceived;
     public event Action<string>? TextReceived;
-    /// <summary>Connection state changes: (connected, error message or null).</summary>
-    public event Action<bool, string?>? ConnectionChanged;
+    /// <summary>Connection state changes: (connected, why it dropped for people or null).</summary>
+    public event Action<bool, Text?>? ConnectionChanged;
 
     /// <summary>Streams until cancelled, reconnecting on failure.</summary>
     public async Task RunAsync(CancellationToken cancellationToken)
     {
         while (!cancellationToken.IsCancellationRequested)
         {
-            string? error = null;
+            Text? error = null;
             try
             {
                 await StreamOnceAsync(cancellationToken).ConfigureAwait(false);
@@ -54,11 +55,11 @@ public sealed class LiveCameraClient
             }
             catch (Exception ex)
             {
-                error = ex.Message;
+                error = Localization.Text.Of(ex);
             }
 
             IsStreaming = false;
-            ConnectionChanged?.Invoke(false, error ?? "stream closed");
+            ConnectionChanged?.Invoke(false, error ?? CoreTexts.Of("Camera.StreamClosed"));
             try
             {
                 await Task.Delay(ReconnectDelay, cancellationToken).ConfigureAwait(false);

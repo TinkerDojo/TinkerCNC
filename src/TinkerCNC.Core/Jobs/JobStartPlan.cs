@@ -1,5 +1,6 @@
 using System.Globalization;
 using TinkerCNC.GCode;
+using TinkerCNC.Localization;
 using TinkerCNC.Motion;
 using TinkerCNC.Transfer;
 
@@ -9,20 +10,11 @@ namespace TinkerCNC.Jobs;
 /// Commands that run a program on the machine's SD card (firmware, Player). <c>play &lt;path&gt;</c> starts it
 /// (only when the machine is homed and nothing else is playing); <c>buffer &lt;command&gt;</c> queues a command that runs
 /// once the next program has started, before its first line, and <c>abort</c> stops the program (spindle off,
-/// remaining moves dropped). Pausing is <see cref="JobSuspension"/>; <see cref="Pause"/> does the same from inside
-/// the program.
+/// remaining moves dropped). Pausing is <see cref="JobSuspension"/>.
 /// </summary>
 public static class JobCommands
 {
     public const string Abort = "abort";
-
-    /// <summary>
-    /// <c>M600</c>: the program pauses where it is (firmware, Player: the same as <c>suspend</c>: the queued moves
-    /// finish, the position is saved, the spindle stops and the pause routine runs, if one is configured). Queued
-    /// first with <c>buffer</c>, the machine waits right after <c>play</c>, before any probing and before the first
-    /// line, until <c>resume</c> arrives or the machine's own button is held (its resume while paused).
-    /// </summary>
-    public const string Pause = "M600";
 
     public static string Play(string remotePath) => $"play {RemotePath.Encode(remotePath)}";
 
@@ -39,7 +31,7 @@ public sealed record JobStartContext(
     bool ProgramSelectsTool = false);
 
 /// <summary>The options and the program can't be started together.</summary>
-public sealed class JobStartException(string message) : InvalidOperationException(message);
+public sealed class JobStartException(Text text) : LocalizedException(text);
 
 /// <summary>
 /// The commands that start a program with the chosen <see cref="JobStartOptions"/>, in the order they are sent:
@@ -47,8 +39,9 @@ public sealed class JobStartException(string message) : InvalidOperationExceptio
 /// <item>the machine's job options (<see cref="JobMode"/>), each switched on or off;</item>
 /// <item>the work origin, when it is set from the bed corner or the head position (<c>G10 L2 P0 X Y</c>: the active
 /// work offset becomes that machine position);</item>
-/// <item>queued with <c>buffer</c>, so they run after the program has started: for a queued job a
-/// pause first (<see cref="JobCommands.Pause"/>: the machine waits for the go before anything moves), then probing
+/// <item>queued with <c>buffer</c>, so they run after the program has started: for a queued job the lift of the
+/// gate first (<see cref="JobGate"/>: it waits in the feed hold sent before the start, see <see cref="HoldFirst"/>),
+/// then probing
 /// the stock's corner with the XYZ probe block (<c>M495.3 H D</c>), then the automation before the program
 /// (<see cref="Automation"/>), then, when the program does not change to a tool of its own, the tool that was in the
 /// spindle before probing replaced it;</item>
@@ -57,30 +50,31 @@ public sealed class JobStartException(string message) : InvalidOperationExceptio
 /// The firmware runs the automation itself and asks for the probe first if another tool is in the spindle.
 /// </summary>
 /// <param name="Preparation">What runs before the program when it probes: on the job's timeline before the program.</param>
-public sealed record JobStartPlan(IReadOnlyList<string> Commands, JobPreparation? Preparation = null)
+/// <param name="HoldFirst">Send the feed hold of the gate (<see cref="JobGate.Hold"/>) before <see cref="Commands"/>.</param>
+public sealed record JobStartPlan(IReadOnlyList<string> Commands, JobPreparation? Preparation = null, bool HoldFirst = false)
 {
     private const double MinLevelingHeight = 0.5;
     private const double MaxLevelingHeight = 50;
 
-    /// <param name="waitForGo">Pause right after the start, until the user resumes (queued jobs).</param>
+    /// <param name="waitForGo">Wait for the go before anything moves (<see cref="JobGate"/>; queued jobs).</param>
     public static JobStartPlan Create(JobStartOptions options, JobStartContext context, string remotePath, bool waitForGo = false)
     {
         Validate(options, context);
         var origin = WorkOrigins.For(options.WorkOrigin);
-        List<string> queued =
+        List<string> preparation =
         [
-            .. waitForGo ? [JobCommands.Pause] : Array.Empty<string>(),
             .. origin.BeforeProgram(options),
             .. context.Program is { } program ? [Automation(options, program)] : Array.Empty<string>(),
             .. ToolBackAfterProbing(options, context),
         ];
+        IReadOnlyList<string> gate = waitForGo ? JobGate.Commands(context.Travel) : [];
         return new JobStartPlan(
         [
             .. context.Modes.Select(m => m.CommandFor(options.IsOn(m))),
             .. origin.SetNow(options, context),
-            .. queued.Select(JobCommands.Buffer),
+            .. gate.Concat(preparation).Select(JobCommands.Buffer),
             JobCommands.Play(remotePath),
-        ], JobPreparation.For(options, context, queued));
+        ], JobPreparation.For(options, context, preparation), waitForGo);
     }
 
     /// <summary>
@@ -124,14 +118,14 @@ public sealed record JobStartPlan(IReadOnlyList<string> Commands, JobPreparation
     private static void Validate(JobStartOptions options, JobStartContext context)
     {
         if (options.UsesProbe && context.Program is null)
-            throw new JobStartException("The program has no cutting moves, so there is no area to probe.");
+            throw new JobStartException(CoreTexts.Of("Start.NothingToProbe"));
         if (options.Leveling && !(InRange(options.LevelingPointsX) && InRange(options.LevelingPointsY)))
             throw new JobStartException(
-                $"Auto leveling needs {JobStartOptions.MinLevelingPoints} to {JobStartOptions.MaxLevelingPoints} points in X and Y.");
+                CoreTexts.Of("Start.LevelingPoints", JobStartOptions.MinLevelingPoints, JobStartOptions.MaxLevelingPoints));
         if (options.Leveling && options.LevelingHeight is < MinLevelingHeight or > MaxLevelingHeight)
-            throw new JobStartException($"The leveling height must be between {MinLevelingHeight} and {MaxLevelingHeight} mm.");
+            throw new JobStartException(CoreTexts.Of("Start.LevelingHeight", MinLevelingHeight, MaxLevelingHeight));
         if (options.Leveling && context.Program is { } p && (p.Width <= 0 || p.Depth <= 0))
-            throw new JobStartException("Auto leveling needs a program that spans an area in X and Y.");
+            throw new JobStartException(CoreTexts.Of("Start.LevelingArea"));
     }
 
     private static bool InRange(int points) => points is >= JobStartOptions.MinLevelingPoints and <= JobStartOptions.MaxLevelingPoints;

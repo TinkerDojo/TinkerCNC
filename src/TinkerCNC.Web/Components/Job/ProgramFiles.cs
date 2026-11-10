@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Components.Forms;
+using TinkerCNC.Localization;
+using TinkerCNC.Web.Localization;
 
 namespace TinkerCNC.Web.Components.Job;
 
@@ -11,7 +13,8 @@ public static class ProgramFiles
     /// <summary>File types offered when choosing a G-code file.</summary>
     public const string Accept = ".nc,.gcode,.ngc,.tap,.txt,.cnc";
 
-    public const string AcceptText = ".nc, .gcode, .ngc, .tap, .cnc or .txt";
+    /// <summary>The <see cref="Accept"/> types in words, to show with <c>T[…]</c>.</summary>
+    public static Text AcceptText { get; } = Texts.Of("Setups.Accept");
 
     private const long MaxSize = 100 * 1024 * 1024;
 

@@ -10,7 +10,7 @@
                  title="@PreparationTooltip(preparation)">
                 @if (Labelled(preparation.Seconds))
                 {
-                    <span class="tl-seg-label">@JobPreparation.Label</span>
+                    <span class="tl-seg-label">@T[JobPreparation.Label]</span>
                     <span class="tl-seg-time">
                         @if (preparation.IsMeasured) { <Icon Name="stopwatch" Size="11" /> }
                         @TimeFormat.Duration(preparation.Seconds)
@@ -28,7 +28,7 @@
                     @onclick="() => SegmentSelected.InvokeAsync(segment)">
                 @if (Labelled(item.Seconds))
                 {
-                    <span class="tl-seg-label">@segment.Label</span>
+                    <span class="tl-seg-label">@T[segment.DisplayLabel]</span>
                     <span class="tl-seg-time">
                         @if (item.IsMeasured) { <Icon Name="stopwatch" Size="11" /> }
                         @if (Measuring?.Index == segment.Index) { <span class="rec-dot sm"></span> }
@@ -53,7 +53,7 @@
             @TimeFormat.Duration(Timeline.TotalSeconds)
             @if (Schedule?.FinishUtc is { } finish)
             {
-                <b class="tl-finish"> · ends @TimeFormat.Clock(finish)</b>
+                <b class="tl-finish"> · @T["Job.Ends", TimeFormat.Clock(finish, T.Culture)]</b>
             }
         </span>
     </div>
@@ -66,14 +66,14 @@
     [Parameter] public ToolChangeSchedule? Schedule { get; set; }
     [Parameter] public EventCallback<ToolSegment> SegmentSelected { get; set; }
 
-    /// <summary>When a tool change happens, for the operation's tooltip.</summary>
-    private static readonly IReadOnlyDictionary<ToolChangeTiming, Func<ScheduledToolChange, string>> ChangeTexts =
-        new Dictionary<ToolChangeTiming, Func<ScheduledToolChange, string>>
+    /// <summary>When a tool change happens, for the operation's tooltip (clock times in the given language).</summary>
+    private static readonly IReadOnlyDictionary<ToolChangeTiming, Func<ScheduledToolChange, IFormatProvider, Text>> ChangeTexts =
+        new Dictionary<ToolChangeTiming, Func<ScheduledToolChange, IFormatProvider, Text>>
         {
-            [ToolChangeTiming.Planned] = c => $"Tool change {TimeFormat.Duration(c.OffsetSeconds)} after the start",
-            [ToolChangeTiming.Upcoming] = c => $"Tool change at {TimeFormat.Clock(c.ClockUtc!.Value)} (in {TimeFormat.Duration(c.InSeconds!.Value)})",
-            [ToolChangeTiming.Observed] = c => $"Tool changed at {TimeFormat.Clock(c.ClockUtc!.Value)}",
-            [ToolChangeTiming.Passed] = _ => "Tool changed",
+            [ToolChangeTiming.Planned] = (c, _) => Texts.Of("Job.Timeline.Change.Planned", TimeFormat.Duration(c.OffsetSeconds)),
+            [ToolChangeTiming.Upcoming] = (c, language) => Texts.Of("Job.Timeline.Change.Upcoming", TimeFormat.Clock(c.ClockUtc!.Value, language), TimeFormat.Duration(c.InSeconds!.Value)),
+            [ToolChangeTiming.Observed] = (c, language) => Texts.Of("Job.Timeline.Change.Observed", TimeFormat.Clock(c.ClockUtc!.Value, language)),
+            [ToolChangeTiming.Passed] = (_, _) => Texts.Of("Job.Timeline.Change.Passed"),
         };
 
     /// <summary>Narrower parts have only their tooltip: a squeezed label reads as part of its neighbour.</summary>
@@ -91,22 +91,29 @@
     private string Tooltip(TimelineSegment item)
     {
         var s = item.Segment;
-        var source = item.Measurement is { } m ? Measured(m, item.EstimatedSeconds) : "Estimated (no recorded run yet)";
-        var change = Schedule?.Changes.FirstOrDefault(c => c.Operation.Segment.Index == s.Index) is { } c ? $"\n{ChangeTexts[c.Timing](c)}" : "";
-        return $"{s.Label}\n{TimeFormat.Duration(item.Seconds)} (starts at {TimeFormat.Duration(item.StartSeconds)}){change}\n{source}\nLines {s.StartLine}–{s.EndLine}";
+        var source = item.Measurement is { } m ? Measured(m, item.EstimatedSeconds) : T["Job.Timeline.Estimated"];
+        var change = Schedule?.Changes.FirstOrDefault(c => c.Operation.Segment.Index == s.Index) is { } c ? $"\n{T[ChangeTexts[c.Timing](c, T.Culture)]}" : "";
+        var span = T["Job.Timeline.Span", TimeFormat.Duration(item.Seconds), TimeFormat.Duration(item.StartSeconds)];
+        return $"{T[s.DisplayLabel]}\n{span}{change}\n{source}\n{T["Job.Timeline.Lines", s.StartLine, s.EndLine]}";
     }
 
-    private static string PreparationTooltip(TimelinePreparation item)
+    private string PreparationTooltip(TimelinePreparation item)
     {
-        var steps = string.Join("\n", item.Preparation.Steps.Select(s => $"· {s.Name}"));
+        var steps = string.Join("\n", item.Preparation.Steps.Select(s => $"· {T[s.Label]}"));
         var source = item.Measurement is { } m
             ? Measured(m, item.Preparation.EstimatedSeconds)
-            : "Rough estimate: measured the first time a job with this probing runs";
-        return $"{JobPreparation.Label} before the program, {TimeFormat.Duration(item.Seconds)}\n{steps}\n{source}";
+            : T["Job.Timeline.Preparation.Rough"];
+        return $"{T["Job.Timeline.Preparation", T[JobPreparation.Label], TimeFormat.Duration(item.Seconds)]}\n{steps}\n{source}";
     }
 
-    private static string Measured(OperationStatistics m, double estimatedSeconds) =>
-        $"Measured: median of {m.Runs} run(s){(m.FromThisMachine ? "" : " on other machines")}, last {m.LastRecordedUtc.ToLocalTime():g}\nEstimate was {TimeFormat.Duration(estimatedSeconds)}";
+    private string Measured(OperationStatistics m, double estimatedSeconds)
+    {
+        var last = m.LastRecordedUtc.ToLocalTime().ToString("g", CultureInfo.CurrentCulture);
+        var measured = m.FromThisMachine
+            ? T.Count("Job.Timeline.Measured", m.Runs, last)
+            : T.Count("Job.Timeline.MeasuredElsewhere", m.Runs, last);
+        return $"{measured}\n{T["Job.Timeline.EstimateWas", TimeFormat.Duration(estimatedSeconds)]}";
+    }
 
     private static string Css(double value, string format = "0.###") => value.ToString(format, CultureInfo.InvariantCulture);
 }

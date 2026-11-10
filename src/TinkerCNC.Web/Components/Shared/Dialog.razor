@@ -14,7 +14,7 @@
                 <div class="head-tools">@Tools</div>
             }
             <div class="spacer"></div>
-            <button class="btn btn-icon btn-sm" title="Close" @onclick="Close"><Icon Name="x" /></button>
+            <button class="btn btn-icon btn-sm" title="@T["Common.Close"]" @onclick="Close"><Icon Name="x" /></button>
         </header>
         <div class="dialog-body">@ChildContent</div>
         @if (Footer is not null)

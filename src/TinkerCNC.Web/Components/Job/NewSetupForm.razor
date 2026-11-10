@@ -2,10 +2,10 @@
 @using TinkerCNC.Programs
 @inject SetupLibrary Library
 
-<p class="muted small">The options are the defaults until the setup is loaded on a machine, adjusted and saved there.</p>
-<SetupNameForm SaveLabel="Create setup" Save="Create" OnSaved="OnDone" OnCancel="OnDone">
+<p class="muted small">@T["Setups.New.Hint"]</p>
+<SetupNameForm SaveLabel="@(Texts.Of("Setups.Create"))" Save="Create" OnSaved="OnDone" OnCancel="OnDone">
     <div class="field">
-        <span>Files</span>
+        <span>@T["Setups.Files"]</span>
         <ChosenFilesList Files="_files" OnChanged="files => _files = files" />
     </div>
 </SetupNameForm>

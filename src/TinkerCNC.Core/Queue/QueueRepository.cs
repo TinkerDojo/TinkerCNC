@@ -1,4 +1,6 @@
 using Microsoft.Data.Sqlite;
+using TinkerCNC.Jobs;
+using TinkerCNC.Programs;
 using TinkerCNC.Storage;
 
 namespace TinkerCNC.Queue;
@@ -6,9 +8,9 @@ namespace TinkerCNC.Queue;
 /// <summary>The <c>queue_entries</c> table of the app's database (<see cref="AppDatabase"/>).</summary>
 public sealed class QueueRepository(AppDatabase database)
 {
-    private const string Columns =
+    private static readonly string Columns =
         "id, machine, position, setup_id, file_id, stored_file, original_file_name, md5, repeat_count, done_count, state, error, " +
-        "restart_segment, created_utc";
+        "restart_segment, created_utc, own_options, " + OptionColumns.Names;
 
     /// <summary>The entries of one machine in queue order, done ones included.</summary>
     public IReadOnlyList<QueueEntry> List(string machine) =>
@@ -17,17 +19,19 @@ public sealed class QueueRepository(AppDatabase database)
     public QueueEntry? Get(long id) =>
         database.Query($"SELECT {Columns} FROM queue_entries WHERE id = $id", Read, ("$id", id)).FirstOrDefault();
 
+    /// <param name="options">Its own start options; null: its setup's apply.</param>
     /// <returns>The new entry's id.</returns>
-    public long Insert(string machine, int position, long setupId, long? fileId, string? storedFile, string? originalFileName, string? md5,
-        int repeat, DateTime utc) =>
+    public long Insert(string machine, int position, long? setupId, long? fileId, string? storedFile, string? originalFileName, string? md5,
+        int repeat, DateTime utc, JobStartOptions? options = null) =>
         database.Insert($"""
-            INSERT INTO queue_entries (machine, position, setup_id, file_id, stored_file, original_file_name, md5, repeat_count, state, created_utc)
-            VALUES ($machine, $position, $setup, $file, $stored, $original, $md5, $repeat, $state, $utc);
+            INSERT INTO queue_entries (machine, position, setup_id, file_id, stored_file, original_file_name, md5, repeat_count, state, created_utc,
+                own_options, {OptionColumns.Names})
+            VALUES ($machine, $position, $setup, $file, $stored, $original, $md5, $repeat, $state, $utc, $own, {OptionColumns.Parameters});
             """,
-            ("$machine", machine), ("$position", position), ("$setup", setupId), ("$file", AppDatabase.Nullable(fileId)),
+            [("$machine", machine), ("$position", position), ("$setup", AppDatabase.Nullable(setupId)), ("$file", AppDatabase.Nullable(fileId)),
             ("$stored", AppDatabase.Nullable(storedFile)), ("$original", AppDatabase.Nullable(originalFileName)),
             ("$md5", AppDatabase.Nullable(md5)), ("$repeat", repeat), ("$state", QueueEntryState.Pending.ToString()),
-            ("$utc", AppDatabase.Time(utc)));
+            ("$utc", AppDatabase.Time(utc)), ("$own", options is null ? 0L : 1L), .. OptionColumns.Values(options)]);
 
     public void UpdatePosition(long id, int position) =>
         database.Execute("UPDATE queue_entries SET position = $position WHERE id = $id", ("$id", id), ("$position", position));
@@ -54,8 +58,9 @@ public sealed class QueueRepository(AppDatabase database)
     public void Remove(long id) => database.Execute("DELETE FROM queue_entries WHERE id = $id", ("$id", id));
 
     private static QueueEntry Read(SqliteDataReader r) => new(
-        r.GetInt64(0), r.GetString(1), r.GetInt32(2), r.GetInt64(3), AppDatabase.OptionalInt64(r, 4), AppDatabase.OptionalString(r, 5),
+        r.GetInt64(0), r.GetString(1), r.GetInt32(2), AppDatabase.OptionalInt64(r, 3), AppDatabase.OptionalInt64(r, 4), AppDatabase.OptionalString(r, 5),
         AppDatabase.OptionalString(r, 6), AppDatabase.OptionalString(r, 7), r.GetInt32(8), r.GetInt32(9),
         Enum.Parse<QueueEntryState>(r.GetString(10)), AppDatabase.OptionalString(r, 11),
-        AppDatabase.OptionalInt64(r, 12) is { } segment ? (int)segment : null, AppDatabase.ParseTime(r.GetString(13)));
+        AppDatabase.OptionalInt64(r, 12) is { } segment ? (int)segment : null, AppDatabase.ParseTime(r.GetString(13)),
+        r.GetInt64(14) == 1 ? OptionColumns.Read(r) : null);
 }

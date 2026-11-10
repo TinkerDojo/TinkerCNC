@@ -14,9 +14,9 @@ public sealed class SetupRepository(AppDatabase database)
     private const string FileColumns =
         "id, setup_id, stored_file, original_file_name, md5, created_utc, updated_utc, last_started_utc, run_count, deleted_utc";
 
-    private static readonly string OptionNames = string.Join(", ", OptionColumns.All.Select(c => c.Name));
-    private static readonly string OptionParameters = string.Join(", ", OptionColumns.All.Select(c => "$" + c.Name));
-    private static readonly string OptionAssignments = string.Join(", ", OptionColumns.All.Select(c => $"{c.Name} = ${c.Name}"));
+    private static readonly string OptionNames = OptionColumns.Names;
+    private static readonly string OptionParameters = OptionColumns.Parameters;
+    private static readonly string OptionAssignments = OptionColumns.Assignments;
 
     /// <summary>Newest change first; deleted ones only when asked for.</summary>
     public IReadOnlyList<Setup> ListSetups(bool includeDeleted) =>
@@ -85,8 +85,7 @@ public sealed class SetupRepository(AppDatabase database)
 
     private static Setup ReadSetup(SqliteDataReader r)
     {
-        var options = new JobStartOptions();
-        foreach (var column in OptionColumns.All) column.Set(options, r.GetValue(r.GetOrdinal(column.Name)));
+        var options = OptionColumns.Read(r);
         return new Setup(
             r.GetInt64(0), r.GetString(1), r.GetString(2), options, AppDatabase.ParseTime(r.GetString(3)),
             AppDatabase.ParseTime(r.GetString(4)), AppDatabase.OptionalTime(r, 5), r.GetInt32(6), AppDatabase.OptionalTime(r, 7));
@@ -96,6 +95,5 @@ public sealed class SetupRepository(AppDatabase database)
         r.GetInt64(0), r.GetInt64(1), r.GetString(2), r.GetString(3), r.GetString(4), AppDatabase.ParseTime(r.GetString(5)),
         AppDatabase.ParseTime(r.GetString(6)), AppDatabase.OptionalTime(r, 7), r.GetInt32(8), AppDatabase.OptionalTime(r, 9));
 
-    private static IEnumerable<(string Name, object Value)> Options(JobStartOptions options) =>
-        OptionColumns.All.Select(c => ("$" + c.Name, c.Get(options)));
+    private static IEnumerable<(string Name, object Value)> Options(JobStartOptions options) => OptionColumns.Values(options);
 }

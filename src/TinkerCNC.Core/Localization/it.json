@@ -1,0 +1,134 @@
+{
+  "Address": {
+    "Invalid": "Formato dell'indirizzo non valido: {0}"
+  },
+  "Air": {
+    "Compressed": "aria compressa",
+    "SpindleBlower": "soffiaggio del mandrino al {0} %"
+  },
+  "Camera": {
+    "StreamClosed": "flusso chiuso"
+  },
+  "Connection": {
+    "NotConnected": "La macchina non è connessa."
+  },
+  "GoTo": {
+    "MachineCoordinates": "coordinate macchina",
+    "NoPosition": "La macchina non ha ancora comunicato la sua posizione.",
+    "OutOfRange": "{0} deve essere compreso tra {1} e {2} ({3}).",
+    "WorkCoordinates": "coordinate pezzo"
+  },
+  "Mode": {
+    "AntiStatic.Description": "La carica elettrostatica viene eliminata durante il taglio.",
+    "AntiStatic.Name": "Antistatico",
+    "BedClean.Description": "La macchina pulisce il piano dopo il programma.",
+    "BedClean.Name": "Pulizia automatica del piano",
+    "Blow.Description": "Il soffiaggio del mandrino rimuove i trucioli durante il taglio.",
+    "Blow.Name": "Soffiaggio automatico",
+    "ExternalOutput.Description": "L'uscita esterna segue il mandrino.",
+    "ExternalOutput.Name": "Uscita esterna automatica",
+    "Vacuum.Description": "L'aspirazione funziona ogni volta che gira il mandrino.",
+    "Vacuum.Name": "Aspirazione automatica"
+  },
+  "Origin": {
+    "BedCorner": "angolo del piano + ({0}, {1}) mm",
+    "HeadPosition": "posizione della testa + ({0}, {1}) mm",
+    "Unchanged": "invariata",
+    "XyzProbe": "tastata sul blocco di tastatura XYZ (alto {0} mm, utensile {1} mm)"
+  },
+  "Preparation": {
+    "Label": "Tastatura",
+    "Leveling": "Livellamento automatico {0} × {1}",
+    "ScanMargin": "Scansione del bordo",
+    "ToolBack": "Ritorno all'utensile",
+    "ToProbe": "Cambio al tastatore",
+    "XyzCorner": "Tastatura dell'angolo XYZ",
+    "ZProbe": "Tastatura Z"
+  },
+  "Preview": {
+    "UnknownError": "Errore del server sconosciuto ({0})"
+  },
+  "Restart": {
+    "Description": "{0} da {1}"
+  },
+  "Resume": {
+    "Description": "{0}, ripreso dalla riga {1} di {2}"
+  },
+  "Segment": {
+    "NoTool": "Nessun utensile"
+  },
+  "Start": {
+    "LevelingArea": "Il livellamento automatico richiede un programma che copra un'area in X e Y.",
+    "LevelingHeight": "L'altezza di livellamento deve essere compresa tra {0} e {1} mm.",
+    "LevelingPoints": "Il livellamento automatico richiede da {0} a {1} punti in X e Y.",
+    "NoBedCorner": "La configurazione della macchina non definisce l'angolo del piano (coordinate.anchor1_x/_y).",
+    "NoHeadPosition": "La macchina non ha comunicato dove si trova la testa.",
+    "NothingToProbe": "Il programma non ha movimenti di taglio, quindi non c'è un'area da tastare."
+  },
+  "Status": {
+    "AbsoluteMode": "modalità assoluta",
+    "ActiveTool": "utensile attivo",
+    "AutoLevelling": "Livellamento automatico",
+    "Battery": "batteria",
+    "Current": "attuale",
+    "Done": "completato",
+    "Elapsed": "trascorso",
+    "ExternalOutputMode": "modalità uscita esterna",
+    "FeatureFlags": "flag funzioni",
+    "Feed": "Avanzamento",
+    "Halted": "Arrestata",
+    "InchMode": "modalità pollici",
+    "IsOn": "acceso",
+    "JobProgress": "Avanzamento del lavoro",
+    "LargestDeviation": "deviazione massima",
+    "Laser": "Laser",
+    "LaserMode": "modalità laser",
+    "LengthOffset": "correzione lunghezza",
+    "Line": "riga",
+    "Machine": "Macchina",
+    "ModelCode": "codice modello",
+    "None": "nessuno",
+    "Off": "spento",
+    "On": "acceso",
+    "Override": "override",
+    "Power": "potenza",
+    "Programmed": "programmato",
+    "ReasonCode": "codice causa",
+    "Reserved": "riservato",
+    "Scale": "scala",
+    "Spindle": "Mandrino",
+    "SpindleTemperature": "temperatura mandrino",
+    "State": "stato",
+    "SupplyTemperature": "temperatura alimentatore",
+    "Target": "obiettivo",
+    "TestMode": "modalità test",
+    "Tool": "Utensile",
+    "ToolChanger": "Cambio utensile automatico",
+    "Vacuum": "Aspirazione",
+    "VacuumMode": "modalità aspirazione",
+    "Value": "valore {0}",
+    "WaitingForTool": "utensile atteso",
+    "WirelessProbe": "Tastatore wireless"
+  },
+  "Timelapse": {
+    "NotConnected": "Il canale di anteprima non è connesso.",
+    "NotOpen": "Nessuna registrazione aperta.",
+    "Preempted": "Un altro spettatore ha preso il canale di registrazione della macchina; riapri la registrazione per continuare."
+  },
+  "Tool": {
+    "Laser": "il modulo laser",
+    "Probe": "il tastatore",
+    "Probe3D": "il tastatore 3D"
+  },
+  "Transfer": {
+    "Alarm": "Allarme durante il trasferimento: {0}",
+    "Cancelled": "La macchina ha annullato il trasferimento.",
+    "ListTimeout": "La macchina non ha elencato {0} entro {1:0} s.",
+    "NoResponse": "Nessuna risposta dalla macchina dopo {0} tentativi.",
+    "PacketsSent": "pacchetto {0} di {1} inviato",
+    "StoppedAsking": "La macchina ha smesso di richiedere dati ({0}).",
+    "UploadAlarm": "Allarme durante il caricamento: {0}",
+    "UploadCancelled": "La macchina ha annullato il caricamento. Accetta file solo quando non è in movimento.",
+    "WrongPacket": "La macchina ha richiesto il pacchetto {0} di {1}."
+  }
+}

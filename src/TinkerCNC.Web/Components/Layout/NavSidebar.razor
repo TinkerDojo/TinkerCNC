@@ -13,19 +13,19 @@
     <nav class="nav">
         <NavLink class="nav-item" href="/" Match="NavLinkMatch.All">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v4H4zM4 11h16v4H4zM4 17h16v2H4z"/></svg>
-            Machines
+            @T["Layout.Nav.Machines"]
         </NavLink>
         <NavLink class="nav-item" href="setups">
             <Icon Name="library" Size="18" />
-            <span class="nav-text">Setups</span>
+            <span class="nav-text">@T["Layout.Nav.Setups"]</span>
         </NavLink>
     </nav>
 
-    <div class="nav-section">Connected</div>
+    <div class="nav-section">@T["Layout.Nav.Connected"]</div>
     <nav class="nav">
         @if (Sessions.Connected.Count == 0)
         {
-            <span class="nav-empty">No active connections</span>
+            <span class="nav-empty">@T["Layout.Nav.NoConnections"]</span>
         }
         @foreach (var s in Sessions.Connected)
         {
@@ -40,22 +40,22 @@
         }
     </nav>
 
-    <div class="nav-section">Settings</div>
+    <div class="nav-section">@T["Layout.Nav.Settings"]</div>
     <nav class="nav">
         @foreach (var settings in SettingsPages.All)
         {
             <NavLink class="nav-item" href="@settings.Href">
                 <Icon Name="@settings.Icon" Size="18" />
-                <span class="nav-text">@settings.Title</span>
+                <span class="nav-text">@T[settings.Title]</span>
             </NavLink>
         }
     </nav>
 
     <div class="sidebar-footer">
         <div class="discovery-pill @(Directory.Discovery.Listening ? "on" : "off")"
-             title="@(Directory.Discovery.Error ?? "Listening for machine announcements on UDP 3333")">
+             title="@(Directory.Discovery.Error is { } error ? T[error] : T["Layout.Discovery.Listening"])">
             <span class="dot @(Directory.Discovery.Listening ? "dot-on pulse" : "dot-off")"></span>
-            @(Directory.Discovery.Listening ? "Discovery active" : "Discovery offline")
+            @(Directory.Discovery.Listening ? T["Layout.Discovery.Active"] : T["Layout.Discovery.Offline"])
         </div>
     </div>
 </aside>

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using TinkerCNC.Localization;
 
 namespace TinkerCNC.Video;
 
@@ -184,7 +185,8 @@ public sealed record PreemptedReply(string? SessionId) : IPreviewReply
 public sealed record ErrorReply(int Err, string? Message, string? Msg) : IPreviewReply
 {
     public string? Rsp => null;
-    [JsonIgnore] public string Text => Message ?? Msg ?? $"Unknown server error ({Err})";
+    /// <summary>What went wrong: the machine's own words, or the error number when it gave none.</summary>
+    [JsonIgnore] public Text Text => (Message ?? Msg) is { } words ? Localization.Text.Plain(words) : CoreTexts.Of("Preview.UnknownError", Err);
     public Task AcceptAsync(IPreviewReplyVisitor visitor) => visitor.VisitAsync(this);
 }
 

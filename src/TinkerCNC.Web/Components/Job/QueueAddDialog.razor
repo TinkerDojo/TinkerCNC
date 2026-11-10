@@ -4,17 +4,17 @@
 @inject SetupLibrary Library
 
 @{ var setups = Library.List(includeDeleted: false); }
-<Dialog Title="Add to the queue" Icon="queue" Class="dialog-wide" OnClose="OnClose">
+<Dialog Title="@T["Job.QueueAdd.Title"]" Icon="queue" Class="dialog-wide" OnClose="OnClose">
     <ChildContent>
         @if (setups.Count == 0)
         {
-            <p class="muted">No setups yet. Save a program with its options on the Job card first, or create a setup on the Setups page.</p>
+            <p class="muted">@T["Job.QueueAdd.NoSetups"]</p>
         }
         else
         {
             var setup = setups.FirstOrDefault(s => s.Setup.Id == _setupId) ?? setups[0];
             <div class="save-form">
-                <label class="field">Setup (its options run every file below)
+                <label class="field">@T["Job.QueueAdd.Setup"]
                     <select class="input" @bind="_setupId">
                         @foreach (var s in setups)
                         {
@@ -22,14 +22,14 @@
                         }
                     </select>
                 </label>
-                <label class="field">Runs of each file
+                <label class="field">@T["Job.QueueAdd.Runs"]
                     <input class="input mono" type="number" min="1" max="@JobQueue.MaxRepeat" @bind="_repeat" />
                 </label>
                 <div class="field save-form-extra">
-                    <span>The setup's files</span>
+                    <span>@T["Job.QueueAdd.SetupFiles"]</span>
                     @if (setup.Files.Count == 0)
                     {
-                        <p class="hint muted">This setup has no files; queue files from this computer below.</p>
+                        <p class="hint muted">@T["Job.QueueAdd.NoFiles"]</p>
                     }
                     else
                     {
@@ -42,22 +42,22 @@
                                     <span class="mono">@f.OriginalFileName</span>
                                     @if (file.FileMissing)
                                     {
-                                        <span class="tag tag-err">file missing</span>
+                                        <span class="tag tag-err">@T["Job.FileMissing"]</span>
                                     }
                                 </label>
                             }
-                            <button class="btn btn-sm btn-ghost" @onclick="() => TickAll(setup)">@(_ticked.Count == setup.Files.Count(x => !x.FileMissing) ? "None" : "All")</button>
+                            <button class="btn btn-sm btn-ghost" @onclick="() => TickAll(setup)">@(_ticked.Count == setup.Files.Count(x => !x.FileMissing) ? T["Job.QueueAdd.TickNone"] : T["Job.QueueAdd.TickAll"])</button>
                         </div>
                     }
                 </div>
                 <div class="field save-form-extra">
-                    <span>Files from this computer, queued for these runs only</span>
+                    <span>@T["Job.QueueAdd.LocalFiles"]</span>
                     <ChosenFilesList Files="_files" OnChanged="files => _files = files" />
                 </div>
                 <div class="save-form-foot">
                     @if (_error is not null)
                     {
-                        <span class="hint err">@_error</span>
+                        <span class="hint err">@T[_error]</span>
                     }
                     else
                     {
@@ -65,9 +65,9 @@
                     }
                     <span class="spacer"></span>
                     <button class="btn btn-sm btn-primary" disabled="@(_ticked.Count + _files.Count == 0)" @onclick="() => AddAsync(setup.Setup.Id)">
-                        <Icon Name="plus" /> Add to the queue
+                        <Icon Name="plus" /> @T["Job.QueueAdd.Add"]
                     </button>
-                    <button class="btn btn-sm btn-ghost" @onclick="OnClose">Cancel</button>
+                    <button class="btn btn-sm btn-ghost" @onclick="OnClose">@T["Common.Cancel"]</button>
                 </div>
             </div>
         }
@@ -79,7 +79,7 @@
     private IReadOnlyList<ChosenFile> _files = [];
     private long _setupId;
     private int _repeat = 1;
-    private string? _error;
+    private Text? _error;
 
     [Parameter] public EventCallback OnClose { get; set; }
 
@@ -103,7 +103,8 @@
     {
         var files = _ticked.Count + _files.Count;
         var runs = files * Math.Max(1, _repeat);
-        return files == 0 ? "Tick or add files to queue." : $"{files} file{(files == 1 ? "" : "s")}, {runs} job{(runs == 1 ? "" : "s")}";
+        return files == 0 ? T["Job.QueueAdd.Summary.Nothing"]
+            : T["Job.QueueAdd.Summary", T.Count("Job.QueueAdd.Summary.Files", files), T.Count("Job.QueueAdd.Summary.Jobs", runs)];
     }
 
     private async Task AddAsync(long setupId)
@@ -116,7 +117,7 @@
         }
         catch (Exception ex)
         {
-            _error = ex.Message;
+            _error = Text.Of(ex);
             return;
         }
         await OnClose.InvokeAsync();

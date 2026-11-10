@@ -49,7 +49,7 @@ public sealed class BedCleaning(MachineSession session)
     public int Passes { get; private set; }
 
     /// <summary>Why the last cleaning did not complete, or null.</summary>
-    public string? LastError { get; private set; }
+    public Text? LastError { get; private set; }
 
     public static bool CanStartIn(StatusReport? status) => StartStates.Keys.Any(s => JobSuspension.HasState(status, s));
 
@@ -63,14 +63,14 @@ public sealed class BedCleaning(MachineSession session)
         if (passes is < 1 or > MaxPasses)
             throw new ArgumentOutOfRangeException(nameof(passes), $"Between 1 and {MaxPasses} passes.");
         if (session.Limits.Travel is not { } travel)
-            throw new InvalidOperationException(session.Limits.Error ?? "The machine's travel limits are not known yet.");
+            throw new LocalizedException(session.Limits.Error ?? HostTexts.Of("Limits.Unknown"));
         var status = session.Status;
         if (!CanStartIn(status))
-            throw new InvalidOperationException($"Can't clean the bed while the machine is {status?.State ?? "not reporting"}.");
+            throw new LocalizedException(HostTexts.Of("Bed.CantStart", MachineSession.StateOf(status)));
         var stop = new CancellationTokenSource();
         lock (_gate)
         {
-            if (IsRunning) throw new InvalidOperationException("The bed is being cleaned already.");
+            if (IsRunning) throw new LocalizedException(HostTexts.Of("Bed.Running"));
             _stop = stop;
             LastError = null;
             Passes = passes;
@@ -112,7 +112,7 @@ public sealed class BedCleaning(MachineSession session)
             }
             origin = session.Status?.MachinePosition is { Length: >= 3 } position
                 ? position[..3]
-                : throw new InvalidOperationException("The machine has not reported its position.");
+                : throw new LocalizedException(HostTexts.Of("Bed.NoPosition"));
             height = Math.Max(origin[2], travel.ClearanceZ);
             await SweepAsync(origin, travel, height, stop.Token);
         }
@@ -122,7 +122,7 @@ public sealed class BedCleaning(MachineSession session)
         }
         catch (Exception ex)
         {
-            LastError = ex.Message;
+            LastError = Text.Of(ex);
             session.Note($"Bed cleaning failed: {ex.Message}");
         }
         finally
@@ -159,9 +159,8 @@ public sealed class BedCleaning(MachineSession session)
             if (!paused) return;
             if (!back)
             {
-                LastError = $"The head is not back where the program stopped ({JobPause.Describe(origin)}, machine), so the job stays paused. " +
-                            "Bring the head back there, at that height, before resuming: resuming moves straight to that point.";
-                session.Note(LastError);
+                LastError = HostTexts.Of("Bed.NotBack", JobPause.Describe(origin));
+                session.Note(LastError.ToString());
                 return;
             }
             SetPhase(BedCleaningPhase.ResumingJob);
@@ -169,8 +168,8 @@ public sealed class BedCleaning(MachineSession session)
         }
         catch (Exception ex)
         {
-            LastError = $"Could not finish the bed cleaning: {ex.Message}";
-            session.Note(LastError);
+            LastError = HostTexts.Of("Bed.FinishFailed", Text.Of(ex));
+            session.Note(LastError.ToString());
         }
         finally
         {
@@ -214,7 +213,7 @@ public sealed class BedCleaning(MachineSession session)
             s => Arrived(s, move.Target) || JobSuspension.HasState(s, "Alarm"),
             move.DurationFrom(from) * MoveSlack + MoveMargin, ct);
         if (JobSuspension.HasState(status, "Alarm"))
-            throw new InvalidOperationException($"The machine raised an alarm while moving ({move.Command}).");
+            throw new LocalizedException(HostTexts.Of("Bed.Alarm", move.Command));
     }
 
     private static bool Arrived(StatusReport? status, double[] target) => JobPause.SamePlace(status?.MachinePosition, target);

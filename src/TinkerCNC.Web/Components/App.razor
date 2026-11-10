@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="@Preference.Effective.Code">
 
 <head>
     <meta charset="utf-8" />
@@ -15,7 +15,7 @@
 </head>
 
 <body>
-    <Routes @rendermode="InteractiveServer" />
+    <Routes @rendermode="InteractiveServer" Language="@Preference.Chosen?.Code" BrowserLanguage="@Preference.Browser.Code" />
     <ReconnectModal />
     <script src="@Assets["_framework/blazor.web.js"]"></script>
     <script>
@@ -27,3 +27,16 @@
 </body>
 
 </html>
+
+@code {
+    [CascadingParameter] private HttpContext HttpContext { get; set; } = default!;
+
+    private LanguagePreference Preference { get; set; } = default!;
+
+    // The page itself is rendered here, the interactive part on its own circuit: Routes passes the language on to it.
+    protected override void OnInitialized()
+    {
+        Preference = LanguagePreference.For(HttpContext);
+        T.Use(Preference);
+    }
+}

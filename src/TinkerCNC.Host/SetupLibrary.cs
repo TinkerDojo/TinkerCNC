@@ -10,10 +10,10 @@ public sealed record SetupFileEntry(SetupFile File, string FilePath, bool FileMi
 public sealed record SetupEntry(Setup Setup, IReadOnlyList<SetupFileEntry> Files);
 
 /// <summary>A setup or one of its files can't be changed that way.</summary>
-public class SetupException(string message) : InvalidOperationException(message);
+public class SetupException(Text text) : LocalizedException(text);
 
 /// <summary>Another setup (not deleted) already has the name.</summary>
-public sealed class SetupNameTakenException(string name) : SetupException($"A setup called \"{name}\" already exists.")
+public sealed class SetupNameTakenException(string name) : SetupException(HostTexts.Of("Setup.NameTaken", name))
 {
     public string Name { get; } = name;
 }
@@ -50,12 +50,12 @@ public sealed class SetupLibrary
         return _repository.ListSetups(includeDeleted).Select(s => new SetupEntry(s, files[s.Id].Select(Entry).ToList())).ToList();
     }
 
-    public Setup Get(long id) => Find(id) ?? throw new SetupException("That setup no longer exists.");
+    public Setup Get(long id) => Find(id) ?? throw new SetupException(HostTexts.Of("Setup.Gone"));
 
     /// <summary>The setup, deleted or not; null once deleted for good.</summary>
     public Setup? Find(long id) => _repository.GetSetup(id);
 
-    public SetupFile GetFile(long id) => FindFile(id) ?? throw new SetupException("That file no longer exists.");
+    public SetupFile GetFile(long id) => FindFile(id) ?? throw new SetupException(HostTexts.Of("Setup.FileGone"));
 
     public SetupFile? FindFile(long id) => _repository.GetFile(id);
 
@@ -71,7 +71,7 @@ public sealed class SetupLibrary
         var path = PathOf(file);
         return File.Exists(path)
             ? File.ReadAllBytes(path)
-            : throw new SetupException($"The file \"{file.OriginalFileName}\" is missing ({path}). Replace it or delete it.");
+            : throw new SetupException(HostTexts.Of("Setup.FileMissing", file.OriginalFileName, path));
     }
 
     /// <summary>Creates a setup with these options and no file yet.</summary>
@@ -178,7 +178,7 @@ public sealed class SetupLibrary
     public void DeleteForever(long id) => Change(() =>
     {
         var setup = Get(id);
-        if (!setup.IsDeleted) throw new SetupException("Only deleted setups can be deleted for good.");
+        if (!setup.IsDeleted) throw new SetupException(HostTexts.Of("Setup.OnlyDeletedSetups"));
         var files = _repository.ListFiles(includeDeleted: true).Where(f => f.SetupId == id).ToList();
         _repository.RemoveSetup(id);
         foreach (var file in files) File.Delete(PathOf(file));
@@ -206,7 +206,7 @@ public sealed class SetupLibrary
     public void DeleteFileForever(long fileId) => Change(() =>
     {
         var file = GetFile(fileId);
-        if (!file.IsDeleted) throw new SetupException("Only deleted files can be deleted for good.");
+        if (!file.IsDeleted) throw new SetupException(HostTexts.Of("Setup.OnlyDeletedFiles"));
         _repository.RemoveFile(fileId);
         File.Delete(PathOf(file));
     });
@@ -222,8 +222,8 @@ public sealed class SetupLibrary
     public static string ValidName(string name)
     {
         var trimmed = name.Trim();
-        if (trimmed.Length == 0) throw new SetupException("Give the setup a name.");
-        if (trimmed.Length > MaxNameLength) throw new SetupException($"Names can have at most {MaxNameLength} characters.");
+        if (trimmed.Length == 0) throw new SetupException(HostTexts.Of("Setup.NameRequired"));
+        if (trimmed.Length > MaxNameLength) throw new SetupException(HostTexts.Of("Setup.NameTooLong", MaxNameLength));
         return trimmed;
     }
 
@@ -244,13 +244,13 @@ public sealed class SetupLibrary
     private Setup Active(long id)
     {
         var setup = Get(id);
-        return setup.IsDeleted ? throw new SetupException($"\"{setup.Name}\" was deleted; restore it first.") : setup;
+        return setup.IsDeleted ? throw new SetupException(HostTexts.Of("Setup.Deleted", setup.Name)) : setup;
     }
 
     private SetupFile ActiveFile(long id)
     {
         var file = GetFile(id);
-        if (file.IsDeleted) throw new SetupException($"\"{file.OriginalFileName}\" was deleted; restore it first.");
+        if (file.IsDeleted) throw new SetupException(HostTexts.Of("Setup.Deleted", file.OriginalFileName));
         Active(file.SetupId);
         return file;
     }

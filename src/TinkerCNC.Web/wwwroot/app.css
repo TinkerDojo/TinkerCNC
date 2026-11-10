@@ -169,6 +169,9 @@ code { background: var(--panel-2); padding: 1px 5px; border-radius: 4px; }
 .notice { margin-top: 12px; padding: 10px 12px; border-radius: var(--radius-sm); font-size: 13px; }
 .notice-ok { background: rgba(60,207,142,.1); color: var(--ok); }
 .notice-warn { background: rgba(245,192,74,.1); color: var(--warn); }
+.resume-offer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; }
+.resume-offer .icon { vertical-align: -3px; }
+.resume-actions { display: flex; gap: 6px; }
 .notice-err { background: rgba(255,93,93,.1); color: var(--err); margin-bottom: 14px; }
 .dismissable { cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
 
@@ -177,6 +180,14 @@ code { background: var(--panel-2); padding: 1px 5px; border-radius: 4px; }
 .field-inline select { min-width: 260px; }
 
 .settings-card { max-width: 760px; margin-bottom: 18px; }
+.setting-toggle { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; cursor: pointer; }
+.setting-toggle > span { display: flex; flex-direction: column; gap: 2px; }
+.setting-toggle input { margin-top: 3px; }
+.language-choices { display: grid; gap: 6px; margin-bottom: 12px; }
+.language-choice { display: flex; align-items: flex-start; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; }
+.language-choice > span { display: flex; flex-direction: column; gap: 2px; }
+.language-choice.on { border-color: var(--accent); }
+.language-choice input { margin-top: 3px; }
 .about-text { margin: 0 0 14px; font-size: 13.5px; line-height: 1.55; }
 .legal-links { display: flex; flex-direction: column; gap: 4px; }
 .facts { display: grid; grid-template-columns: 140px 1fr; gap: 8px 16px; margin: 0; }

@@ -1,10 +1,10 @@
 @inherits SessionComponent
 
-<PanelSection Title="Position">
+<PanelSection Title="@T["Machine.Position.Title"]">
     <Tools>
         <div class="seg seg-sm">
-            <button class="@(_work ? "active" : "")" @onclick="() => _work = true">Work</button>
-            <button class="@(!_work ? "active" : "")" @onclick="() => _work = false">Machine</button>
+            <button class="@(_work ? "active" : "")" @onclick="() => _work = true">@T["Machine.Frame.Work"]</button>
+            <button class="@(!_work ? "active" : "")" @onclick="() => _work = false">@T["Common.Machine"]</button>
         </div>
     </Tools>
     <ChildContent>
@@ -16,7 +16,7 @@
                 <div class="dro-cell">
                     <span class="dro-axis">@Axes[i]</span>
                     <span class="dro-value">@Fmt(primary, i == 3)</span>
-                    <span class="dro-sub">@(_work ? "M" : "W") @Fmt(secondary, i == 3)</span>
+                    <span class="dro-sub">@(_work ? T["Machine.Position.MachineShort"] : T["Machine.Position.WorkShort"]) @Fmt(secondary, i == 3)</span>
                 </div>
             }
         </div>
@@ -24,15 +24,15 @@
         @if (Status is { } st)
         {
             <details class="raw">
-                <summary>More status fields</summary>
+                <summary>@T["Machine.Position.MoreFields"]</summary>
                 <dl class="status-fields">
                     @foreach (var field in StatusFields.Describe(st))
                     {
-                        <dt title="Status field @field.Key">@field.Name@(field.IsKnown ? " " : "")@if (field.IsKnown) { <span class="mono muted">@field.Key</span> }</dt>
+                        <dt title="@T["Machine.Position.FieldTitle", field.Key]">@T[field.Name]@(field.IsKnown ? " " : "")@if (field.IsKnown) { <span class="mono muted">@field.Key</span> }</dt>
                         <dd>
                             @foreach (var value in field.Values)
                             {
-                                <span class="status-value">@if (value.Label.Length > 0) { <span class="muted">@value.Label</span> } <span class="mono">@value.Text</span></span>
+                                <span class="status-value">@if (value.Label is { } label) { <span class="muted">@T[label]</span> } <span class="mono">@T[value.Text]</span></span>
                             }
                         </dd>
                     }
@@ -42,7 +42,7 @@
         }
         else
         {
-            <p class="muted small pad">@(Connected ? "Waiting for the first status report…" : "Connect to see live position and status.")</p>
+            <p class="muted small pad">@(Connected ? T["Machine.Position.WaitingForStatus"] : T["Machine.Position.ConnectToSee"])</p>
         }
     </ChildContent>
 </PanelSection>

@@ -1,0 +1,149 @@
+{
+  "Air": {
+    "TypeUnknown": "Der Maschinentyp (aus ihrem Verfahrweg ermittelt) ist noch nicht bekannt, daher auch ihr Luftausgang nicht."
+  },
+  "Bed": {
+    "Alarm": "Die Maschine hat während der Bewegung einen Alarm ausgelöst ({0}).",
+    "CantStart": "Das Bett kann im aktuellen Zustand der Maschine nicht gereinigt werden ({0}).",
+    "FinishFailed": "Die Bettreinigung konnte nicht abgeschlossen werden: {0}",
+    "NoPosition": "Die Maschine hat ihre Position nicht gemeldet.",
+    "NotBack": "Der Kopf ist nicht wieder dort, wo das Programm angehalten hat ({0}, Maschine), daher bleibt der Job pausiert. Bringen Sie den Kopf in dieser Höhe dorthin zurück, bevor Sie fortsetzen: Beim Fortsetzen fährt er direkt zu diesem Punkt.",
+    "Running": "Das Bett wird bereits gereinigt."
+  },
+  "Camera": {
+    "RecordingFailed": "Aufnahme fehlgeschlagen: {0}"
+  },
+  "GoTo": {
+    "NotIdle": "Fahrten zu einer Position sind nur möglich, solange die Maschine bereit ist (Zustand: {0})."
+  },
+  "Job": {
+    "Busy": "Die vorherige Anfrage wird noch bearbeitet."
+  },
+  "Limits": {
+    "NoSoftLimits": "Die Konfiguration der Maschine enthält keine Software-Endschalter (soft_endstop.x_min/y_min/z_min).",
+    "ReadFailed": "Die Verfahrgrenzen konnten nicht gelesen werden: {0}",
+    "Unknown": "Die Verfahrgrenzen der Maschine sind noch nicht bekannt."
+  },
+  "Machine": {
+    "NotConnected": "Die Maschine ist nicht verbunden."
+  },
+  "Notice": {
+    "Alarm.Message": "Die Maschine hat einen Alarm gemeldet.",
+    "Alarm.Title": "Alarm",
+    "Cleared": "Aufgehoben",
+    "Confirm": "Bestätigen",
+    "Confirmed": "Bestätigt",
+    "Continued": "Fortgesetzt",
+    "Dismissed": "Ausgeblendet",
+    "DoneOnMachine": "An der Maschine erledigt",
+    "Insert": "{0} einsetzen",
+    "NamedTool": "{0} ({1})",
+    "NextJob.Message": "{0} ist auf der Maschine und wird angehalten, bevor sich etwas bewegt. Legen Sie das Werkstück ein und drücken Sie dann die Taste an der Maschine oder „Fortsetzen“.",
+    "NextJob.Title": "Bereit für den nächsten Job",
+    "NextTool": "das nächste Werkzeug",
+    "Over": "Beendet",
+    "Resume": "Fortsetzen",
+    "Resumed": "Fortgesetzt",
+    "ToolChange.Message": "Die Maschine wartet auf {0}. Bestätigen Sie nach dem Einsetzen, um den Job fortzusetzen.",
+    "ToolChange.Title": "Werkzeugwechsel wartet",
+    "Unlock": "Entsperren ($X)",
+    "Unlocked": "Entsperrt"
+  },
+  "Pause": {
+    "CurrentPosition": "aktuelle Position",
+    "HeadMoved": "Die Maschine hat den Kopf nach dem Pausieren bewegt (vorher: {0}, jetzt: {1}), vermutlich durch eine Pausenroutine in ihrer Konfiguration.",
+    "NoRest": "Der Kopf ist nach dem Pausieren nicht zur Ruhe gekommen.",
+    "NotPaused": "Das Programm konnte nicht pausiert werden (Zustand der Maschine: {0}).",
+    "Routine": "Die Maschine führt nach dem Pausieren „{0}“ aus ({1} in ihrer config.txt), was den Kopf bewegen kann, daher wurde der Job nicht pausiert. Pausieren Sie den Job selbst, um die Maschine dort zu verwenden, wo der Kopf dann steht."
+  },
+  "Program": {
+    "ChooseFirst": "Wählen Sie zuerst ein Programm.",
+    "FromComputer": "von diesem Computer",
+    "FromSetup": "Setup „{0}“",
+    "FromSetupQueued": "Setup „{0}“, aus der Warteschlange",
+    "LastJob": "der letzte Job",
+    "Local": "{0}, wird beim Start nach {1} hochgeladen",
+    "OnMachine": "auf der Maschine, {0}",
+    "Queued": "aus der Warteschlange",
+    "Stopped": "der gestoppte Job"
+  },
+  "Queue": {
+    "Alarm": "Die Maschine hat einen Alarm ausgelöst: {0}.",
+    "AlreadyInSetup": "Diese Datei gehört bereits zu den Dateien des Setups.",
+    "BeforeFailed": "Der Job vor der Warteschlange wurde nicht abgeschlossen: {0}",
+    "BeforeFailed.Message": "Der Job vor der Warteschlange wurde nicht abgeschlossen: {0} Starten Sie die Warteschlange erneut, sobald die Maschine bereit ist.",
+    "ConnectionLost": "Die Verbindung wurde unterbrochen.",
+    "CopyGone": "Die Kopie in der Warteschlange ist nicht mehr vorhanden.",
+    "CopyMissing": "Die Kopie seiner Datei in der Warteschlange fehlt.",
+    "EndedEarly": "Der Job endete vor seiner letzten Bearbeitung.",
+    "EndedEarlyAt": "Der Job endete vor seiner letzten Bearbeitung, bei {0}.",
+    "EntryFailed": "{0}: {1}",
+    "EntryFailed.Message": "{0}: {1} Wiederholen Sie den Eintrag (auch ab der Bearbeitung, bei der er war) oder entfernen Sie ihn, und starten Sie dann die Warteschlange erneut.",
+    "EntryGone": "Dieser Eintrag ist nicht mehr vorhanden.",
+    "EntryRunning": "Der Job dieses Eintrags läuft auf der Maschine.",
+    "FileDeleted": "„{0}“ wurde aus dem Setup gelöscht.",
+    "FileGone": "Seine Datei wurde aus dem Setup gelöscht.",
+    "Finished.Message": "Alle Jobs der Warteschlange sind gelaufen ({0}).",
+    "Finished.Title": "Warteschlange abgeschlossen",
+    "GateJob": "{0} (Job {1} von {2})",
+    "HeadPositionOrigin": "„{0}“ übernimmt den Werkstücknullpunkt von der Kopfposition, und die ist in einer Warteschlange dort, wo der vorherige Job geendet hat. Setzen Sie den Nullpunkt einmal von Hand und lassen Sie ihn vom Setup beibehalten, oder verwenden Sie die Bettecke oder den XYZ-Taster.",
+    "HeadPositionRepeat": "Dieser Job nimmt den Werkstücknullpunkt von der Position des Kopfes. Das geht nur beim von Hand gestarteten Lauf: Bei weiteren Läufen steht der Kopf dort, wo der vorige endete. Verwenden Sie für wiederholte Läufe die Bettecke oder den XYZ-Taster, oder behalten Sie den Nullpunkt bei.",
+    "Job": "Job",
+    "NoAlarmMessage": "keine Meldung",
+    "NoSetup": "Diese Datei gehört zu keinem Setup. Speichern Sie sie auf der Job-Karte in einem Setup, um sie zu behalten.",
+    "NotReady": "Die Maschine muss bereit sein oder einen Job ausführen, um die Warteschlange zu starten (Zustand: {0}).",
+    "OnlyFailedRetried": "Nur ein fehlgeschlagener Eintrag kann wiederholt werden.",
+    "SetupGone": "Sein Setup existiert nicht mehr.",
+    "Stopped": "Gestoppt.",
+    "Stopped.Title": "Warteschlange gestoppt"
+  },
+  "Restart": {
+    "LastProgramUnknown": "Das Programm des letzten Jobs ist nicht bekannt.",
+    "NoLastJob": "Es ist noch kein Job beendet.",
+    "NoSuchOperation": "Das Programm hat keine solche Bearbeitung."
+  },
+  "Session": {
+    "ClosedByMachine": "Verbindung von der Maschine geschlossen",
+    "ReplyTimeout": "Keine Antwort auf „{0}“ innerhalb von {1:0} s.",
+    "StateTimeout": "Die Maschine hat den erwarteten Zustand nicht innerhalb von {0:0} s erreicht.",
+    "Transferring": "Die Maschine ist mit einer Dateiübertragung beschäftigt und würde den Befehl ignorieren; versuchen Sie es erneut, wenn sie fertig ist."
+  },
+  "Setup": {
+    "Deleted": "„{0}“ wurde gelöscht; stellen Sie es zuerst wieder her.",
+    "FileGone": "Diese Datei existiert nicht mehr.",
+    "FileMissing": "Die Datei „{0}“ fehlt ({1}). Ersetzen oder löschen Sie sie.",
+    "Gone": "Dieses Setup existiert nicht mehr.",
+    "NameRequired": "Geben Sie dem Setup einen Namen.",
+    "NameTaken": "Ein Setup namens „{0}“ existiert bereits.",
+    "NameTooLong": "Namen dürfen höchstens {0} Zeichen haben.",
+    "NoneLoaded": "Es ist kein Setup geladen.",
+    "OnlyDeletedFiles": "Nur gelöschte Dateien können endgültig gelöscht werden.",
+    "OnlyDeletedSetups": "Nur gelöschte Setups können endgültig gelöscht werden."
+  },
+  "Start": {
+    "Alarm": "Die Maschine hat statt zu starten einen Alarm ausgelöst: {0}",
+    "BedCleaning": "Das Bett wird gerade gereinigt.",
+    "NoFeedHold": "Die Maschine hat den Vorschub-Halt (!) nicht übernommen, daher konnte der Job nicht auf die Freigabe warten und wurde nicht gestartet. Der Vorschub-Halt ist möglicherweise in der Konfiguration der Maschine ausgeschaltet (enable_feed_hold).",
+    "NotIdle": "Programme starten nur, solange die Maschine bereit ist (Zustand: {0}).",
+    "NotStarted": "Die Maschine hat das Programm nicht gestartet. Die für den Start vorgemerkten Befehle (Antasten, Werkzeug) bleiben vorgemerkt, bis ein Programm startet oder die Maschine zurückgesetzt wird; setzen Sie sie daher zurück, bevor Sie es erneut versuchen.",
+    "NotStartedAnswer": "Die Maschine hat das Programm nicht gestartet (ihre letzte Antwort: „{0}“). Die für den Start vorgemerkten Befehle (Antasten, Werkzeug) bleiben vorgemerkt, bis ein Programm startet oder die Maschine zurückgesetzt wird; setzen Sie sie daher zurück, bevor Sie es erneut versuchen.",
+    "Transferring": "Die Maschine ist mit einer Dateiübertragung beschäftigt."
+  },
+  "State": {
+    "NotReporting": "keine Statusmeldung",
+    "Unknown": "unbekannt"
+  },
+  "Text": {
+    "Sentences": "{0} {1}"
+  },
+  "Time": {
+    "HoursAgo": "vor {0} h",
+    "JustNow": "gerade eben",
+    "MinutesAgo": "vor {0} min",
+    "Never": "nie",
+    "SecondsAgo": "vor {0} s"
+  },
+  "Timelapse": {
+    "CameraBusy": "Die Kamera nimmt bereits auf; der Zeitraffer wurde nicht gestartet."
+  }
+}

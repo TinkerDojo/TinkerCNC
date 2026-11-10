@@ -38,7 +38,7 @@ public sealed class AppPaths
     /// <summary>Files queued for one run on a machine, removed once their entry is done.</summary>
     public string QueuedFiles { get; }
 
-    /// <summary>Camera recordings (.mjpeg) and snapshots.</summary>
+    /// <summary>Camera recordings (.mp4) and snapshots.</summary>
     public string Recordings { get; }
 
     /// <summary>Machines added by hand (JSON).</summary>

@@ -2,17 +2,17 @@
 @inherits SessionComponent
 @inject NotificationCenter Center
 
-<RailPanel Title="Notifications" Icon="bell" Key="notifications" Badge="_notifications.OpenCount">
+<RailPanel Title="@T["Machine.Notifications.Title"]" Icon="bell" Key="notifications" Badge="_notifications.OpenCount">
     <Tools>
         @if (_notifications.Items.Any(n => !n.IsOpen))
         {
-            <button class="btn btn-sm btn-ghost" title="Remove answered and dismissed notifications" @onclick="_notifications.ClearResolved">Clear</button>
+            <button class="btn btn-sm btn-ghost" title="@T["Machine.Notifications.ClearTitle"]" @onclick="_notifications.ClearResolved">@T["Common.Clear"]</button>
         }
     </Tools>
     <ChildContent>
         @if (_notifications.Items.Count == 0)
         {
-            <p class="muted small pad">No notifications. Tool changes that need your confirmation and alarms appear here.</p>
+            <p class="muted small pad">@T["Machine.Notifications.Empty"]</p>
         }
         <ul class="notes">
             @foreach (var note in _notifications.Items)
@@ -21,25 +21,25 @@
                     <span class="note-icon"><Icon Name="@note.Icon" Size="18" /></span>
                     <div class="note-body">
                         <div class="note-head">
-                            <b>@note.Title</b>
-                            <span class="muted small" title="@note.RaisedUtc.ToLocalTime().ToString("G")">@TimeFormat.Clock(note.RaisedUtc)</span>
+                            <b>@T[note.Title]</b>
+                            <span class="muted small" title="@note.RaisedUtc.ToLocalTime().ToString("G")">@TimeFormat.Clock(note.RaisedUtc, T.Culture)</span>
                         </div>
-                        <p>@note.Message</p>
+                        <p>@T[note.Message]</p>
                         @if (note.IsOpen)
                         {
                             <div class="note-actions">
                                 @foreach (var action in note.Actions)
                                 {
                                     <button class="btn btn-sm @action.Css" disabled="@(!Connected)" @onclick="() => _runner.RunAsync(() => _notifications.ExecuteAsync(note, action))">
-                                        <Icon Name="@action.Icon" /> @action.Label
+                                        <Icon Name="@action.Icon" /> @T[action.Label]
                                     </button>
                                 }
-                                <button class="btn btn-sm btn-ghost" title="Hide without answering the machine" @onclick="() => _notifications.Dismiss(note)">Dismiss</button>
+                                <button class="btn btn-sm btn-ghost" title="@T["Machine.Notifications.DismissTitle"]" @onclick="() => _notifications.Dismiss(note)">@T["Common.Dismiss"]</button>
                             </div>
                         }
                         else
                         {
-                            <span class="note-resolution small"><Icon Name="check" Size="12" /> @note.Resolution · @TimeFormat.Clock(note.ResolvedUtc!.Value)</span>
+                            <span class="note-resolution small"><Icon Name="check" Size="12" /> @T[note.Resolution] · @TimeFormat.Clock(note.ResolvedUtc!.Value, T.Culture)</span>
                         }
                     </div>
                 </li>
@@ -47,7 +47,7 @@
         </ul>
         @if (_runner.Error is not null)
         {
-            <p class="hint err">@_runner.Error</p>
+            <p class="hint err">@T[_runner.Error]</p>
         }
     </ChildContent>
 </RailPanel>

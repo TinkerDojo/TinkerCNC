@@ -1,27 +1,27 @@
 @* Checks before the job, the time-lapse recorded here, and the machine's own job options. *@
 @inherits JobControlComponent
 
-<OptionRow Title="Before and during the job" Hint="Checks, the time-lapse and the machine's job options">
+<OptionRow Title="@T["Job.Options.Modes"]" Hint="@T["Job.Options.Modes.Hint"]">
     <div class="mode-grid">
         <label class="mode-check">
             <input type="checkbox" @bind="Options.ScanMargin" />
-            <span>Scan margin <small>Traces the program's outline at the clearance height first, to check it fits the stock.</small></span>
+            <span>@T["Job.Options.ScanMargin"] <small>@T["Job.Options.ScanMargin.Hint"]</small></span>
         </label>
         <label class="mode-check">
             <input type="checkbox" @bind="Options.Timelapse" />
-            <span>Record a time-lapse <small>The camera records one frame every few seconds from start to end, into the recordings folder here.</small></span>
+            <span>@T["Job.Options.Timelapse"] <small>@T["Job.Options.Timelapse.Hint"]</small></span>
         </label>
         @foreach (var mode in Control.Modes)
         {
             var m = mode;
             <label class="mode-check" title="@m.OnCommand / @m.OffCommand">
                 <input type="checkbox" checked="@Options.IsOn(m)" @onchange="e => Options.Modes[m.Key] = e.Value is true" />
-                <span>@m.Name <small>@m.Description</small></span>
+                <span>@T[m.Name] <small>@T[m.Description]</small></span>
             </label>
         }
     </div>
     @if (Control.Modes.Count == 0)
     {
-        <p class="hint muted">The machine's own job options appear once its type is known (from its travel limits).</p>
+        <p class="hint muted">@T["Job.Options.Modes.Unknown"]</p>
     }
 </OptionRow>

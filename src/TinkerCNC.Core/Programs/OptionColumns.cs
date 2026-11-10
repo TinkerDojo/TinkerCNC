@@ -40,6 +40,27 @@ public static class OptionColumns
         Flag("timelapse", o => o.Timelapse, (o, v) => o.Timelapse = v),
     ];
 
+    /// <summary>The column names, comma-separated, for a SELECT or INSERT.</summary>
+    public static readonly string Names = string.Join(", ", All.Select(c => c.Name));
+
+    /// <summary>The parameters (<c>$name</c>) for <see cref="Values"/>, comma-separated.</summary>
+    public static readonly string Parameters = string.Join(", ", All.Select(c => "$" + c.Name));
+
+    /// <summary><c>name = $name</c> for every column, for an UPDATE.</summary>
+    public static readonly string Assignments = string.Join(", ", All.Select(c => $"{c.Name} = ${c.Name}"));
+
+    /// <summary>The parameter values for <see cref="Parameters"/>; without options every column is NULL.</summary>
+    public static IEnumerable<(string Name, object Value)> Values(JobStartOptions? options) =>
+        All.Select(c => ("$" + c.Name, options is null ? DBNull.Value : c.Get(options)));
+
+    /// <summary>The options stored in a row read with <see cref="Names"/> among its columns.</summary>
+    public static JobStartOptions Read(System.Data.IDataRecord row)
+    {
+        var options = new JobStartOptions();
+        foreach (var column in All) column.Set(options, row.GetValue(row.GetOrdinal(column.Name)));
+        return options;
+    }
+
     /// <summary>Whether two sets of options start a program the same way (job options missing count as off).</summary>
     public static bool Same(JobStartOptions a, JobStartOptions b) => All.All(c => Equals(c.Get(a), c.Get(b)));
 

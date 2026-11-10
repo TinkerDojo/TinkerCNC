@@ -30,6 +30,27 @@ public sealed record StatusReport(string Raw, string State, IReadOnlyDictionary<
         ? new ToolStatus((int)t[0], t.Length > 1 ? t[1] : null, t.Length > 2 && t[2] >= 0 ? (int)t[2] : null)
         : null;
 
+    /// <summary>The tool length offset (mm, second value of <c>T</c>); 0 when the machine reports none.</summary>
+    public double ToolLengthOffset => Tool?.Offset ?? 0;
+
+    /// <summary>
+    /// Where the tip of the tool in the spindle is, in machine coordinates measured like the reference tool (the one
+    /// the travel, the bed corner and <c>MPos</c> refer to): <c>MPos</c> lowered by the tool length offset. The firmware
+    /// reports <c>WPos = MPos − work offset − tool offset</c> (Robot::mcs2wcs), the offset being how much longer the
+    /// tool is than the reference (tool length calibration, ATCHandler).
+    /// </summary>
+    public double[]? ToolTip => MachinePosition is { Length: >= 3 } m
+        ? [m[0], m[1], m[2] - ToolLengthOffset, .. m[3..]]
+        : null;
+
+    /// <summary>
+    /// Work zero in the same machine coordinates as <see cref="ToolTip"/>: where the program's X0 Y0 Z0 is
+    /// (<c>MPos − WPos</c>, less the tool length offset, which is part of that difference in Z).
+    /// </summary>
+    public double[]? WorkZero => ToolTip is { } tip && WorkPosition is { Length: >= 3 } w
+        ? [tip[0] - w[0], tip[1] - w[1], tip[2] - w[2]]
+        : null;
+
     public double[]? GetNumbers(string key)
     {
         if (!Fields.TryGetValue(key, out var value)) return null;

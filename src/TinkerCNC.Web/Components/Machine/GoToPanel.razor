@@ -2,12 +2,12 @@
 @using TinkerCNC.Motion
 @inherits SessionComponent
 
-<PanelSection Title="Go to">
+<PanelSection Title="@T["Machine.GoTo.Title"]">
     <Tools>
         <div class="seg seg-sm">
             @foreach (var frame in Frames)
             {
-                <button class="@(_frame == frame ? "active" : "")" @onclick="() => SetFrame(frame)">@frame</button>
+                <button class="@(_frame == frame ? "active" : "")" @onclick="() => SetFrame(frame)">@T[FrameTexts[frame].Label]</button>
             }
         </div>
     </Tools>
@@ -27,7 +27,7 @@
                         <input class="input mono" type="number" step="0.1" min="@Css(range.Min)" max="@Css(range.Max)"
                                placeholder="@Css(Current(axis, status))" value="@(_values.GetValueOrDefault(axis) is { } v ? Css(v) : "")"
                                @oninput="e => SetValue(axis, e.Value)" />
-                        <span class="goto-range mono" title="Allowed range in @_frame.ToString().ToLowerInvariant() coordinates">@Css(range.Min) … @Css(range.Max)</span>
+                        <span class="goto-range mono" title="@T[FrameTexts[_frame].RangeTitle]">@Css(range.Min) … @Css(range.Max)</span>
                     </label>
                 }
             </div>
@@ -35,27 +35,27 @@
             {
                 @foreach (var error in invalid.Errors.Values)
                 {
-                    <p class="hint err">@error</p>
+                    <p class="hint err">@T[error]</p>
                 }
             }
             <div class="goto-actions">
-                <label class="check" title="Raise to the clearance height, move across, then lower (recommended)">
-                    <input type="checkbox" checked="@_liftFirst" @onchange="e => { _liftFirst = e.Value is true; UpdatePlan(); }" /> Lift to clearance first
+                <label class="check" title="@T["Machine.GoTo.LiftFirstTitle"]">
+                    <input type="checkbox" checked="@_liftFirst" @onchange="e => { _liftFirst = e.Value is true; UpdatePlan(); }" /> @T["Machine.GoTo.LiftFirst"]
                 </label>
                 <div class="spacer"></div>
-                <button class="btn btn-sm btn-ghost" title="Fill in the current position" @onclick="UseCurrent">Current</button>
+                <button class="btn btn-sm btn-ghost" title="@T["Machine.GoTo.CurrentTitle"]" @onclick="UseCurrent">@T["Machine.GoTo.Current"]</button>
                 <button class="btn btn-sm btn-primary" disabled="@(!CanGo)" title="@GoTitle" @onclick="() => _runner.RunAsync(() => Session.GoToAsync(Request))">
-                    <Icon Name="right" /> Go
+                    <Icon Name="right" /> @T["Machine.GoTo.Go"]
                 </button>
             </div>
             @if (Connected && !MachineSession.IsIdle(status))
             {
-                <p class="hint warn">Moves to a position are possible while the machine is idle.</p>
+                <p class="hint warn">@T["Machine.GoTo.IdleOnly"]</p>
             }
         }
         @if (_runner.Error is not null)
         {
-            <p class="hint err">@_runner.Error</p>
+            <p class="hint err">@T[_runner.Error]</p>
         }
     </ChildContent>
 </PanelSection>
@@ -66,6 +66,14 @@
 
     private static readonly Axis[] Axes = [Axis.X, Axis.Y, Axis.Z];
     private static readonly CoordinateFrame[] Frames = [CoordinateFrame.Work, CoordinateFrame.Machine];
+
+    private sealed record FrameText(Text Label, Text RangeTitle);
+
+    private static readonly IReadOnlyDictionary<CoordinateFrame, FrameText> FrameTexts = new Dictionary<CoordinateFrame, FrameText>
+    {
+        [CoordinateFrame.Work] = new(Texts.Of("Machine.Frame.Work"), Texts.Of("Machine.GoTo.RangeWork")),
+        [CoordinateFrame.Machine] = new(Texts.Of("Common.Machine"), Texts.Of("Machine.GoTo.RangeMachine")),
+    };
 
     private readonly ActionRunner _runner = new();
     private readonly Dictionary<Axis, double?> _values = new();
@@ -78,11 +86,14 @@
     private GoToRequest Request => new(_values.GetValueOrDefault(Axis.X), _values.GetValueOrDefault(Axis.Y), _values.GetValueOrDefault(Axis.Z), _frame, _liftFirst);
     private bool HasInput => _values.Values.Any(v => v is not null);
     private bool CanGo => Connected && HasInput && _plan is { IsValid: true } && MachineSession.IsIdle(Status);
-    private string GoTitle => _plan is { IsValid: true } plan ? "Sends:\n" + string.Join("\n", plan.Commands) : "Enter a position within the limits";
+    private string GoTitle => _plan is { IsValid: true } plan
+        ? T["Machine.GoTo.Sends", string.Join("\n", plan.Commands)]
+        : T["Machine.GoTo.EnterPosition"];
 
-    private string LimitsText => !Connected ? "Connect to read the machine's travel limits."
-        : Session.Limits.Loading ? "Reading the machine's travel limits…"
-        : Session.Limits.Error ?? "Waiting for the machine's position…";
+    private string LimitsText => !Connected ? T["Machine.GoTo.ConnectToRead"]
+        : Session.Limits.Loading ? T["Machine.GoTo.ReadingLimits"]
+        : Session.Limits.Error is { } error ? T[error]
+        : T["Machine.GoTo.WaitingForPosition"];
 
     /// <summary>The plan follows the status too (work coordinates move with the work offset).</summary>
     protected override void OnParametersSet()

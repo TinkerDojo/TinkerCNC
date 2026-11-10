@@ -13,40 +13,40 @@
                     <span class="mono small muted">@program.Source.FileName</span>
                     @if (Control.SetupFile is null)
                     {
-                        <span class="tag" title="Runs with the setup's options but is not one of its files">one-off file</span>
+                        <span class="tag" title="@T["Setups.Program.OneOffHint"]">@T["Setups.Program.OneOff"]</span>
                     }
                     @if (Control.SetupChanged)
                     {
-                        <span class="tag tag-warn" title="The options differ from the setup's">options changed</span>
+                        <span class="tag tag-warn" title="@T["Setups.Program.ChangedHint"]">@T["Setups.Program.Changed"]</span>
                     }
                 }
             </div>
-            <div class="muted small">@program.Source.Describe()</div>
+            <div class="muted small">@T[program.Source.Describe()]</div>
         </div>
     </div>
     <div class="program-facts">
         @if (program.Bounds is { } b)
         {
-            <span class="tag mono" title="Size of the cutting moves in X × Y × Z">@Mm(b.Width) × @Mm(b.Depth) × @Mm(b.MaxZ - b.MinZ) mm</span>
-            <span class="tag mono" title="Front left corner of the cutting moves, in work coordinates">corner X@(Mm(b.MinX)) Y@(Mm(b.MinY))</span>
+            <span class="tag mono" title="@T["Setups.Program.SizeHint"]">@Mm(b.Width) × @Mm(b.Depth) × @Mm(b.MaxZ - b.MinZ) mm</span>
+            <span class="tag mono" title="@T["Setups.Program.CornerHint"]">@T["Setups.Program.Corner", Mm(b.MinX), Mm(b.MinY)]</span>
         }
-        <span class="tag">@program.Analysis.Segments.Count operations</span>
+        <span class="tag">@T.Count("Setups.Program.Operations", program.Analysis.Segments.Count)</span>
         @if (Job.Timeline is { } timeline)
         {
-            <span class="tag" title="Estimated time, probing included"><Icon Name="stopwatch" Size="12" /> @TimeFormat.Duration(timeline.TotalSeconds)</span>
+            <span class="tag" title="@T["Setups.Program.TimeHint"]"><Icon Name="stopwatch" Size="12" /> @TimeFormat.Duration(timeline.TotalSeconds)</span>
         }
     </div>
     <div class="program-save">
         @if (Control.Setup is not null)
         {
-            <button class="btn btn-sm btn-ghost" disabled="@Control.IsBusy" title="Store the options as they are now in this setup"
+            <button class="btn btn-sm btn-ghost" disabled="@Control.IsBusy" title="@T["Setups.Program.SaveHint"]"
                     @onclick="() => _runner.Run(Control.SaveChanges)">
-                <Icon Name="save" /> Save
+                <Icon Name="save" /> @T["Common.Save"]
             </button>
         }
-        <button class="btn btn-sm btn-ghost" disabled="@Control.IsBusy" title="Add the file to a setup, or create a setup with these options"
+        <button class="btn btn-sm btn-ghost" disabled="@Control.IsBusy" title="@T["Setups.Program.SaveToHint"]"
                 @onclick="() => _dialog = true">
-            <Icon Name="save" /> Save…
+            <Icon Name="save" /> @T["Setups.Program.SaveTo"]
         </button>
     </div>
 </div>
@@ -56,7 +56,7 @@
 }
 @if (_runner.Error is { } error)
 {
-    <p class="hint err">@error</p>
+    <p class="hint err">@T[error]</p>
 }
 
 @code {

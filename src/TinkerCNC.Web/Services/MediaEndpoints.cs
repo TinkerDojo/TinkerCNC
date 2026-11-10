@@ -45,8 +45,20 @@ public static class MediaEndpoints
             ? Results.File(frame, FrameHub.ContentTypeOf(frame), $"{sourceId}_{DateTime.Now:yyyyMMdd_HHmmss}.{FrameHub.ExtensionOf(frame)}")
             : Results.NotFound();
 
-    private static IResult Recording(string file, RecordingStore store) =>
-        store.Find(file) is { } path
-            ? Results.File(path, "application/octet-stream", Path.GetFileName(path))
-            : Results.NotFound();
+    // Videos and images open in the browser (video with range requests, so players can seek); anything else downloads.
+    private static readonly IReadOnlyDictionary<string, string> InlineTypes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        [".mp4"] = "video/mp4",
+        [".jpg"] = "image/jpeg",
+        [".png"] = "image/png",
+        [".bmp"] = "image/bmp",
+    };
+
+    private static IResult Recording(string file, RecordingStore store)
+    {
+        if (store.Find(file) is not { } path) return Results.NotFound();
+        return InlineTypes.TryGetValue(Path.GetExtension(path), out var type)
+            ? Results.File(path, type, enableRangeProcessing: true)
+            : Results.File(path, "application/octet-stream", Path.GetFileName(path));
+    }
 }

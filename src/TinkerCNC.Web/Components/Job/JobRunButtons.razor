@@ -3,35 +3,35 @@
 
 @if (Control.CanResume)
 {
-    <button class="btn btn-primary" disabled="@(!Connected)" title="Continue: the head goes back to where it paused first"
+    <button class="btn btn-primary" disabled="@(!Connected)" title="@T["Job.Run.Resume.Title"]"
             @onclick="() => _runner.RunAsync(Control.ResumeAsync)">
-        <Icon Name="play" /> Resume
+        <Icon Name="play" /> @T["Common.Resume"]
     </button>
 }
 else
 {
-    <button class="btn" disabled="@(!Connected || !Control.CanPause)" title="Pause after the moves already queued (suspend)"
+    <button class="btn" disabled="@(!Connected || !Control.CanPause)" title="@T["Job.Run.Pause.Title"]"
             @onclick="() => _runner.RunAsync(Control.PauseAsync)">
-        <Icon Name="pause" /> Pause
+        <Icon Name="pause" /> @T["Common.Pause"]
     </button>
 }
 @if (_confirm.IsAsking(this))
 {
-    <button class="btn btn-danger btn-danger-solid" disabled="@(!Connected || !Control.CanStop)" title="The spindle stops and the rest of the program is dropped"
+    <button class="btn btn-danger btn-danger-solid" disabled="@(!Connected || !Control.CanStop)" title="@T["Job.Run.ConfirmStop.Title"]"
             @onclick="StopAsync">
-        <Icon Name="stop" /> Confirm stop
+        <Icon Name="stop" /> @T["Job.ConfirmStop"]
     </button>
 }
 else
 {
-    <button class="btn btn-danger" disabled="@(!Connected || !Control.CanStop)" title="End the program (abort); asks once more"
+    <button class="btn btn-danger" disabled="@(!Connected || !Control.CanStop)" title="@T["Job.Run.Stop.Title"]"
             @onclick="() => _confirm.AskAsync(this)">
-        <Icon Name="stop" /> Stop
+        <Icon Name="stop" /> @T["Common.Stop"]
     </button>
 }
 @if (_runner.Error is { } error)
 {
-    <span class="chip chip-err" title="@error">@error</span>
+    <span class="chip chip-err" title="@T[error]">@T[error]</span>
 }
 
 @code {

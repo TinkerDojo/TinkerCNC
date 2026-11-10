@@ -1,27 +1,27 @@
 @* Probing the stock's top before the job, and where. *@
 @inherits JobControlComponent
 
-<OptionRow Title="Auto Z probe" Hint="The probe touches the stock's top before the job and makes it Z zero"
+<OptionRow Title="@T["Job.Options.ZProbe"]" Hint="@T["Job.Options.ZProbe.Hint"]"
           On="Options.ZProbe" OnChanged="on => Control.SetZProbe(on)">
     <div class="opt-line">
-        <span class="muted small">Point relative to</span>
+        <span class="muted small">@T["Job.Options.ZProbe.RelativeTo"]</span>
         <div class="seg seg-sm">
-            <button class="@(Options.ZProbeFromWorkOrigin ? "" : "active")" title="The front left corner of the program's cutting moves"
-                    @onclick="() => Control.SetZProbeFromWorkOrigin(false)">Path origin</button>
-            <button class="@(Options.ZProbeFromWorkOrigin ? "active" : "")" title="X/Y zero of the program"
-                    @onclick="() => Control.SetZProbeFromWorkOrigin(true)">Work origin</button>
+            <button class="@(Options.ZProbeFromWorkOrigin ? "" : "active")" title="@T["Job.Options.ZProbe.PathOrigin.Title"]"
+                    @onclick="() => Control.SetZProbeFromWorkOrigin(false)">@T["Job.Options.ZProbe.PathOrigin"]</button>
+            <button class="@(Options.ZProbeFromWorkOrigin ? "active" : "")" title="@T["Job.Options.ZProbe.WorkOrigin.Title"]"
+                    @onclick="() => Control.SetZProbeFromWorkOrigin(true)">@T["Job.Options.WorkOrigin"]</button>
         </div>
         <label class="inline-field">X <input class="input mono" type="number" step="0.1" @bind="Options.ZProbeOffsetX" /></label>
         <label class="inline-field">Y <input class="input mono" type="number" step="0.1" @bind="Options.ZProbeOffsetY" /> mm</label>
-        <button class="btn btn-sm btn-ghost" title="Probe in the middle of the program's area" @onclick="Control.CenterZProbe">Center</button>
+        <button class="btn btn-sm btn-ghost" title="@T["Job.Options.ZProbe.Center.Title"]" @onclick="Control.CenterZProbe">@T["Job.Options.ZProbe.Center"]</button>
     </div>
     @if (Control.Program?.Bounds is { } area)
     {
         var (px, py) = Options.ZProbePoint(area);
-        <p class="hint muted">Probes at X@(Mm(px)) Y@(Mm(py)) in work coordinates.</p>
+        <p class="hint muted">@T["Job.Options.ZProbe.At", Mm(px), Mm(py)]</p>
         @if (!Options.ZProbeWithin(area))
         {
-            <p class="hint warn">That is outside the program's area: make sure the stock is there, or use Center.</p>
+            <p class="hint warn">@T["Job.Options.ZProbe.Outside"]</p>
         }
     }
 </OptionRow>

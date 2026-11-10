@@ -1,3 +1,5 @@
+using TinkerCNC.Localization;
+
 namespace TinkerCNC.GCode;
 
 /// <summary>A run of consecutive lines cut with one tool (between two tool changes).</summary>
@@ -18,9 +20,16 @@ public sealed record ToolSegment(
     public double EndSeconds => StartSeconds + Seconds;
     public double CuttingSeconds => Seconds - ToolChangeSeconds;
 
-    public string Label => ToolNumber is null
-        ? "No tool"
-        : string.Join(" · ", new[] { $"T{ToolNumber}", Tool?.Name }.OfType<string>());
+    /// <summary>
+    /// "T1 · Flat 3.175", or "No tool" (in English: written into restart copies and logs; people see
+    /// <see cref="DisplayLabel"/>).
+    /// </summary>
+    public string Label => DisplayLabel.ToString();
+
+    /// <summary>The operation for people: its tool number and name, or that it has no tool.</summary>
+    public Text DisplayLabel => ToolNumber is null
+        ? CoreTexts.Of("Segment.NoTool")
+        : Text.Plain(string.Join(" · ", new[] { $"T{ToolNumber}", Tool?.Name }.OfType<string>()));
 
     public bool Contains(int line) => line >= StartLine && line <= EndLine;
 }
@@ -68,6 +77,9 @@ public sealed class GCodeAnalysis
     public int LineCount => Lines.Count;
 
     public ToolSegment? SegmentAt(int line) => Segments.FirstOrDefault(s => s.Contains(line));
+
+    /// <summary>Where the program is just before the 1-based <paramref name="line"/> runs (see <see cref="ProgramPoint"/>).</summary>
+    public ProgramPoint StateBefore(int line) => GCodeEstimator.StateBefore(Lines, line, Metadata);
 
     /// <summary>Whether the 1-based <paramref name="line"/> is a G1/G2/G3 move.</summary>
     public bool IsFeedMove(int line) => line >= 1 && line <= _feedMoves.Length && _feedMoves[line - 1];

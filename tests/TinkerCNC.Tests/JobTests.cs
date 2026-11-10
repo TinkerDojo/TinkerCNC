@@ -134,6 +134,41 @@ public class FileTransferTests
         listener.Stop();
     }
 
+    [Fact]
+    public async Task The_announced_md5_is_read_without_transferring_the_file()
+    {
+        var content = Encoding.ASCII.GetBytes("G1 X1\nG1 X2\n");
+        var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        var server = Task.Run(() => FakeFileServer.ServeAsync(listener, content, packetSize: 1000));
+
+        await using var machine = MachineConnection.ForAddress($"127.0.0.1:{((IPEndPoint)listener.LocalEndpoint).Port}");
+        machine.StatusPollInterval = null;
+        await machine.ConnectAsync();
+
+        var md5 = await new FileDownloader(machine).AnnouncedMd5Async("/sd/gcodes/test.nc");
+
+        Assert.Equal(Convert.ToHexString(MD5.HashData(content)).ToLowerInvariant(), md5);
+        var requests = await server.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal(new[] { "download /sd/gcodes/test.nc", "B5" }, requests);
+        listener.Stop();
+    }
+
+    [Fact]
+    public async Task A_file_the_machine_does_not_have_announces_no_md5()
+    {
+        var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        var server = Task.Run(() => FakeFileServer.ServeAsync(listener, content: null, packetSize: 1000));
+
+        await using var machine = MachineConnection.ForAddress($"127.0.0.1:{((IPEndPoint)listener.LocalEndpoint).Port}");
+        machine.StatusPollInterval = null;
+        await machine.ConnectAsync();
+
+        Assert.Null(await new FileDownloader(machine) { MaxRetries = 1 }.AnnouncedMd5Async("/sd/gcodes/missing.nc"));
+        listener.Stop();
+    }
+
     private sealed class FixedCache(byte[] content) : IFileCache
     {
         public byte[]? TryGet(string md5) =>
@@ -145,14 +180,17 @@ public class FileTransferTests
         public void Report(DownloadProgress value) => report(value);
     }
 
-    /// <summary>Minimal machine side: answers one download, sending packet 3 once out of order.</summary>
-    private sealed class FakeFileServer(Stream stream, byte[] content, int packetSize) : IHostMessageVisitor
+    /// <summary>
+    /// Minimal machine side: answers one download, sending packet 3 once out of order; without content it refuses the
+    /// download (B5) as the machine does for a missing file.
+    /// </summary>
+    private sealed class FakeFileServer(Stream stream, byte[]? content, int packetSize) : IHostMessageVisitor
     {
         private bool _sentOutOfOrder;
         public List<string> Requests { get; } = new();
         public bool Done { get; private set; }
 
-        public static async Task<List<string>> ServeAsync(TcpListener listener, byte[] content, int packetSize)
+        public static async Task<List<string>> ServeAsync(TcpListener listener, byte[]? content, int packetSize)
         {
             using var client = await listener.AcceptTcpClientAsync();
             var server = new FakeFileServer(client.GetStream(), content, packetSize);
@@ -168,15 +206,22 @@ public class FileTransferTests
             return server.Requests;
         }
 
-        private int Total => (content.Length + packetSize - 1) / packetSize;
+        private byte[] Content => content ?? [];
+
+        private int Total => (Content.Length + packetSize - 1) / packetSize;
 
         private Task SendAsync(IHostMessage message) => stream.WriteAsync(message.ToPacket().Encode()).AsTask();
 
-        private FileData Packet(int seq) => new(seq, content.Skip((seq - 1) * packetSize).Take(packetSize).ToArray());
+        private FileData Packet(int seq) => new(seq, Content.Skip((seq - 1) * packetSize).Take(packetSize).ToArray());
 
         public Task VisitAsync(FileTransferCommand message)
         {
             Requests.Add(message.Text);
+            if (content is null)
+            {
+                Done = true;
+                return SendAsync(new FileCancel());
+            }
             return SendAsync(new FileMd5(Convert.ToHexString(MD5.HashData(content)).ToLowerInvariant()));
         }
 

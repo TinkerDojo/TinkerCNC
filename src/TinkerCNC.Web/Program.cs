@@ -1,5 +1,6 @@
 using TinkerCNC.Host;
 using TinkerCNC.Web.Components;
+using TinkerCNC.Web.Localization;
 using TinkerCNC.Web.Services;
 
 namespace TinkerCNC.Web;
@@ -23,6 +24,8 @@ public static class Program
 
         builder.Services.AddTinkerCNCHost();
         builder.Services.AddScoped<UiPreferences>();
+        builder.Services.AddScoped<Texts>();
+        builder.Services.AddScoped<SystemNotifications>();
         builder.Services.AddSingleton<AppUpdates>();
         builder.Services.AddSingleton<AppInfo>();
         builder.Services.AddSingleton<DesktopWindow>();
@@ -42,6 +45,7 @@ public static class Program
         app.MapToolpathEndpoints();
         app.MapLegalEndpoints();
         app.MapDesktopEndpoints();
+        app.MapLanguageEndpoints();
         app.MapRazorComponents<App>()
             .AddInteractiveServerRenderMode();
         return app;

@@ -3,13 +3,13 @@
 @inherits JobControlComponent
 
 @{ var current = Tabs.First(t => t.Key == _tab); }
-<Dialog Title="Choose a program" Icon="folder" Class="dialog-wide" OnClose="OnClose">
+<Dialog Title="@T["Setups.Picker.Title"]" Icon="folder" Class="dialog-wide" OnClose="OnClose">
     <Tools>
         <div class="seg seg-sm">
             @foreach (var tab in Tabs)
             {
                 var t = tab;
-                <button class="@(t.Key == _tab ? "active" : "")" @onclick="() => _tab = t.Key"><Icon Name="@t.Icon" Size="14" /> @t.Label</button>
+                <button class="@(t.Key == _tab ? "active" : "")" @onclick="() => _tab = t.Key"><Icon Name="@t.Icon" Size="14" /> @T[t.Label]</button>
             }
         </div>
     </Tools>
@@ -17,19 +17,19 @@
         @current.Page(this)
         @if (_runner.Error is { } error)
         {
-            <p class="hint err">@error</p>
+            <p class="hint err">@T[error]</p>
         }
     </ChildContent>
 </Dialog>
 
 @code {
-    private sealed record TabPage(PickerTab Key, string Label, string Icon, Func<ProgramPicker, RenderFragment> Page);
+    private sealed record TabPage(PickerTab Key, Text Label, string Icon, Func<ProgramPicker, RenderFragment> Page);
 
     private static readonly TabPage[] Tabs =
     [
-        new(PickerTab.Setups, "Setups", "library", p => p.SetupsPage),
-        new(PickerTab.Machine, "On the machine", "cnc", p => p.MachinePage),
-        new(PickerTab.Computer, "This computer", "upload", p => p.ComputerPage),
+        new(PickerTab.Setups, Texts.Of("Setups.Picker.Setups"), "library", p => p.SetupsPage),
+        new(PickerTab.Machine, Texts.Of("Setups.Picker.Machine"), "cnc", p => p.MachinePage),
+        new(PickerTab.Computer, Texts.Of("Setups.Picker.Computer"), "upload", p => p.ComputerPage),
     ];
 
     private readonly ActionRunner _runner = new();

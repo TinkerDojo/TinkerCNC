@@ -1,0 +1,173 @@
+{
+  "$notes": {
+    "Bed.Alarm": "{0}: the move command",
+    "Bed.CantStart": "{0}: the state the machine reports (Run, Alarm…) or 'not reporting'",
+    "GoTo.NotIdle": "{0}: the state the machine reports, or 'unknown'",
+    "Notice.Cleared": "how an alarm notification was resolved: the alarm is gone",
+    "Notice.Continued": "the held job went on",
+    "Notice.Insert": "{0}: T3, or 'the probe' etc.",
+    "Notice.NamedTool": "tool number, then its name from the program",
+    "Notice.NextTool": "object of 'waiting for {0}' (German: accusative)",
+    "Notice.Over": "the held job ended meanwhile",
+    "Notice.ToolChange.Message": "{0}: T3, 'T3 (name)', 'the probe', 'the next tool'",
+    "Pause.CurrentPosition": "stands for a position that is not known",
+    "Program.Local": "{0}: where the program comes from; {1}: path on the machine",
+    "Queue.EndedEarlyAt": "{0}: the operation (T3 · Flat 3.175)",
+    "Queue.EntryFailed": "queue entry, then why it failed",
+    "Queue.Job": "a queue entry whose names are not known",
+    "Queue.Stopped": "why a queued job did not finish: Stop was pressed",
+    "Session.ReplyTimeout": "{0}: the command sent",
+    "Setup.Deleted": "{0}: a setup or one of its files",
+    "Start.NotIdle": "{0}: the state the machine reports, or 'not reporting'",
+    "State.NotReporting": "the machine sends no status, in place of its state",
+    "State.Unknown": "in place of the machine's state",
+    "Text.Sentences": "two sentences, one after the other"
+  },
+  "Air": {
+    "TypeUnknown": "The machine's type (read from its travel) is not known yet, so its air output isn't either."
+  },
+  "Bed": {
+    "Alarm": "The machine raised an alarm while moving ({0}).",
+    "CantStart": "Can't clean the bed while the machine is {0}.",
+    "FinishFailed": "Could not finish the bed cleaning: {0}",
+    "NoPosition": "The machine has not reported its position.",
+    "NotBack": "The head is not back where the program stopped ({0}, machine), so the job stays paused. Bring the head back there, at that height, before resuming: resuming moves straight to that point.",
+    "Running": "The bed is being cleaned already."
+  },
+  "Camera": {
+    "RecordingFailed": "Recording failed: {0}"
+  },
+  "GoTo": {
+    "NotIdle": "Moves to a position are only possible while the machine is idle, not {0}."
+  },
+  "Job": {
+    "Busy": "Busy with the previous request."
+  },
+  "Limits": {
+    "NoSoftLimits": "The machine's configuration has no soft limits (soft_endstop.x_min/y_min/z_min).",
+    "ReadFailed": "Could not read the travel limits: {0}",
+    "Unknown": "The machine's travel limits are not known yet."
+  },
+  "Machine": {
+    "NotConnected": "The machine is not connected."
+  },
+  "Notice": {
+    "Alarm.Message": "The machine reported an alarm.",
+    "Alarm.Title": "Alarm",
+    "Cleared": "Cleared",
+    "Confirm": "Confirm",
+    "Confirmed": "Confirmed",
+    "Continued": "Continued",
+    "Dismissed": "Dismissed",
+    "DoneOnMachine": "Done on the machine",
+    "Insert": "Insert {0}",
+    "NamedTool": "{0} ({1})",
+    "NextJob.Message": "{0} is on the machine, held before anything moves. Put the piece in place, then press the machine's button, or press Resume.",
+    "NextJob.Title": "Ready for the next job",
+    "NextTool": "the next tool",
+    "Over": "Over",
+    "Resume": "Resume",
+    "Resumed": "Resumed",
+    "ToolChange.Message": "The machine is waiting for {0}. Insert it, then confirm to continue the job.",
+    "ToolChange.Title": "Tool change waiting",
+    "Unlock": "Unlock ($X)",
+    "Unlocked": "Unlocked"
+  },
+  "Pause": {
+    "CurrentPosition": "the current position",
+    "HeadMoved": "The machine moved the head after pausing (from {0} to {1}), probably a pause routine in its configuration.",
+    "NoRest": "The head did not come to rest after pausing.",
+    "NotPaused": "The program could not be paused (machine is {0}).",
+    "Routine": "The machine runs \"{0}\" after pausing ({1} in its config.txt), which may move the head, so the job was not paused. Pause the job yourself to use the machine where the head ends up."
+  },
+  "Program": {
+    "ChooseFirst": "Choose a program first.",
+    "FromComputer": "from this computer",
+    "FromSetup": "setup \"{0}\"",
+    "FromSetupQueued": "setup \"{0}\", from the queue",
+    "LastJob": "the last job",
+    "Local": "{0}, uploaded to {1} when started",
+    "OnMachine": "on the machine, {0}",
+    "Queued": "from the queue",
+    "Stopped": "the job that stopped"
+  },
+  "Queue": {
+    "Alarm": "The machine raised an alarm: {0}.",
+    "AlreadyInSetup": "That file is one of the setup's files already.",
+    "BeforeFailed": "The job before the queue did not finish: {0}",
+    "BeforeFailed.Message": "The job before the queue did not finish: {0} Start the queue again once the machine is ready.",
+    "ConnectionLost": "The connection was lost.",
+    "CopyGone": "The queued copy is gone.",
+    "CopyMissing": "The queued copy of its file is missing.",
+    "EndedEarly": "The job ended before its last operation.",
+    "EndedEarlyAt": "The job ended before its last operation, at {0}.",
+    "EntryFailed": "{0}: {1}",
+    "EntryFailed.Message": "{0}: {1} Retry the entry (also from the operation it was at) or remove it, then start the queue again.",
+    "EntryGone": "That entry is gone.",
+    "EntryRunning": "That entry's job is on the machine.",
+    "FileDeleted": "\"{0}\" was deleted from the setup.",
+    "FileGone": "Its file was deleted from the setup.",
+    "Finished.Message": "Every job in the queue ran ({0}).",
+    "Finished.Title": "Queue finished",
+    "GateJob": "{0} (job {1} of {2})",
+    "HeadPositionOrigin": "\"{0}\" takes the work origin from where the head is, which is wherever the previous job ended in a queue. Set the origin by hand once and let the setup keep it, or use the bed corner or the XYZ probe.",
+    "HeadPositionRepeat": "This job takes its work origin from where the head is, which only works for the run started by hand: for further runs the head is wherever the previous one ended. Use the bed corner or the XYZ probe for repeated runs, or keep the origin.",
+    "Job": "job",
+    "NoAlarmMessage": "no message",
+    "NoSetup": "This file belongs to no setup. Save it to a setup on the Job card to keep it.",
+    "NotReady": "The machine has to be Idle or running a job to start the queue (it is {0}).",
+    "OnlyFailedRetried": "Only a failed entry is retried.",
+    "SetupGone": "Its setup no longer exists.",
+    "Stopped": "Stopped.",
+    "Stopped.Title": "Queue stopped"
+  },
+  "Restart": {
+    "LastProgramUnknown": "The last job's program is not known.",
+    "NoLastJob": "No job has ended yet.",
+    "NoSuchOperation": "The program has no such operation."
+  },
+  "Session": {
+    "ClosedByMachine": "Connection closed by the machine",
+    "ReplyTimeout": "No reply to \"{0}\" within {1:0} s.",
+    "StateTimeout": "The machine did not reach the expected state within {0:0} s.",
+    "Transferring": "The machine is busy with a file transfer and would ignore the command; try again when it is done."
+  },
+  "Setup": {
+    "Deleted": "\"{0}\" was deleted; restore it first.",
+    "FileGone": "That file no longer exists.",
+    "FileMissing": "The file \"{0}\" is missing ({1}). Replace it or delete it.",
+    "Gone": "That setup no longer exists.",
+    "NameRequired": "Give the setup a name.",
+    "NameTaken": "A setup called \"{0}\" already exists.",
+    "NameTooLong": "Names can have at most {0} characters.",
+    "NoneLoaded": "No setup is loaded.",
+    "OnlyDeletedFiles": "Only deleted files can be deleted for good.",
+    "OnlyDeletedSetups": "Only deleted setups can be deleted for good."
+  },
+  "Start": {
+    "Alarm": "The machine raised an alarm instead of starting: {0}",
+    "BedCleaning": "The bed is being cleaned.",
+    "NoFeedHold": "The machine did not take the feed hold (!), so the job could not wait for the go and was not started. Feed hold may be switched off in the machine's configuration (enable_feed_hold).",
+    "NotIdle": "Programs start only while the machine is Idle (it is {0}).",
+    "NotStarted": "The machine did not start the program. The commands queued for the start (probing, tool) stay queued until a program starts or the machine is reset, so reset it before trying again.",
+    "NotStartedAnswer": "The machine did not start the program (its last answer: \"{0}\"). The commands queued for the start (probing, tool) stay queued until a program starts or the machine is reset, so reset it before trying again.",
+    "Transferring": "The machine is busy with a file transfer."
+  },
+  "State": {
+    "NotReporting": "not reporting",
+    "Unknown": "unknown"
+  },
+  "Text": {
+    "Sentences": "{0} {1}"
+  },
+  "Time": {
+    "HoursAgo": "{0}h ago",
+    "JustNow": "just now",
+    "MinutesAgo": "{0}m ago",
+    "Never": "never",
+    "SecondsAgo": "{0}s ago"
+  },
+  "Timelapse": {
+    "CameraBusy": "The camera is already recording; the time-lapse was not started."
+  }
+}

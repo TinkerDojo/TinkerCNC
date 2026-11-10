@@ -1,9 +1,13 @@
 // 3D view of a program's toolpath with the tool head, used by Components/Job/ToolpathPanel.razor.
-// The toolpath comes from /toolpath/{address} (format in Services/ToolpathEndpoints.cs); only the moves already
-// executed are drawn, the camera frames the whole program. Renders only when something changes, so an idle view
+// The toolpath comes from /toolpath/{address} (format in Services/ToolpathEndpoints.cs). It is drawn in the machine's
+// space: once the machine is known, the machine (MachineScene: travel, bed, model) is around it and the toolpath and
+// the tool sit at the work origin, where the program really cuts. "live" draws only the moves already executed,
+// "preview" all of them, as they are once the job has run. Renders only when something changes, so an idle view
 // costs no CPU.
 import * as THREE from '../lib/three/three.module.min.js';
 import { FusionControls } from './fusion-controls.js';
+import { MachineScene, StockBlock } from './machine-scene.js';
+import { uiText } from './ui-texts.js';
 
 const MOVE_RAPID = 1; // ToolpathMove (Jump = 0 is never drawn)
 const MOVE_FEED = 2;
@@ -33,7 +37,7 @@ export function createToolpathView(container) {
     try {
         return new ToolpathView(container);
     } catch (error) {
-        container.textContent = `3D view unavailable: ${error.message}`;
+        container.textContent = uiText('viewUnavailable', '3D view unavailable: {0}', error.message);
         container.classList.add('toolpath-error');
         return null;
     }
@@ -53,26 +57,35 @@ class ToolpathView {
         sun.position.set(1, -2, 3);
         this.scene.add(sun);
 
-        this.camera = new THREE.PerspectiveCamera(40, 1, 0.1, 10000);
+        this.camera = new THREE.PerspectiveCamera(40, 1, 0.1, 100000);
         this.camera.up.set(0, 0, 1);
-        this.bounds = new THREE.Box3(new THREE.Vector3(0, 0, -10), new THREE.Vector3(100, 100, 10));
+        this.machine = new MachineScene(this.scene, () => this.onMachineChanged());
+        // Everything in work coordinates (toolpath, tool, grid, work axes) sits in this group, placed at the work origin.
+        this.work = new THREE.Group();
+        this.scene.add(this.work);
+        this.bounds = new THREE.Box3(new THREE.Vector3(0, 0, -10), new THREE.Vector3(100, 100, 10)); // of the toolpath, work coordinates
         this.decor = new THREE.Group();
-        this.scene.add(this.decor);
+        this.work.add(this.decor);
+        this.cutBounds = null; // of the feed moves, work coordinates: the stock's area
+        this.stock = new StockBlock(this.work);
         this.passes = [];
-        // the cursor is on the toolpath drawn so far or on the grid: orbits turn about that point, zooms head for it
+        // the cursor is on the toolpath, the grid or the machine: orbits turn about that point, zooms head for it
         this.controls = new FusionControls(this.camera, this.renderer.domElement,
-            () => [...this.passes.filter(p => p.object.visible).map(p => p.object), this.decor]);
+            () => [...this.passes.filter(p => p.object.visible).map(p => p.object), this.decor, this.machine.group]);
         this.controls.addEventListener('change', () => this.requestRender());
         this.rapidsVisible = true;
+        this.mode = 'live';
+        this.framing = 'iso';
+        this.placed = false; // framed since the work origin became known
 
         this.head = createHead();
         this.head.visible = false;
-        this.scene.add(this.head);
+        this.work.add(this.head);
         this.headTarget = null;
         this.tween = null;
         this.lastHeadUpdate = 0;
 
-        this.state = { doneLine: null, head: null, toolDiameter: null };
+        this.state = { doneLine: null, head: null, toolDiameter: null, workOrigin: null, machine: null };
         this.cutLine = 0; // moves before this line are drawn
         this.loadToken = 0;
         this.frame = 0;
@@ -104,15 +117,37 @@ class ToolpathView {
     }
 
     /**
-     * Progress and head: { doneLine, head: [x, y, z] | null, toolDiameter }. doneLine is the line being executed;
-     * null (no job running) keeps what was cut, so a finished job stays visible.
+     * Progress, head and where it is: { doneLine, head: [x, y, z] | null (work coordinates, on the part), toolDiameter,
+     * workOrigin: [x, y, z] | null (machine coordinates of work zero), machine: see MachineScene.set | null }.
+     * doneLine is the line being executed; null (no job running) keeps what was cut, so a finished job stays visible.
      */
     update(state) {
         this.state = state;
         if (state.doneLine != null) this.cutLine = state.doneLine;
+        const travelChanged = this.machine.set(state.machine);
+        this.work.position.set(...(this.inMachine ? state.workOrigin : [0, 0, 0]));
+        if (this.grid) this.grid.visible = !this.inMachine; // the machine's bed takes its place
         this.applyProgress();
+        this.showStock();
         this.moveHead(state.head);
         this.sizeHead();
+        this.moveSpindle();
+        if (travelChanged || (this.inMachine && !this.placed)) {
+            this.placed = this.inMachine;
+            this.setView(this.framing);
+        }
+        this.requestRender();
+    }
+
+    /** Whether the toolpath is shown in the machine (its travel and the work origin are known). */
+    get inMachine() {
+        return this.machine.known && !!this.state.workOrigin;
+    }
+
+    /** 'live': the moves executed so far; 'preview': every move, as once the job has run. */
+    setMode(mode) {
+        this.mode = mode;
+        this.applyProgress();
         this.requestRender();
     }
 
@@ -122,11 +157,16 @@ class ToolpathView {
         this.requestRender();
     }
 
-    /** 'iso', 'top', 'front', 'right', or 'fit' (keep the direction, frame the whole path). */
+    /**
+     * 'iso', 'top', 'front', 'right' (frame the path from there), 'fit' (keep the direction, frame the whole path) or
+     * 'machine' (keep the direction, frame the whole machine).
+     */
     setView(name) {
+        this.framing = name === 'fit' ? this.framing : name;
         const direction = (VIEWS[name] ?? this.camera.position.clone().sub(this.controls.target)).clone().normalize();
-        const centre = this.bounds.getCenter(new THREE.Vector3());
-        const distance = this.fitDistance(centre, direction);
+        const box = (name === 'machine' && this.machine.bounds()) || this.pathBox();
+        const centre = box.getCenter(new THREE.Vector3());
+        const distance = this.fitDistance(box, centre, direction);
 
         this.camera.near = distance / 1000;
         this.camera.far = distance * 100;
@@ -142,13 +182,13 @@ class ToolpathView {
      * Camera distance at which every corner of the bounds is inside the view: seen from a camera one unit from the
      * centre, a corner at view (x, y, z) fits once the camera is |x| / tan(half width) + z + 1 away (z < 0 in front).
      */
-    fitDistance(centre, direction) {
+    fitDistance(box, centre, direction) {
         const tanV = Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2));
         const tanH = tanV * this.camera.aspect;
         this.camera.position.copy(centre).add(direction);
         this.camera.lookAt(centre);
         this.camera.updateMatrixWorld();
-        const { min, max } = this.bounds;
+        const { min, max } = box;
         let distance = 1;
         for (const x of [min.x, max.x]) for (const y of [min.y, max.y]) for (const z of [min.z, max.z]) {
             const v = new THREE.Vector3(x, y, z).applyMatrix4(this.camera.matrixWorldInverse);
@@ -157,11 +197,36 @@ class ToolpathView {
         return distance * 1.08;
     }
 
+    /** In the machine, the stock from the bed up to work zero under the cutting moves (work coordinates). */
+    showStock() {
+        const bedZ = this.machine.bedZ;
+        if (!this.inMachine || bedZ == null || !this.cutBounds) {
+            this.stock.show(null, null);
+            return;
+        }
+        const { min, max } = this.cutBounds;
+        this.stock.show([min.x, min.y, bedZ - this.work.position.z], [max.x, max.y, 0]);
+    }
+
+    /** The toolpath's extent where it is drawn (at the work origin in the machine). */
+    pathBox() {
+        return this.bounds.clone().translate(this.work.position);
+    }
+
+    /** The model arrived: frame again when the view shows the whole machine. */
+    onMachineChanged() {
+        if (this.framing === 'machine') this.setView('machine');
+        this.sizeHead();
+        this.moveSpindle();
+        this.requestRender();
+    }
+
     dispose() {
         this.disposed = true;
         cancelAnimationFrame(this.frame);
         this.resizeObserver.disconnect();
         this.controls.dispose();
+        this.machine.dispose();
         this.removePasses();
         this.scene.traverse(o => { o.geometry?.dispose(); o.material?.dispose(); });
         this.renderer.dispose();
@@ -183,10 +248,12 @@ class ToolpathView {
 
         this.cutLine = this.state.doneLine ?? 0;
         this.bounds = boundsOf(path);
+        this.cutBounds = boundsOf(path, MOVE_FEED);
+        this.showStock();
         this.buildDecor();
         this.applyProgress();
         this.sizeHead();
-        this.setView('fit');
+        this.setView(this.framing === 'machine' ? 'machine' : 'fit');
     }
 
     /** The moves of one kind; the draw range grows with the progress. */
@@ -198,13 +265,13 @@ class ToolpathView {
         const object = new THREE.LineSegments(geometry, material);
         object.frustumCulled = false;
         object.visible = !rapid || this.rapidsVisible;
-        this.scene.add(object);
+        this.work.add(object);
         this.passes.push({ object, rapid, lines: pairs.lines });
     }
 
     removePasses() {
         for (const pass of this.passes) {
-            this.scene.remove(pass.object);
+            this.work.remove(pass.object);
             pass.object.geometry.dispose();
             pass.object.material.dispose();
         }
@@ -213,11 +280,12 @@ class ToolpathView {
 
     applyProgress() {
         for (const pass of this.passes) {
-            pass.object.geometry.setDrawRange(0, countBelow(pass.lines, this.cutLine) * 2);
+            const pairs = this.mode === 'preview' ? pass.lines.length : countBelow(pass.lines, this.cutLine);
+            pass.object.geometry.setDrawRange(0, pairs * 2);
         }
     }
 
-    /** A grid under the lowest point and the work origin's axes, sized to the toolpath. */
+    /** A grid under the lowest point (outside the machine) and the work origin's axes, sized to the toolpath. */
     buildDecor() {
         for (const child of [...this.decor.children]) {
             this.decor.remove(child);
@@ -231,7 +299,9 @@ class ToolpathView {
         const grid = new THREE.GridHelper(extent, Math.round(extent / step), COLORS.gridCentre, COLORS.grid);
         grid.rotation.x = Math.PI / 2;
         grid.position.set(Math.round(centre.x / step) * step, Math.round(centre.y / step) * step, this.bounds.min.z);
+        grid.visible = !this.inMachine;
         this.decor.add(grid);
+        this.grid = grid;
 
         const axes = new THREE.AxesHelper(Math.max(size.length() * 0.08, 5));
         axes.material.depthTest = false;
@@ -261,11 +331,23 @@ class ToolpathView {
         this.lastHeadUpdate = now;
     }
 
-    /** True diameter, but never smaller than 0.4 % of the part so it stays findable on large jobs. */
+    /**
+     * True diameter; in the machine's spindle exactly that, otherwise never smaller than 0.4 % of the part so it stays
+     * findable on large jobs.
+     */
     sizeHead() {
         const diameter = this.state.toolDiameter ?? DEFAULT_TOOL_DIAMETER;
-        const visible = Math.max(diameter, this.bounds.getSize(new THREE.Vector3()).length() * 0.004);
+        const visible = this.inMachine && this.machine.hasSpindle
+            ? diameter
+            : Math.max(diameter, this.bounds.getSize(new THREE.Vector3()).length() * 0.004);
         this.head.scale.setScalar(visible);
+    }
+
+    /** The model's spindle follows the drawn tool (also while it glides), in machine coordinates. */
+    moveSpindle() {
+        if (!this.inMachine || !this.head.visible) return;
+        const tool = this.head.position.clone().add(this.work.position);
+        this.machine.moveSpindle(tool.toArray(), this.state.toolDiameter ?? DEFAULT_TOOL_DIAMETER);
     }
 
     // ---------- rendering ----------
@@ -294,6 +376,7 @@ class ToolpathView {
         const { from, to, start, duration } = this.tween;
         const fraction = duration > 0 ? Math.min(1, (time - start) / duration) : 1;
         this.head.position.lerpVectors(from, to, fraction);
+        this.moveSpindle();
         if (fraction < 1) this.requestRender();
         else this.tween = null;
     }
@@ -344,10 +427,18 @@ function toolColors(path, segments) {
     return colors;
 }
 
-function boundsOf(path) {
+/** Extent of every point, or of the ends of one kind of move (a feed move's start is the previous point). */
+function boundsOf(path, move) {
     const box = new THREE.Box3();
     const point = new THREE.Vector3();
-    for (let k = 0; k < path.count; k++) box.expandByPoint(point.fromArray(path.positions, k * 3));
+    for (let k = 0; k < path.count; k++) {
+        if (move === undefined) box.expandByPoint(point.fromArray(path.positions, k * 3));
+        else if (k > 0 && path.moves[k] === move) {
+            box.expandByPoint(point.fromArray(path.positions, (k - 1) * 3));
+            box.expandByPoint(point.fromArray(path.positions, k * 3));
+        }
+    }
+    if (move !== undefined) return box.isEmpty() ? null : box;
     return box.isEmpty() ? new THREE.Box3(new THREE.Vector3(0, 0, -10), new THREE.Vector3(100, 100, 10)) : box;
 }
 

@@ -131,6 +131,21 @@ public static class GCodeEstimator
         return GCodeAnalysis.Build(lines, steps, metadata, machineLines);
     }
 
+    /// <summary>
+    /// Where a program is just before <paramref name="line"/> (1-based): its modal state, the tool's position (work
+    /// coordinates, mm) and the tool in the spindle, by walking the lines before it.
+    /// </summary>
+    internal static ProgramPoint StateBefore(IReadOnlyList<string> lines, int line, HeaderMetadata metadata, EstimatorSettings? settings = null)
+    {
+        var effective = (settings ?? EstimatorSettings.Default) with
+        {
+            RapidFeedMmPerMin = metadata.MaxFeedRate ?? (settings ?? EstimatorSettings.Default).RapidFeedMmPerMin,
+        };
+        var state = new EstimatorState(effective);
+        foreach (var text in lines.Take(Math.Clamp(line - 1, 0, lines.Count))) Step(state, GCodeLine.Parse(text));
+        return new ProgramPoint(state.Modal, state.Position, state.Tool);
+    }
+
     private static LineStep Step(EstimatorState state, GCodeLine line)
     {
         state.LineSeconds = 0;
@@ -164,6 +179,9 @@ public static class GCodeEstimator
     /// <summary>Smoothieware semantics: G4 P is milliseconds, G4 S is seconds.</summary>
     private static double DwellSeconds(GCodeLine line) => (line['S'] ?? 0) + (line['P'] ?? 0) / 1000.0;
 }
+
+/// <summary>A program's state between two lines: modal state, tool position (work coordinates, mm), tool in the spindle.</summary>
+public sealed record ProgramPoint(ModalState Modal, Point4 Position, int? Tool);
 
 /// <param name="Path">Points the line's move passes through after its start (empty without a move).</param>
 /// <param name="ModalBefore">The modal state before the line, kept for lines with a tool change (null elsewhere).</param>

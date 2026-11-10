@@ -1,0 +1,149 @@
+{
+  "Air": {
+    "TypeUnknown": "Le type de la machine (déduit de sa course) n'est pas encore connu, sa sortie d'air non plus."
+  },
+  "Bed": {
+    "Alarm": "La machine a déclenché une alarme pendant le déplacement ({0}).",
+    "CantStart": "Impossible de nettoyer le plateau dans l'état actuel de la machine ({0}).",
+    "FinishFailed": "Impossible de terminer le nettoyage du plateau : {0}",
+    "NoPosition": "La machine n'a pas indiqué sa position.",
+    "NotBack": "La tête n'est pas revenue là où le programme s'est arrêté ({0}, machine) : la tâche reste en pause. Ramenez la tête à cet endroit, à cette hauteur, avant de reprendre : la reprise va directement à ce point.",
+    "Running": "Le plateau est déjà en cours de nettoyage."
+  },
+  "Camera": {
+    "RecordingFailed": "Échec de l'enregistrement : {0}"
+  },
+  "GoTo": {
+    "NotIdle": "Les déplacements vers une position ne sont possibles que lorsque la machine est prête (état : {0})."
+  },
+  "Job": {
+    "Busy": "La demande précédente est encore en cours."
+  },
+  "Limits": {
+    "NoSoftLimits": "La configuration de la machine ne définit aucune limite logicielle (soft_endstop.x_min/y_min/z_min).",
+    "ReadFailed": "Impossible de lire les limites de course : {0}",
+    "Unknown": "Les limites de course de la machine ne sont pas encore connues."
+  },
+  "Machine": {
+    "NotConnected": "La machine n'est pas connectée."
+  },
+  "Notice": {
+    "Alarm.Message": "La machine a signalé une alarme.",
+    "Alarm.Title": "Alarme",
+    "Cleared": "Levée",
+    "Confirm": "Confirmer",
+    "Confirmed": "Confirmé",
+    "Continued": "Poursuivie",
+    "Dismissed": "Ignorée",
+    "DoneOnMachine": "Effectué sur la machine",
+    "Insert": "Insérer {0}",
+    "NamedTool": "{0} ({1})",
+    "NextJob.Message": "{0} est sur la machine, en attente avant tout mouvement. Mettez la pièce en place, puis appuyez sur le bouton de la machine ou sur « Reprendre ».",
+    "NextJob.Title": "Prêt pour la tâche suivante",
+    "NextTool": "l'outil suivant",
+    "Over": "Terminée",
+    "Resume": "Reprendre",
+    "Resumed": "Reprise",
+    "ToolChange.Message": "La machine attend {0}. Insérez-le, puis confirmez pour poursuivre la tâche.",
+    "ToolChange.Title": "Changement d'outil en attente",
+    "Unlock": "Déverrouiller ($X)",
+    "Unlocked": "Déverrouillée"
+  },
+  "Pause": {
+    "CurrentPosition": "la position actuelle",
+    "HeadMoved": "La machine a déplacé la tête après la pause (de {0} à {1}), probablement à cause d'une routine de pause dans sa configuration.",
+    "NoRest": "La tête ne s'est pas immobilisée après la pause.",
+    "NotPaused": "Le programme n'a pas pu être mis en pause (état de la machine : {0}).",
+    "Routine": "La machine exécute « {0} » après une pause ({1} dans son config.txt), ce qui peut déplacer la tête : la tâche n'a donc pas été mise en pause. Mettez vous-même la tâche en pause pour utiliser la machine là où la tête s'arrête."
+  },
+  "Program": {
+    "ChooseFirst": "Choisissez d'abord un programme.",
+    "FromComputer": "depuis cet ordinateur",
+    "FromSetup": "configuration « {0} »",
+    "FromSetupQueued": "configuration « {0} », depuis la file d'attente",
+    "LastJob": "la dernière tâche",
+    "Local": "{0}, envoyé vers {1} au démarrage",
+    "OnMachine": "sur la machine, {0}",
+    "Queued": "depuis la file d'attente",
+    "Stopped": "la tâche arrêtée"
+  },
+  "Queue": {
+    "Alarm": "La machine a déclenché une alarme : {0}.",
+    "AlreadyInSetup": "Ce fichier fait déjà partie des fichiers de la configuration.",
+    "BeforeFailed": "La tâche précédant la file d'attente ne s'est pas terminée : {0}",
+    "BeforeFailed.Message": "La tâche précédant la file d'attente ne s'est pas terminée : {0} Relancez la file d'attente dès que la machine est prête.",
+    "ConnectionLost": "La connexion a été perdue.",
+    "CopyGone": "La copie mise en file d'attente n'existe plus.",
+    "CopyMissing": "La copie de son fichier dans la file d'attente est introuvable.",
+    "EndedEarly": "La tâche s'est terminée avant sa dernière opération.",
+    "EndedEarlyAt": "La tâche s'est terminée avant sa dernière opération, à {0}.",
+    "EntryFailed": "{0} : {1}",
+    "EntryFailed.Message": "{0} : {1} Relancez l'entrée (éventuellement à partir de l'opération où elle s'est arrêtée) ou retirez-la, puis relancez la file d'attente.",
+    "EntryGone": "Cette entrée n'existe plus.",
+    "EntryRunning": "La tâche de cette entrée est sur la machine.",
+    "FileDeleted": "« {0} » a été supprimé de la configuration.",
+    "FileGone": "Son fichier a été supprimé de la configuration.",
+    "Finished.Message": "Toutes les tâches de la file d'attente ont été exécutées ({0}).",
+    "Finished.Title": "File d'attente terminée",
+    "GateJob": "{0} (tâche {1} sur {2})",
+    "HeadPositionOrigin": "« {0} » prend l'origine pièce à la position de la tête, qui, dans une file d'attente, est là où la tâche précédente s'est terminée. Définissez l'origine une fois à la main et laissez la configuration la conserver, ou utilisez le coin du plateau ou le palpeur XYZ.",
+    "HeadPositionRepeat": "Cette tâche prend son origine pièce à la position de la tête, ce qui ne vaut que pour le passage lancé à la main : pour les suivants, la tête est là où le précédent s'est terminé. Utilisez le coin du plateau ou le palpeur XYZ pour des passages répétés, ou conservez l'origine.",
+    "Job": "tâche",
+    "NoAlarmMessage": "aucun message",
+    "NoSetup": "Ce fichier n'appartient à aucune configuration. Enregistrez-le dans une configuration depuis la carte de la tâche pour le conserver.",
+    "NotReady": "La machine doit être prête ou exécuter une tâche pour lancer la file d'attente (état : {0}).",
+    "OnlyFailedRetried": "Seule une entrée en échec peut être relancée.",
+    "SetupGone": "Sa configuration n'existe plus.",
+    "Stopped": "Arrêtée.",
+    "Stopped.Title": "File d'attente arrêtée"
+  },
+  "Restart": {
+    "LastProgramUnknown": "Le programme de la dernière tâche n'est pas connu.",
+    "NoLastJob": "Aucune tâche n'est encore terminée.",
+    "NoSuchOperation": "Le programme n'a pas cette opération."
+  },
+  "Session": {
+    "ClosedByMachine": "Connexion fermée par la machine",
+    "ReplyTimeout": "Aucune réponse à « {0} » en {1:0} s.",
+    "StateTimeout": "La machine n'a pas atteint l'état attendu en {0:0} s.",
+    "Transferring": "La machine est occupée par un transfert de fichier et ignorerait la commande ; réessayez une fois le transfert terminé."
+  },
+  "Setup": {
+    "Deleted": "« {0} » a été supprimé ; restaurez-le d'abord.",
+    "FileGone": "Ce fichier n'existe plus.",
+    "FileMissing": "Le fichier « {0} » est introuvable ({1}). Remplacez-le ou supprimez-le.",
+    "Gone": "Cette configuration n'existe plus.",
+    "NameRequired": "Donnez un nom à la configuration.",
+    "NameTaken": "Une configuration nommée « {0} » existe déjà.",
+    "NameTooLong": "Les noms peuvent comporter au plus {0} caractères.",
+    "NoneLoaded": "Aucune configuration n'est chargée.",
+    "OnlyDeletedFiles": "Seuls les fichiers supprimés peuvent être supprimés définitivement.",
+    "OnlyDeletedSetups": "Seules les configurations supprimées peuvent être supprimées définitivement."
+  },
+  "Start": {
+    "Alarm": "La machine a déclenché une alarme au lieu de démarrer : {0}",
+    "BedCleaning": "Le plateau est en cours de nettoyage.",
+    "NoFeedHold": "La machine n'a pas pris en compte l'arrêt d'avance (!) : la tâche n'a donc pas pu attendre le feu vert et n'a pas été lancée. L'arrêt d'avance est peut-être désactivé dans la configuration de la machine (enable_feed_hold).",
+    "NotIdle": "Les programmes ne démarrent que lorsque la machine est prête (état : {0}).",
+    "NotStarted": "La machine n'a pas démarré le programme. Les commandes mises en attente pour le démarrage (palpage, outil) le restent jusqu'au démarrage d'un programme ou à la réinitialisation de la machine : réinitialisez-la avant de réessayer.",
+    "NotStartedAnswer": "La machine n'a pas démarré le programme (sa dernière réponse : « {0} »). Les commandes mises en attente pour le démarrage (palpage, outil) le restent jusqu'au démarrage d'un programme ou à la réinitialisation de la machine : réinitialisez-la avant de réessayer.",
+    "Transferring": "La machine est occupée par un transfert de fichier."
+  },
+  "State": {
+    "NotReporting": "aucun état signalé",
+    "Unknown": "inconnu"
+  },
+  "Text": {
+    "Sentences": "{0} {1}"
+  },
+  "Time": {
+    "HoursAgo": "il y a {0} h",
+    "JustNow": "à l'instant",
+    "MinutesAgo": "il y a {0} min",
+    "Never": "jamais",
+    "SecondsAgo": "il y a {0} s"
+  },
+  "Timelapse": {
+    "CameraBusy": "La caméra enregistre déjà ; le timelapse n'a pas été lancé."
+  }
+}

@@ -46,7 +46,9 @@ public sealed class MachineSession : IAsyncDisposable
     public string Host { get; }
     public string Name { get; internal set; }
     public SessionState State { get; private set; }
-    public string? Error { get; private set; }
+
+    /// <summary>Why the connection failed or dropped, or null.</summary>
+    public Text? Error { get; private set; }
     public StatusReport? Status { get; private set; }
     public DateTime? StatusUtc { get; private set; }
     public string? LastAlarm { get; private set; }
@@ -84,7 +86,7 @@ public sealed class MachineSession : IAsyncDisposable
         machine.Disconnected += ex =>
         {
             State = SessionState.Failed;
-            Error = ex?.Message ?? "Connection closed by the machine";
+            Error = ex is null ? HostTexts.Of("Session.ClosedByMachine") : Text.Of(ex);
             ConnectedSinceUtc = null;
             Append(LogKind.Error, $"Disconnected: {Error}");
         };
@@ -102,7 +104,7 @@ public sealed class MachineSession : IAsyncDisposable
         {
             await machine.DisposeAsync();
             State = SessionState.Failed;
-            Error = ex.Message;
+            Error = Text.Of(ex);
             Append(LogKind.Error, $"Connection failed: {ex.Message}");
             throw;
         }
@@ -164,16 +166,20 @@ public sealed class MachineSession : IAsyncDisposable
     public async Task GoToAsync(GoToRequest request)
     {
         if (Limits.Travel is not { } travel)
-            throw new InvalidOperationException(Limits.Error ?? "The machine's travel limits are not known yet.");
+            throw new LocalizedException(Limits.Error ?? HostTexts.Of("Limits.Unknown"));
         if (Status is not { } status || !IsIdle(status))
-            throw new InvalidOperationException($"Moves to a position are only possible while the machine is idle, not {Status?.State ?? "unknown"}.");
+            throw new LocalizedException(HostTexts.Of("GoTo.NotIdle", Status?.State is { } state ? Text.Plain(state) : HostTexts.Of("State.Unknown")));
         var plan = GoToPlanner.Plan(request, status, travel);
-        if (!plan.IsValid) throw new InvalidOperationException(string.Join(" ", plan.Errors.Values));
+        if (!plan.IsValid) throw new LocalizedException(plan.Errors.Values.Aggregate((a, b) => HostTexts.Of("Text.Sentences", a, b)));
         foreach (var command in plan.Commands) await SendAsync(command);
     }
 
     public static bool IsIdle(StatusReport? status) =>
         status?.State?.StartsWith("Idle", StringComparison.OrdinalIgnoreCase) == true;
+
+    /// <summary>The state the machine reports, as it reports it, for messages; "not reporting" without a status.</summary>
+    public static Text StateOf(StatusReport? status) =>
+        status?.State is { } state ? Text.Plain(state) : HostTexts.Of("State.NotReporting");
 
     /// <summary>Asks the machine which file it is running (0xB7).</summary>
     public Task<RunningFile?> QueryRunningFileAsync(CancellationToken ct = default) =>
@@ -191,17 +197,30 @@ public sealed class MachineSession : IAsyncDisposable
         return result;
     }
 
-    /// <summary>Uploads a file to the machine's SD card, replacing a file of that name.</summary>
-    public async Task UploadAsync(string remotePath, byte[] content, IProgress<UploadProgress>? progress = null, CancellationToken ct = default)
+    /// <summary>
+    /// Uploads a file to the machine's SD card, replacing a file of that name, unless the machine already has it with
+    /// the same content: the MD5 it announces for that path (asked without transferring anything) is compared first,
+    /// so running the same program again does not send it again. Returns whether the file was transferred.
+    /// </summary>
+    public async Task<bool> UploadAsync(string remotePath, byte[] content, IProgress<UploadProgress>? progress = null, CancellationToken ct = default)
     {
-        Append(LogKind.System, $"Uploading {remotePath} ({content.Length:N0} bytes)…");
-        await ExclusiveAsync(async m =>
+        var md5 = GCodeCache.Md5Of(content);
+        var transferred = await ExclusiveAsync(async m =>
         {
+            var onMachine = await new FileDownloader(m) { MaxRetries = Md5ProbeRetries }.AnnouncedMd5Async(remotePath, ct);
+            if (string.Equals(onMachine, md5, StringComparison.OrdinalIgnoreCase)) return false;
+            Append(LogKind.System, $"Uploading {remotePath} ({content.Length:N0} bytes)…");
             await new FileUploader(m).UploadAsync(remotePath, content, progress, ct);
             return true;
         }, ct);
-        Append(LogKind.System, $"Uploaded {remotePath}");
+        Append(LogKind.System, transferred
+            ? $"Uploaded {remotePath}"
+            : $"{remotePath} is already on the machine (MD5 {md5}): not uploaded again");
+        return transferred;
     }
+
+    /// <summary>The MD5 question is only a shortcut: without a quick answer the file is simply uploaded.</summary>
+    private const int Md5ProbeRetries = 1;
 
     /// <summary>Lists a directory on the machine's SD card.</summary>
     public async Task<IReadOnlyList<RemoteEntry>> ListFilesAsync(string directory, CancellationToken ct = default)
@@ -235,11 +254,11 @@ public sealed class MachineSession : IAsyncDisposable
 
     /// <summary>The machine, when it can take a command now: during a transfer it would silently drop it.</summary>
     private MachineConnection RequireCommandLine() => Transferring
-        ? throw new InvalidOperationException("The machine is busy with a file transfer and would ignore the command; try again when it is done.")
+        ? throw new LocalizedException(HostTexts.Of("Session.Transferring"))
         : RequireMachine();
 
     private MachineConnection RequireMachine() =>
-        _machine is { IsConnected: true } m ? m : throw new InvalidOperationException("The machine is not connected.");
+        _machine is { IsConnected: true } m ? m : throw new LocalizedException(HostTexts.Of("Machine.NotConnected"));
 
     private void Append(LogKind kind, string text, bool notify = true)
     {
@@ -275,7 +294,7 @@ public sealed class MachineSession : IAsyncDisposable
             }
             catch (OperationCanceledException) when (!ct.IsCancellationRequested)
             {
-                throw new TimeoutException($"The machine did not reach the expected state within {timeout.TotalSeconds:0} s.");
+                throw new LocalizedTimeoutException(HostTexts.Of("Session.StateTimeout", timeout.TotalSeconds));
             }
         }
         finally
@@ -306,7 +325,7 @@ public sealed class MachineSession : IAsyncDisposable
             }
             catch (OperationCanceledException) when (!ct.IsCancellationRequested)
             {
-                throw new TimeoutException($"No reply to \"{command}\" within {timeout.TotalSeconds:0} s.");
+                throw new LocalizedTimeoutException(HostTexts.Of("Session.ReplyTimeout", command, timeout.TotalSeconds));
             }
         }
         finally

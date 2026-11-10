@@ -16,7 +16,7 @@ public sealed class MachineLimits(MachineSession session)
     public MachineTravel? Travel { get; private set; }
 
     /// <summary>Why the travel is unknown (machine did not answer, settings missing), or null.</summary>
-    public string? Error { get; private set; }
+    public Text? Error { get; private set; }
 
     public bool Loading { get; private set; }
 
@@ -36,7 +36,7 @@ public sealed class MachineLimits(MachineSession session)
                 await Task.Delay(QueryGap, ct);
             }
             Travel = MachineTravel.FromConfig(values);
-            Error = Travel is null ? "The machine's configuration has no soft limits (soft_endstop.x_min/y_min/z_min)." : null;
+            Error = Travel is null ? HostTexts.Of("Limits.NoSoftLimits") : null;
             if (Travel is { } t)
                 session.Note(FormattableString.Invariant(
                     $"Travel: X {t.X.Min:0.###}…{t.X.Max:0.###}, Y {t.Y.Min:0.###}…{t.Y.Max:0.###}, Z {t.Z.Min:0.###}…{t.Z.Max:0.###} mm (machine coordinates)"));
@@ -44,7 +44,7 @@ public sealed class MachineLimits(MachineSession session)
         catch (Exception ex) when (ex is TimeoutException or InvalidOperationException)
         {
             Travel = null;
-            Error = $"Could not read the travel limits: {ex.Message}";
+            Error = HostTexts.Of("Limits.ReadFailed", Text.Of(ex));
         }
         finally
         {

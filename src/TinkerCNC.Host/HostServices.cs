@@ -13,7 +13,9 @@ public static class HostServices
     {
         services.AddSingleton<AppPaths>();
         services.AddSingleton<FrameHub>();
+        services.AddSingleton<IFrameDecoder, SkiaFrameDecoder>();
         services.AddSingleton<RecordingStore>();
+        services.AddHostedService<RecordingRecovery>();
         services.AddSingleton<MachineDirectory>();
         services.AddSingleton<MachineSessionManager>();
         services.AddSingleton<CameraService>();
@@ -24,11 +26,13 @@ public static class HostServices
         services.AddSingleton(sp => new SetupRepository(sp.GetRequiredService<AppDatabase>()));
         services.AddSingleton<SetupLibrary>();
         services.AddSingleton(sp => new QueueRepository(sp.GetRequiredService<AppDatabase>()));
+        services.AddSingleton(sp => new Recovery.JobSnapshotRepository(sp.GetRequiredService<AppDatabase>()));
         services.AddSingleton<JobTrackers>();
         services.AddSingleton<JobOptionsStore>();
         services.AddSingleton<JobControls>();
         services.AddSingleton<JobQueues>();
         services.AddSingleton<NotificationCenter>();
+        services.AddSingleton<JobRecoveries>();
         services.AddSingleton<DiscoveryService>();
         services.AddHostedService(sp => sp.GetRequiredService<DiscoveryService>());
         services.AddHostedService<MachineWatchers>();
@@ -37,8 +41,8 @@ public static class HostServices
 }
 
 /// <summary>
-/// Creates the per-machine watchers at start-up, so operations are timed and notifications collected for every
-/// connected machine whether or not anyone has a dashboard open.
+/// Creates the per-machine watchers at start-up, so operations are timed, notifications collected and running jobs
+/// kept for a resume for every connected machine whether or not anyone has a dashboard open.
 /// </summary>
 internal sealed class MachineWatchers(IServiceProvider services) : IHostedService
 {
@@ -46,6 +50,7 @@ internal sealed class MachineWatchers(IServiceProvider services) : IHostedServic
     {
         services.GetRequiredService<JobTrackers>();
         services.GetRequiredService<NotificationCenter>();
+        services.GetRequiredService<JobRecoveries>();
         return Task.CompletedTask;
     }
 

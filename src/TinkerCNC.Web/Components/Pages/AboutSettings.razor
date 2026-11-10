@@ -4,24 +4,22 @@
 @inject AppPaths Paths
 @inject AppInfo Info
 
-<PageTitle>About · Settings · TinkerCNC</PageTitle>
+<PageTitle>@T["Pages.About.PageTitle"]</PageTitle>
 
 <header class="page-head">
     <div>
-        <h1>About TinkerCNC</h1>
+        <h1>@T["Pages.About.Title"]</h1>
         <p class="muted">@Info.Copyright</p>
     </div>
 </header>
 
 <section class="card settings-card">
-    <div class="card-head"><h2><Icon Name="info" /> License</h2></div>
+    <div class="card-head"><h2><Icon Name="info" /> @T["Pages.About.License"]</h2></div>
     <p class="about-text">
-        TinkerCNC is free software: you can use, study, change and share it under the terms of the
-        @AppInfo.LicenseName (@AppInfo.License). It comes with <b>no warranty</b>; it controls machine tools, so check
-        every program and setting before running it.
+        @T.Html("Pages.About.LicenseText", AppInfo.LicenseName, AppInfo.License)
     </p>
     <dl class="facts">
-        <dt>Source code</dt>
+        <dt>@T["Pages.About.SourceCode"]</dt>
         <dd class="mono">
             @if (Info.SourceUrl is { } source)
             {
@@ -29,44 +27,44 @@
             }
             else
             {
-                <text>not configured (TinkerCNC:SourceUrl)</text>
+                <text>@T["Pages.About.NotConfigured", "TinkerCNC:SourceUrl"]</text>
             }
         </dd>
-        <dt>Documents</dt>
+        <dt>@T["Pages.About.Documents"]</dt>
         <dd class="legal-links">
             @foreach (var (file, title) in AppInfo.LegalFiles)
             {
-                <a href="@($"legal/{file}")" target="_blank">@title</a>
+                <a href="@($"legal/{file}")" target="_blank">@T[title]</a>
             }
         </dd>
     </dl>
 </section>
 
 <section class="card settings-card">
-    <div class="card-head"><h2><Icon Name="refresh" /> Version and updates</h2></div>
+    <div class="card-head"><h2><Icon Name="refresh" /> @T["Pages.About.Updates"]</h2></div>
     <dl class="facts">
-        <dt>Version</dt>
-        <dd class="mono">@Updates.CurrentVersion @(Updates.IsInstalled ? "" : "(development build)")</dd>
-        <dt>Release feed</dt>
-        <dd class="mono">@(Updates.Feed ?? "not configured (TinkerCNC:Updates:Url)")</dd>
-        <dt>Data folder</dt>
+        <dt>@T["Pages.About.Version"]</dt>
+        <dd class="mono">@Updates.CurrentVersion @(Updates.IsInstalled ? "" : T["Pages.About.DevelopmentBuild"])</dd>
+        <dt>@T["Pages.About.Feed"]</dt>
+        <dd class="mono">@(Updates.Feed ?? T["Pages.About.NotConfigured", "TinkerCNC:Updates:Url"])</dd>
+        <dt>@T["Pages.About.DataFolder"]</dt>
         <dd class="mono">@Paths.DataDirectory</dd>
         @if (Updates.CheckedUtc is { } checkedUtc)
         {
-            <dt>Last check</dt>
-            <dd>@TimeFormat.Clock(checkedUtc) · @(Updates.AvailableVersion is { } v ? $"version {v} is available" : "up to date")</dd>
+            <dt>@T["Pages.About.LastCheck"]</dt>
+            <dd>@TimeFormat.Clock(checkedUtc, T.Culture) · @(Updates.AvailableVersion is { } v ? T["Pages.About.Available", v] : T["Pages.About.UpToDate"])</dd>
         }
     </dl>
 
     <div class="settings-actions">
-        <button class="btn btn-ghost" disabled="@(!Updates.CanUpdate || _busy)" @onclick="CheckAsync"><Icon Name="refresh" /> Check for updates</button>
+        <button class="btn btn-ghost" disabled="@(!Updates.CanUpdate || _busy)" @onclick="CheckAsync"><Icon Name="refresh" /> @T["Pages.About.Check"]</button>
         @if (Updates.AvailableVersion is { } available)
         {
-            <button class="btn btn-primary" disabled="@_busy" @onclick="InstallAsync"><Icon Name="down" /> Install @available and restart</button>
+            <button class="btn btn-primary" disabled="@_busy" @onclick="InstallAsync"><Icon Name="down" /> @T["Pages.About.Install", available]</button>
         }
         @if (Updates.DownloadPercent is { } percent)
         {
-            <span class="muted small">Downloading… @percent %</span>
+            <span class="muted small">@T["Pages.About.Downloading", percent]</span>
         }
     </div>
 
@@ -74,13 +72,13 @@
     {
         <p class="hint muted">
             @(Updates.IsInstalled
-                ? "Set TinkerCNC:Updates:Url in appsettings.json to a GitHub repository or release folder to enable updates."
-                : "Updates work in installed copies (Setup.exe / .pkg); this one runs from a build.")
+                ? T["Pages.About.SetFeed"]
+                : T["Pages.About.BuildOnly"])
         </p>
     }
     @if (_runner.Error is not null)
     {
-        <p class="hint err">@_runner.Error</p>
+        <p class="hint err">@T[_runner.Error]</p>
     }
 </section>
 

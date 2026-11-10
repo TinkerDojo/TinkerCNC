@@ -1,6 +1,7 @@
 using System.Text;
 using TinkerCNC.Protocol;
 using TinkerCNC.Transport;
+using TinkerCNC.Localization;
 
 namespace TinkerCNC;
 
@@ -115,7 +116,7 @@ public sealed class MachineConnection : IAsyncDisposable
 
     public async Task SendAsync(IHostMessage message, CancellationToken cancellationToken = default)
     {
-        var stream = _stream ?? throw new InvalidOperationException("The machine is not connected.");
+        var stream = _stream ?? throw new LocalizedException(CoreTexts.Of("Connection.NotConnected"));
         var frame = message.ToPacket().Encode();
         await _writeLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try

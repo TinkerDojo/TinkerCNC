@@ -22,7 +22,7 @@ public sealed class FrameRenderer
     public byte[] Live(SimMachine machine)
     {
         var p = machine.MachinePosition;
-        var color = StateColors.GetValueOrDefault(machine.State, Accent);
+        var color = StateColors.GetValueOrDefault(machine.ReportedState, Accent);
         return Render(canvas =>
         {
             DrawBed(canvas);

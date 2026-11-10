@@ -2,7 +2,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using TinkerCNC.Host;
+using TinkerCNC.Host.Localization;
 using TinkerCNC.Host.Notifications;
+using TinkerCNC.Localization;
 
 namespace TinkerCNC.Tests;
 
@@ -15,11 +17,11 @@ public class NotificationTests
     {
         string? name = null;
         var note = new ToolChangeNotification(2, _ => name);
-        Assert.Equal("The machine is waiting for T2. Insert it, then confirm to continue the job.", note.Message);
+        Assert.Equal("The machine is waiting for T2. Insert it, then confirm to continue the job.", note.Message.ToString());
 
         name = "Ball Nose 2.0"; // the program finished downloading
-        Assert.Equal("The machine is waiting for T2 (Ball Nose 2.0). Insert it, then confirm to continue the job.", note.Message);
-        Assert.Equal("Insert T2", note.Title);
+        Assert.Equal("The machine is waiting for T2 (Ball Nose 2.0). Insert it, then confirm to continue the job.", note.Message.ToString());
+        Assert.Equal("Insert T2", note.Title.ToString());
     }
 
     [Fact]
@@ -30,16 +32,16 @@ public class NotificationTests
         Assert.True(((IMachineNotification)note).IsOpen);
 
         note.Observe(Status("<Run|T:0,0.000,-1>"));
-        Assert.Equal("Done on the machine", note.Resolution);
+        Assert.Equal("Done on the machine", note.Resolution?.ToString());
     }
 
     [Fact]
     public void An_answer_is_kept_when_the_state_changes_afterwards()
     {
         var note = new ToolChangeNotification(3, _ => null);
-        note.Resolve("Confirmed");
+        note.Resolve(Text.Plain("Confirmed"));
         note.Observe(Status("<Run|T:3,0.000,-1>"));
-        Assert.Equal("Confirmed", note.Resolution);
+        Assert.Equal("Confirmed", note.Resolution?.ToString());
     }
 
     [Fact]
@@ -85,5 +87,63 @@ public class AppPathsTests
         var paths = Paths(("TinkerCNC:RecordingsDirectory", "/videos"));
         Assert.Equal("/videos", paths.Recordings);
         Assert.EndsWith("TinkerCNC", paths.DataDirectory);
+    }
+}
+
+/// <summary>Host and core texts are put into the language of the dashboard that shows them.</summary>
+public class HostTextTests
+{
+    private static readonly System.Globalization.CultureInfo German = System.Globalization.CultureInfo.GetCultureInfo("de");
+    private static readonly System.Globalization.CultureInfo French = System.Globalization.CultureInfo.GetCultureInfo("fr");
+
+    [Fact]
+    public void Host_texts_come_in_every_language()
+    {
+        var text = HostTexts.Of("Machine.NotConnected");
+        Assert.Equal("The machine is not connected.", text.ToString());
+        Assert.Equal("Die Maschine ist nicht verbunden.", text.Resolve(German));
+        Assert.Equal("La machine n'est pas connectée.", text.Resolve(French));
+    }
+
+    [Fact]
+    public void Core_texts_come_in_every_language() =>
+        Assert.Equal(("Automatische Absaugung", "Aspiration automatique"),
+            (Jobs.JobModes.Vacuum.Name.Resolve(German), Jobs.JobModes.Vacuum.Name.Resolve(French)));
+
+    [Fact]
+    public void Texts_inside_texts_take_the_same_language()
+    {
+        var note = new ToolChangeNotification(0, _ => null);
+        Assert.Equal("Insert the probe", note.Title.ToString());
+        Assert.Equal("den Taster einsetzen", note.Title.Resolve(German));
+        Assert.Equal("Insérer le palpeur", note.Title.Resolve(French));
+    }
+
+    [Fact]
+    public void Errors_keep_their_text_and_an_english_message()
+    {
+        var error = new QueueException(HostTexts.Of("Queue.EntryGone"));
+        Assert.Equal("That entry is gone.", error.Message);
+        Assert.Equal("Dieser Eintrag ist nicht mehr vorhanden.", Text.Of(error).Resolve(German));
+        Assert.IsAssignableFrom<InvalidOperationException>(error);
+    }
+
+    [Fact]
+    public void Relative_times_follow_the_language()
+    {
+        var ago = TimeFormat.Ago(DateTime.UtcNow.AddMinutes(-5).AddSeconds(-10));
+        Assert.Equal("5m ago", ago.ToString());
+        Assert.Equal("vor 5 min", ago.Resolve(German));
+        Assert.Equal("il y a 5 min", ago.Resolve(French));
+        Assert.Equal(("never", "nie", "jamais"),
+            (TimeFormat.Ago(null).ToString(), TimeFormat.Ago(null).Resolve(German), TimeFormat.Ago(null).Resolve(French)));
+    }
+
+    [Fact]
+    public void Clock_names_the_weekday_in_the_language()
+    {
+        var utc = DateTime.UtcNow.AddDays(-3);
+        var day = German.DateTimeFormat.GetAbbreviatedDayName(utc.ToLocalTime().DayOfWeek);
+        Assert.StartsWith(day + " ", TimeFormat.Clock(utc, German));
     }
 }

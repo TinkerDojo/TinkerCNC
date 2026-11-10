@@ -1,17 +1,17 @@
 @* Compressed air: clean the whole bed one to three times (pausing a running program meanwhile), or switch it on and off. *@
 @inherits SessionComponent
 
-<PanelSection Title="Air">
+<PanelSection Title="@T["Machine.Air.Title"]">
     <Tools>
-        <span class="chip @(Air.IsOn || Busy ? "chip-ok" : "chip-dim")">@StateText</span>
+        <span class="chip @(Air.IsOn || Busy ? "chip-ok" : "chip-dim")">@T[StateText]</span>
     </Tools>
     <ChildContent>
         <div class="air-buttons">
             @if (Busy)
             {
-                <button class="btn btn-primary" disabled="@(!Connected)" title="End the sweep; the head still goes back and the job resumes"
+                <button class="btn btn-primary" disabled="@(!Connected)" title="@T["Machine.Air.StopTitle"]"
                         @onclick="() => _runner.Run(Cleaning.Stop)">
-                    <Icon Name="stop" /> Stop cleaning
+                    <Icon Name="stop" /> @T["Machine.Air.StopCleaning"]
                 </button>
             }
             else
@@ -21,57 +21,56 @@
                     var count = passes;
                     <button class="btn btn-ghost" disabled="@(!CanClean)" title="@CleanTitle(count)"
                             @onclick="() => _runner.Run(() => Cleaning.Start(count))">
-                        <Icon Name="wind" /> Clean bed @(count)×
+                        <Icon Name="wind" /> @T["Machine.Air.CleanBed", count]
                     </button>
                 }
                 @if (Air.IsOn)
                 {
                     <button class="btn btn-primary" disabled="@(!Connected)" @onclick="() => _runner.RunAsync(Air.OffAsync)">
-                        <Icon Name="stop" /> Air off
+                        <Icon Name="stop" /> @T["Machine.Air.SwitchOff"]
                     </button>
                 }
                 else
                 {
-                    <button class="btn btn-ghost" disabled="@(!CanSwitchOn)" title="Air on until switched off" @onclick="() => _runner.RunAsync(Air.OnAsync)">
-                        <Icon Name="wind" /> Air on
+                    <button class="btn btn-ghost" disabled="@(!CanSwitchOn)" title="@T["Machine.Air.SwitchOnTitle"]" @onclick="() => _runner.RunAsync(Air.OnAsync)">
+                        <Icon Name="wind" /> @T["Machine.Air.SwitchOn"]
                     </button>
                 }
             }
         </div>
         @if (Connected && !Busy && !Air.IsOn && !BedCleaning.CanStartIn(Session.Status))
         {
-            <p class="hint warn">The bed can't be cleaned while the machine is <b>@(Session.Status?.State ?? "unknown")</b>.</p>
+            <p class="hint warn">@T.Html("Machine.Air.CantCleanInState", Session.Status?.State ?? T["Common.Unknown"])</p>
         }
         else if (Connected && Session.Limits.Travel is null)
         {
-            <p class="hint muted">The air and the bed cleaning need the machine's travel limits, which tell its type (@(Session.Limits.Error ?? "reading them…")).</p>
+            <p class="hint muted">@T["Machine.Air.NeedsLimits", LimitsState]</p>
         }
         @if ((Cleaning.LastError ?? _runner.Error) is { } error)
         {
-            <p class="hint err">@error</p>
+            <p class="hint err">@T[error]</p>
         }
         <p class="hint muted">
-            Clean bed sweeps the whole travel at the clearance height with the air on, back to front, and then returns the
-            head to where it was: up, across, straight down. During a job it pauses it first
-            (<code>@JobSuspension.SuspendCommand</code>) and resumes it (<code>@JobSuspension.ResumeCommand</code>) once
-            the head is back.
+            @T.Html("Machine.Air.CleanHint", JobSuspension.SuspendCommand, JobSuspension.ResumeCommand)
             @if (Air.Output is { } output)
             {
-                <span>Air: @output.Description, <code>@output.OnCommand</code> on, <code>@output.OffCommand</code> off.</span>
+                <span>@T.Html("Machine.Air.OutputHint", output.Description, output.OnCommand, output.OffCommand)</span>
             }
         </p>
     </ChildContent>
 </PanelSection>
 
 @code {
-    private static readonly IReadOnlyDictionary<BedCleaningPhase, Func<BedCleaning, string>> PhaseTexts =
-        new Dictionary<BedCleaningPhase, Func<BedCleaning, string>>
+    private static readonly IReadOnlyDictionary<BedCleaningPhase, Func<BedCleaning, Text>> PhaseTexts =
+        new Dictionary<BedCleaningPhase, Func<BedCleaning, Text>>
         {
-            [BedCleaningPhase.None] = _ => "",
-            [BedCleaningPhase.PausingJob] = _ => "pausing job…",
-            [BedCleaningPhase.Sweeping] = c => c.Pass == 0 ? "moving to the bed…" : $"cleaning · pass {c.Pass}/{c.Passes}",
-            [BedCleaningPhase.Returning] = _ => "returning…",
-            [BedCleaningPhase.ResumingJob] = _ => "resuming job…",
+            [BedCleaningPhase.None] = _ => Text.Plain(""),
+            [BedCleaningPhase.PausingJob] = _ => Texts.Of("Machine.Air.Phase.PausingJob"),
+            [BedCleaningPhase.Sweeping] = c => c.Pass == 0
+                ? Texts.Of("Machine.Air.Phase.MovingToBed")
+                : Texts.Of("Machine.Air.Phase.Cleaning", c.Pass, c.Passes),
+            [BedCleaningPhase.Returning] = _ => Texts.Of("Machine.Air.Phase.Returning"),
+            [BedCleaningPhase.ResumingJob] = _ => Texts.Of("Machine.Air.Phase.ResumingJob"),
         };
 
     private readonly ActionRunner _runner = new();
@@ -81,9 +80,13 @@
     private bool Busy => Cleaning.IsRunning;
     private bool CanClean => Connected && Session.Limits.Travel is not null && BedCleaning.CanStartIn(Session.Status);
     private bool CanSwitchOn => Connected && Air.Output is not null && AirControl.CanSwitchOnIn(Session.Status);
-    private string StateText => Busy ? PhaseTexts[Cleaning.Phase](Cleaning) : Air.IsOn ? "on" : "off";
+    private Text StateText => Busy ? PhaseTexts[Cleaning.Phase](Cleaning)
+        : Air.IsOn ? Texts.Of("Machine.Air.On") : Texts.Of("Machine.Air.Off");
+
+    // why the travel limits are missing, or that they are being read (a host text or ours)
+    private object LimitsState => (object?)Session.Limits.Error ?? Texts.Of("Machine.Air.ReadingLimits");
 
     private string CleanTitle(int passes) => BedCleaning.PausesJobIn(Session.Status)
-        ? $"Pause the job, sweep the bed {passes}× with the air on, return the head and resume the job"
-        : $"Sweep the bed {passes}× with the air on, then return the head";
+        ? T["Machine.Air.PauseAndCleanTitle", passes]
+        : T["Machine.Air.CleanTitle", passes];
 }

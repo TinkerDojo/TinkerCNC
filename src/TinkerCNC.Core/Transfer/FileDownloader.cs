@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using TinkerCNC.Protocol;
+using TinkerCNC.Localization;
 
 namespace TinkerCNC.Transfer;
 
@@ -19,14 +20,19 @@ public interface IFileCache
     byte[]? TryGet(string md5);
 }
 
-public sealed class FileTransferException(string message) : Exception(message);
+/// <summary>A file transfer or listing failed; the reason for people is <see cref="Text"/>.</summary>
+public sealed class FileTransferException(Text text) : Exception(text.ToString()), ILocalizedException
+{
+    public Text Text { get; } = text;
+}
 
 /// <summary>
 /// Downloads a file from the machine's SD card with the XMODEM-like file transfer; see
 /// <see cref="FileTransferPayload"/> for the packet sequence. Status polling is suspended for the duration.
 /// <para>
 /// With an <see cref="IFileCache"/>, the MD5 the machine announces first (B1) is looked up locally; on a hit the
-/// transfer is cancelled with B5 and the local copy is returned.
+/// transfer is cancelled with B5 and the local copy is returned. <see cref="AnnouncedMd5Async"/> stops there in any case,
+/// to compare a file on the machine with a local one without transferring it.
 /// </para>
 /// </summary>
 public sealed class FileDownloader(MachineConnection machine)
@@ -40,12 +46,35 @@ public sealed class FileDownloader(MachineConnection machine)
         string remotePath, IProgress<DownloadProgress>? progress = null, CancellationToken cancellationToken = default,
         IFileCache? cache = null)
     {
+        var session = new DownloadSession(progress, cache, md5Only: false);
+        await TransferAsync(remotePath, session, cancellationToken).ConfigureAwait(false);
+        return session.ToResult(remotePath);
+    }
+
+    /// <summary>
+    /// The MD5 the machine announces for a file (B1), without transferring it: the download is cancelled (B5) right
+    /// after the announcement. Null when the machine has no such file (it cancels), announces no MD5 or does not answer.
+    /// </summary>
+    public async Task<string?> AnnouncedMd5Async(string remotePath, CancellationToken cancellationToken = default)
+    {
+        var session = new DownloadSession(null, null, md5Only: true);
+        try
+        {
+            await TransferAsync(remotePath, session, cancellationToken).ConfigureAwait(false);
+        }
+        catch (FileTransferException)
+        {
+            return null;
+        }
+        return session.Md5 is { Length: > 0 } md5 ? md5 : null;
+    }
+
+    private async Task TransferAsync(string remotePath, DownloadSession session, CancellationToken ct)
+    {
         using var inbox = new MessageInbox(machine);
         using var polling = machine.SuspendStatusPolling();
-        var session = new DownloadSession(progress, cache);
-        await machine.SendAsync(FileTransferCommand.Download(remotePath), cancellationToken).ConfigureAwait(false);
-        await RunAsync(session, inbox, cancellationToken).ConfigureAwait(false);
-        return session.ToResult(remotePath);
+        await machine.SendAsync(FileTransferCommand.Download(remotePath), ct).ConfigureAwait(false);
+        await RunAsync(session, inbox, ct).ConfigureAwait(false);
     }
 
     private async Task RunAsync(DownloadSession session, MessageInbox inbox, CancellationToken ct)
@@ -57,7 +86,7 @@ public sealed class FileDownloader(MachineConnection machine)
             if (message is null)
             {
                 if (++timeouts > MaxRetries)
-                    throw new FileTransferException($"No response from the machine after {MaxRetries} retries.");
+                    throw new FileTransferException(CoreTexts.Of("Transfer.NoResponse", MaxRetries));
                 await machine.SendAsync(session.LastRequest, ct).ConfigureAwait(false);
                 continue;
             }
@@ -78,13 +107,17 @@ public sealed class FileDownloader(MachineConnection machine)
         private TransferPhase _phase = new AwaitingMd5();
         private bool _fromCache;
 
-        public DownloadSession(IProgress<DownloadProgress>? progress, IFileCache? cache)
+        public DownloadSession(IProgress<DownloadProgress>? progress, IFileCache? cache, bool md5Only)
         {
             _progress = progress;
             Cache = cache;
+            Md5Only = md5Only;
         }
 
         public IFileCache? Cache { get; }
+
+        /// <summary>Only the announced MD5 is wanted: the transfer stops right after it.</summary>
+        public bool Md5Only { get; }
 
         /// <summary>Resent after a timeout or a RETRY; before the MD5 arrives this is an empty B1.</summary>
         public IHostMessage LastRequest { get; private set; } = FileMd5.Request;
@@ -118,6 +151,12 @@ public sealed class FileDownloader(MachineConnection machine)
         {
             _content.Write(content);
             _fromCache = true;
+            Cancel();
+        }
+
+        /// <summary>Ends the transfer here (B5); the machine sends nothing more.</summary>
+        public void Cancel()
+        {
             _outgoing.Add(new FileCancel());
             IsComplete = true;
         }
@@ -142,8 +181,8 @@ public sealed class FileDownloader(MachineConnection machine)
         public override void Visit(FileView message) => _phase.OnView(this, message);
         public override void Visit(FileData message) => _phase.OnData(this, message);
         public override void Visit(FileRetry message) => _outgoing.Add(LastRequest);
-        public override void Visit(FileCancel message) => throw new FileTransferException("The machine cancelled the transfer.");
-        public override void Visit(AlarmMessage message) => throw new FileTransferException($"Alarm during transfer: {message.Text.Trim()}");
+        public override void Visit(FileCancel message) => throw new FileTransferException(CoreTexts.Of("Transfer.Cancelled"));
+        public override void Visit(AlarmMessage message) => throw new FileTransferException(CoreTexts.Of("Transfer.Alarm", message.Text.Trim()));
     }
 
     /// <summary>One phase of the download; ignores messages that do not belong to it.</summary>
@@ -160,6 +199,11 @@ public sealed class FileDownloader(MachineConnection machine)
         public override void OnMd5(DownloadSession session, FileMd5 message)
         {
             session.Md5 = message.Md5;
+            if (session.Md5Only)
+            {
+                session.Cancel();
+                return;
+            }
             if (message.Md5.Length > 0 && session.Cache?.TryGet(message.Md5) is { } cached)
             {
                 session.CompleteFromCache(cached);

@@ -1,4 +1,6 @@
 using System.Reflection;
+using TinkerCNC.Localization;
+using TinkerCNC.Web.Localization;
 
 namespace TinkerCNC.Web.Services;
 
@@ -9,12 +11,12 @@ public sealed class AppInfo(IConfiguration config)
     public const string LicenseName = "Apache License 2.0";
 
     /// <summary>License texts shipped next to the app (see the csproj), served under <see cref="LegalEndpoints"/>.</summary>
-    public static readonly IReadOnlyList<(string File, string Title)> LegalFiles =
+    public static readonly IReadOnlyList<(string File, Text Title)> LegalFiles =
     [
-        ("LICENSE.txt", "License (Apache-2.0)"),
-        ("NOTICE.txt", "Notice"),
-        ("COPYRIGHT.md", "Copyright and trademarks"),
-        ("THIRD-PARTY-NOTICES.md", "Third-party components"),
+        ("LICENSE.txt", Texts.Of("Pages.About.Legal.License")),
+        ("NOTICE.txt", Texts.Of("Pages.About.Legal.Notice")),
+        ("COPYRIGHT.md", Texts.Of("Pages.About.Legal.Copyright")),
+        ("THIRD-PARTY-NOTICES.md", Texts.Of("Pages.About.Legal.ThirdParty")),
     ];
 
     public string Copyright =>

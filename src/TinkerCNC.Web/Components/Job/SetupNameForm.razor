@@ -1,8 +1,8 @@
 @* Name and notes of a setup; a name that is taken asks whether to replace that setup. Extra fields go in between. *@
 
 <div class="save-form">
-    <label class="field">Name<input class="input" maxlength="@SetupLibrary.MaxNameLength" @bind="_name" @bind:after="() => _taken = null" /></label>
-    <label class="field">Notes<textarea class="input" rows="2" placeholder="Stock, material, bit…" @bind="_notes"></textarea></label>
+    <label class="field">@T["Setups.Form.Name"]<input class="input" maxlength="@SetupLibrary.MaxNameLength" @bind="_name" @bind:after="() => _taken = null" /></label>
+    <label class="field">@T["Setups.Form.Notes"]<textarea class="input" rows="2" placeholder="@T["Setups.Form.NotesPlaceholder"]" @bind="_notes"></textarea></label>
     @if (ChildContent is not null)
     {
         <div class="save-form-extra">@ChildContent</div>
@@ -10,22 +10,22 @@
     <div class="save-form-foot">
         @if (_taken is not null)
         {
-            <span class="hint err">“@_taken” already exists. Replace it? It is moved to the deleted setups and can be restored.</span>
+            <span class="hint err">@T["Setups.Form.Taken", _taken]</span>
         }
         else if (_error is not null)
         {
-            <span class="hint err">@_error</span>
+            <span class="hint err">@T[_error]</span>
         }
         <span class="spacer"></span>
         @if (_taken is null)
         {
-            <button class="btn btn-sm btn-primary" disabled="@Busy" @onclick="() => SaveAsync(replace: false)">@SaveLabel</button>
+            <button class="btn btn-sm btn-primary" disabled="@Busy" @onclick="() => SaveAsync(replace: false)">@T[SaveLabel]</button>
         }
         else
         {
-            <button class="btn btn-sm btn-danger" disabled="@Busy" @onclick="() => SaveAsync(replace: true)">Replace</button>
+            <button class="btn btn-sm btn-danger" disabled="@Busy" @onclick="() => SaveAsync(replace: true)">@T["Setups.Form.Replace"]</button>
         }
-        <button class="btn btn-sm btn-ghost" @onclick="OnCancel">Cancel</button>
+        <button class="btn btn-sm btn-ghost" @onclick="OnCancel">@T["Common.Cancel"]</button>
     </div>
 </div>
 
@@ -35,7 +35,7 @@
 
     [Parameter] public string Name { get; set; } = "";
     [Parameter] public string Notes { get; set; } = "";
-    [Parameter] public string SaveLabel { get; set; } = "Save";
+    [Parameter] public Text SaveLabel { get; set; } = Texts.Of("Common.Save");
     [Parameter] public bool Busy { get; set; }
     [Parameter, EditorRequired] public Saver Save { get; set; } = default!;
     [Parameter] public EventCallback OnSaved { get; set; }
@@ -45,7 +45,7 @@
     private string _name = "";
     private string _notes = "";
     private string? _taken;
-    private string? _error;
+    private Text? _error;
 
     protected override void OnInitialized() => (_name, _notes) = (Name, Notes);
 
@@ -63,7 +63,7 @@
         }
         catch (Exception ex)
         {
-            _error = ex.Message;
+            _error = Text.Of(ex);
             return;
         }
         await OnSaved.InvokeAsync();

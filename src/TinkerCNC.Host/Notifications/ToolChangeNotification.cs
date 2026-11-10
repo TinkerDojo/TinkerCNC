@@ -12,24 +12,25 @@ public sealed class ToolChangeNotification(int? targetTool, Func<int, string?> t
 {
     private static readonly IReadOnlyList<NotificationAction> ConfirmOnly =
     [
-        new("Confirm", "check", "btn-primary", s => s.SendAsync(ManualToolChange.ConfirmCommand), "Confirmed"),
+        new(HostTexts.Of("Notice.Confirm"), "check", "btn-primary", s => s.SendAsync(ManualToolChange.ConfirmCommand),
+            HostTexts.Of("Notice.Confirmed")),
     ];
 
     public override string Icon => "tool";
     public override string Kind => "action";
 
-    public override string Title => targetTool is { } tool ? $"Insert {ManualToolChange.NameOf(tool)}" : "Tool change waiting";
+    public override Text Title => targetTool is { } tool ? HostTexts.Of("Notice.Insert", ManualToolChange.NameOf(tool)) : HostTexts.Of("Notice.ToolChange.Title");
 
-    public override string Message => $"The machine is waiting for {Target}. Insert it, then confirm to continue the job.";
+    public override Text Message => HostTexts.Of("Notice.ToolChange.Message", Target);
 
     public override IReadOnlyList<NotificationAction> Actions => ConfirmOnly;
 
-    private string Target =>
-        targetTool is not { } tool ? "the next tool"
-        : toolNames(tool) is { Length: > 0 } name ? $"{ManualToolChange.NameOf(tool)} ({name})"
+    private Text Target =>
+        targetTool is not { } tool ? HostTexts.Of("Notice.NextTool")
+        : toolNames(tool) is { Length: > 0 } name ? HostTexts.Of("Notice.NamedTool", ManualToolChange.NameOf(tool), name)
         : ManualToolChange.NameOf(tool);
 
     /// <summary>Confirmed on the machine itself or from another client.</summary>
-    protected override string? ResolvedBy(StatusReport? status) =>
-        ManualToolChange.IsWaiting(status) ? null : "Done on the machine";
+    protected override Text? ResolvedBy(StatusReport? status) =>
+        ManualToolChange.IsWaiting(status) ? null : HostTexts.Of("Notice.DoneOnMachine");
 }

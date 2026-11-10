@@ -12,7 +12,7 @@
 | Path | Contents |
 |---|---|
 | `src/TinkerCNC.Core` | The protocol library (namespaces `TinkerCNC.*`): discovery, transports, packet framing, typed messages and visitors, file transfer, G-code analysis and time estimates, operation history, setups and the job queue, video clients. No UI, no hosting. |
-| `src/TinkerCNC.Host` | Machine services shared by every front end: sessions, discovery service, job control and tracking, bed cleaning, camera and time-lapse feeds, notifications, data paths. No UI and no HTTP. |
+| `src/TinkerCNC.Host` | Machine services shared by every front end: sessions, discovery service, job control and tracking, bed cleaning, camera and time-lapse feeds, MP4 recording, notifications, data paths. No UI and no HTTP. |
 | `src/TinkerCNC.Web` | The Blazor Server dashboard, media and toolpath endpoints, the desktop window (Photino) and updates (Velopack). Builds `TinkerCNC.exe` / `TinkerCNC`. |
 | `src/TinkerCNC.Cli` | `tinkercnc-cli`: discovery, query, interactive console over LAN or serial. |
 | `tools/TinkerCNC.Simulator` | A fake machine: UDP discovery, the framed control protocol, an SD card, job playback, camera and time-lapse WebSockets. |
@@ -98,8 +98,53 @@ measured times), `NotificationCenter`, `CameraService`. `HostServices.AddTinkerC
   they handle. Discriminators map to types through dictionaries. See `CONTRIBUTING.md` for the full rules.
 - **Sequences run server-side.** Bed cleaning, job start, operation timing and notifications are host services that
   keep going when the browser tab closes; components subscribe to `Changed` events and re-render.
+- **Texts are translated where they are shown.** The dashboard speaks English, German, French and Italian. Host
+  services are shared by every open dashboard, so they hand out `Text` values (key + arguments, see
+  `TinkerCNC.Core/Localization`), never finished strings; each dashboard resolves them in its own language. See
+  [Translations](#translations).
 - **Storage.** One SQLite file (`tinkercnc.db`) with a single ordered migration list in `AppDatabase`; files are
   referenced by name relative to the data folder so the folder can move; deletions are soft.
+
+## Translations
+
+Every word the dashboard shows lives in one JSON file per language: `en.json` (English, also the fallback),
+`de.json`, `fr.json` and `it.json` in a project's `Localization` folder, embedded into its assembly. A file holds
+categories of named texts; a key is the category, a dot and the name:
+
+```json
+{
+  "$notes": { "Queue.Gate": "Shown while a queued job waits; {0} is the job" },
+  "Queue": {
+    "Finished.Title": "Queue finished",
+    "Gate": "{0} waits for the go"
+  }
+}
+```
+
+`Queue.Finished.Title` is the text `Finished.Title` of the category `Queue`. `$notes` (in `en.json` only) holds hints
+for translators and is not shown.
+
+| Where | Files | Used as |
+|---|---|---|
+| Dashboard | `src/TinkerCNC.Web/Localization/*.json` (categories `Common`, `Layout`, `Pages`, `Shared`, `Machine`, `Job`, `Setups`) | `@T["Job.Queue.Title"]`, `@T["Category.Name", arg]`, `@T.Count("Category.Name", n)`, `@T.Html("Category.Name")`, `Texts.Of("Category.Name")` |
+| Host services | `src/TinkerCNC.Host/Localization/*.json` | `HostTexts.Of("Queue.Finished.Title", args)`, `HostTexts.Count("Key", n)` |
+| Core library | `src/TinkerCNC.Core/Localization/*.json` | `CoreTexts.Of("Transfer.Cancelled")` |
+
+- `T` (the scoped `Texts` service, injected into every component) resolves keys and `Text` values (`@T[error]`) in
+  the language of the browser tab; `TextCatalog` reads the language files. Placeholders are `{0}`, `{1}`… as in
+  `string.Format`.
+- Counted texts have two keys, `Key.One` and `Key.Other` (`{0}` is the count); French uses the singular for 0 too.
+- Errors meant for people are `LocalizedException`/`LocalizedTimeoutException` (or implement
+  `ILocalizedException`); their `Message` stays English for logs. Console log lines and logs are not translated.
+- The language is the one chosen under **Settings → Language** (a cookie, `TinkerCNC.Language`, so the server renders
+  even the first page in it), else the browser's (in the app's window: the system's), else English. Only the language
+  changes: the current culture (number and date formats) stays the server's, so nothing that builds commands is
+  affected.
+- `TranslationTests` fail when a language misses a key, a translation has other placeholders than the English text,
+  the code names a key that does not exist, or a key is no longer used. Keys must be written literally
+  (`T["Category.Name"]`), so the test can find them.
+- A new language: add it to `UiLanguages.All` and add a translated `<code>.json` next to every `en.json` (the tests
+  list what is missing once it is in `TranslationTests.Languages`).
 
 ## Headless UI check
 

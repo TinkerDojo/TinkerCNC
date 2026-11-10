@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using TinkerCNC.Localization;
 
 namespace TinkerCNC.GCode;
 
@@ -40,8 +41,10 @@ public sealed record ModalState(
     private static string N(double value) => value.ToString("0.###", CultureInfo.InvariantCulture);
 }
 
-/// <summary>A copy of a program that begins at one of its tool operations, ready to upload.</summary>
-public sealed record RestartProgram(string FileName, byte[] Content, string Description);
+/// <summary>A copy of a program that begins later than its first line, ready to upload.</summary>
+/// <param name="Description">Where it comes from, for people.</param>
+/// <param name="Preamble">The lines put before the program's own (to show what the copy does first).</param>
+public sealed record RestartProgram(string FileName, byte[] Content, Text Description, IReadOnlyList<string>? Preamble = null);
 
 /// <summary>
 /// Restarts a program at a tool operation after it ended early: the firmware plays a file from its first line only
@@ -61,7 +64,8 @@ public static class ProgramRestart
         lines.AddRange(segment.ModalAtStart.ToLines());
         lines.AddRange(analysis.Lines.Skip(segment.StartLine - 1));
         var text = string.Join('\n', lines) + "\n";
-        return new RestartProgram(NameFor(fileName, segment), Encoding.UTF8.GetBytes(text), $"{fileName} from {segment.Label}");
+        return new RestartProgram(NameFor(fileName, segment), Encoding.UTF8.GetBytes(text),
+            CoreTexts.Of("Restart.Description", fileName, segment.DisplayLabel));
     }
 
     /// <summary><c>part_from_T6.nc</c>; an operation without a tool number is named by its position.</summary>

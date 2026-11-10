@@ -9,41 +9,48 @@
 }
 <section class="card queue-card">
     <div class="card-head">
-        <h2><Icon Name="queue" /> Queue</h2>
+        <h2><Icon Name="queue" /> @T["Job.Queue.Title"]</h2>
         <div class="head-tools">
-            <span class="chip @look.Chip">@look.Label</span>
+            <span class="chip @look.Chip">@T[look.Label]</span>
             @if (Queue.JobsTotal > 0)
             {
-                <span class="muted small">@Queue.JobsDone of @Queue.JobsTotal jobs done</span>
+                <span class="muted small">@T.Count("Job.Queue.JobsDone", Queue.JobsTotal, Queue.JobsDone)</span>
             }
-            <button class="btn btn-sm btn-ghost" title="Queue files of a setup, or files from this computer with a setup's options" @onclick="() => _adding = true">
-                <Icon Name="plus" /> Add…
+            <button class="btn btn-sm btn-ghost" title="@T["Job.Queue.Add.Title"]" @onclick="() => _adding = true">
+                <Icon Name="plus" /> @T["Job.Queue.Add"]
             </button>
-            @if (Queue.Running)
+            @if (Queue.AfterRunningJob)
+            {
+                <button class="btn btn-sm btn-danger" title="@T["Job.Queue.StopAfter.Title"]" @onclick="() => _runner.RunAsync(Queue.StopAsync)">
+                    <Icon Name="stop" /> @T["Job.Queue.Stop"]
+                </button>
+            }
+            else if (Queue.Running)
             {
                 @if (_confirm.IsAsking(this))
                 {
-                    <button class="btn btn-sm btn-danger btn-danger-solid" title="Nothing further starts and the running job is stopped" @onclick="StopAsync">
-                        <Icon Name="stop" /> Confirm stop
+                    <button class="btn btn-sm btn-danger btn-danger-solid" title="@T["Job.Queue.ConfirmStop.Title"]" @onclick="StopAsync">
+                        <Icon Name="stop" /> @T["Job.ConfirmStop"]
                     </button>
                 }
                 else
                 {
-                    <button class="btn btn-sm btn-danger" title="Stop the queue and the running job; asks once more" @onclick="() => _confirm.AskAsync(this)">
-                        <Icon Name="stop" /> Stop queue
+                    <button class="btn btn-sm btn-danger" title="@T["Job.Queue.Stop.Title"]" @onclick="() => _confirm.AskAsync(this)">
+                        <Icon Name="stop" /> @T["Job.Queue.Stop"]
                     </button>
                 }
             }
             else
             {
                 <button class="btn btn-sm btn-primary" disabled="@(!Connected || !listed.Any(i => i.Entry.State == QueueEntryState.Pending))"
-                        title="Run the pending entries one after the other" @onclick="() => _runner.Run(Queue.Start)">
-                    <Icon Name="play" /> Start queue
+                        title="@(Playing ? T["Job.Queue.Start.AfterTitle"] : T["Job.Queue.Start.Title"])"
+                        @onclick="() => _runner.Run(Queue.Start)">
+                    <Icon Name="play" /> @T["Job.Queue.Start"]
                 </button>
             }
             @if (!Queue.Running && (listed.Count > 0 || Queue.JobsDone > 0))
             {
-                <button class="btn btn-sm btn-icon" title="Take every entry out and reset the count" @onclick="() => _runner.Run(Queue.Clear)"><Icon Name="x" /></button>
+                <button class="btn btn-sm btn-icon" title="@T["Job.Queue.Clear.Title"]" @onclick="() => _runner.Run(Queue.Clear)"><Icon Name="x" /></button>
             }
         </div>
     </div>
@@ -52,24 +59,27 @@
     {
         <div class="notice notice-warn queue-gate">
             <Icon Name="play" />
-            <span><b>@waiting.Label</b> is on the machine, paused before anything moves. Put the piece in place, then hold the machine's button until it continues, or press Resume.</span>
-            <button class="btn btn-sm btn-primary" disabled="@(!Connected)" @onclick="() => _runner.RunAsync(Queue.ResumeAsync)"><Icon Name="play" /> Resume</button>
+            <span>@T.Html("Job.Queue.Gate", waiting.Label)</span>
+            <button class="btn btn-sm btn-primary" disabled="@(!Connected)" @onclick="() => _runner.RunAsync(Queue.ResumeAsync)"><Icon Name="play" /> @T["Common.Resume"]</button>
         </div>
+    }
+    @if (Queue.AfterRunningJob)
+    {
+        <p class="muted small">@T["Job.Queue.AfterRunningJob.Hint"]</p>
     }
     @if (Queue.Error is { } stopped)
     {
-        <div class="notice notice-err">Queue stopped. @stopped</div>
+        <div class="notice notice-err">@T["Job.Queue.Stopped", T[stopped]]</div>
     }
     @if (_runner.Error is { } error)
     {
-        <div class="notice notice-err dismissable" @onclick="_runner.Clear">@error <Icon Name="x" /></div>
+        <div class="notice notice-err dismissable" @onclick="_runner.Clear">@T[error] <Icon Name="x" /></div>
     }
 
     @if (listed.Count == 0)
     {
         <p class="muted small">
-            Nothing queued. Add files to run them one after the other with a setup's options; every job waits for the go
-            before anything moves, so the piece can be swapped in between.
+            @T["Job.Queue.Empty.Hint"]
         </p>
     }
     else
@@ -89,16 +99,17 @@
 }
 
 @code {
-    private sealed record Look(string Chip, string Label);
+    private sealed record Look(string Chip, Text Label);
 
     private static readonly (Func<QueueCard, bool> Applies, Look Look)[] Looks =
     [
-        (c => c.Queue.WaitingForGo, new("chip-warn", "Waiting for the go")),
-        (c => c.Queue.Current is not null, new("chip-info", "Running")),
-        (c => c.Queue.Running, new("chip-warn", "Starting…")),
-        (c => c.Queue.Error is not null, new("chip-err", "Stopped")),
-        (c => c.Queue.Listed.Count > 0, new("chip-ok", "Ready")),
-        (_ => true, new("chip-dim", "Empty")),
+        (c => c.Queue.WaitingForGo, new("chip-warn", Texts.Of("Job.State.WaitingForGo"))),
+        (c => c.Queue.AfterRunningJob, new("chip-info", Texts.Of("Job.Queue.AfterRunningJob"))),
+        (c => c.Queue.Current is not null, new("chip-info", Texts.Of("Job.State.Running"))),
+        (c => c.Queue.Running, new("chip-warn", Texts.Of("Job.State.Starting"))),
+        (c => c.Queue.Error is not null, new("chip-err", Texts.Of("Job.Queue.State.Stopped"))),
+        (c => c.Queue.Listed.Count > 0, new("chip-ok", Texts.Of("Job.Queue.State.Ready"))),
+        (_ => true, new("chip-dim", Texts.Of("Job.Queue.State.Empty"))),
     ];
 
     private readonly ActionRunner _runner = new();

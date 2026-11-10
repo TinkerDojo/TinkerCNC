@@ -3,31 +3,31 @@
 
 <section class="card video-card">
     <div class="card-head">
-        <h2><Icon Name="film" /> Time-lapse recordings</h2>
+        <h2><Icon Name="film" /> @T["Machine.Timelapse.Title"]</h2>
         <div class="head-tools">
-            <span class="chip @StateChips[_player.State]">@_player.State</span>
+            <span class="chip @StateChips[_player.State]">@T[StateTexts[_player.State]]</span>
             <span class="mono small muted">ws://@Host:82/ws_preview</span>
         </div>
     </div>
 
     <form class="path-form" @onsubmit="OpenAsync">
-        <input class="input mono" placeholder="Path of a recording on the machine, e.g. /sd/…" @bind="_path" @bind:event="oninput" />
+        <input class="input mono" placeholder="@T["Machine.Timelapse.Path"]" @bind="_path" @bind:event="oninput" />
         <button class="btn btn-primary" type="submit" disabled="@(string.IsNullOrWhiteSpace(_path) || LoadingStates.Contains(_player.State))">
-            <Icon Name="play" /> Open
+            <Icon Name="play" /> @T["Machine.Timelapse.Open"]
         </button>
     </form>
 
     @if (_player.State is not TimelapseState.Idle)
     {
         <div class="video-stage small-stage">
-            <img class="video" src="@($"video/{TimelapseService.SourceIdFor(Host)}/stream?n={_nonce}")" alt="Time-lapse" />
+            <img class="video" src="@($"video/{TimelapseService.SourceIdFor(Host)}/stream?n={_nonce}")" alt="@T["Machine.Timelapse.Image"]" />
             @if (_player.FramesReceived == 0 && LoadingStates.Contains(_player.State))
             {
-                <div class="video-overlay"><span class="spinner lg"></span><span>@_player.State…</span></div>
+                <div class="video-overlay"><span class="spinner lg"></span><span>@T[StateTexts[_player.State]]…</span></div>
             }
         </div>
 
-        <input class="seek" type="range" min="0" max="1000" title="Seek"
+        <input class="seek" type="range" min="0" max="1000" title="@T["Machine.Timelapse.Seek"]"
                value="@((int)(_player.Progress * 1000))" disabled="@(_player.Info is null)"
                @onchange="SeekAsync" />
 
@@ -35,15 +35,15 @@
             @if (TransportActions.TryGetValue(_player.State, out var action))
             {
                 <button class="btn btn-ghost" @onclick="() => _runner.RunAsync(() => action.Execute(_player))">
-                    <Icon Name="@action.Icon" /> @action.Label
+                    <Icon Name="@action.Icon" /> @T[action.Label]
                 </button>
             }
-            <button class="btn btn-ghost" @onclick="() => _runner.RunAsync(() => _player.StopAsync())"><Icon Name="stop" /> Close</button>
+            <button class="btn btn-ghost" @onclick="() => _runner.RunAsync(() => _player.StopAsync())"><Icon Name="stop" /> @T["Common.Close"]</button>
             <div class="spacer"></div>
             @if (_player.Info is { } info)
             {
                 <span class="muted small mono">
-                    frame @Math.Max(0, _player.CurrentFrame - info.FirstFrameIndex)/@info.TotalFrames
+                    @T["Machine.Timelapse.Frame", Math.Max(0, _player.CurrentFrame - info.FirstFrameIndex), info.TotalFrames]
                     · @(info.Width)×@(info.Height)
                     @if (info.DurationMs > 0) { <text> · @TimeSpan.FromMilliseconds(info.DurationMs).ToString(@"hh\:mm\:ss")</text> }
                 </span>
@@ -53,17 +53,17 @@
 
     @if ((_player.LastError ?? _runner.Error) is { } err)
     {
-        <p class="hint @(_player.State == TimelapseState.Preempted ? "warn" : "err")">@err</p>
+        <p class="hint @(_player.State == TimelapseState.Preempted ? "warn" : "err")">@T[err]</p>
     }
     <p class="hint muted">
-        Plays recordings stored on the machine. Only one viewer at a time can play recordings from a machine.
+        @T["Machine.Timelapse.Hint"]
     </p>
 </section>
 
 @code {
     [Parameter, EditorRequired] public string Host { get; set; } = "";
 
-    private sealed record PlayerAction(string Label, string Icon, Func<TimelapsePlayer, Task> Execute);
+    private sealed record PlayerAction(Text Label, string Icon, Func<TimelapsePlayer, Task> Execute);
 
     private static readonly IReadOnlyDictionary<TimelapseState, string> StateChips = new Dictionary<TimelapseState, string>
     {
@@ -77,12 +77,24 @@
         [TimelapseState.Error] = "chip-err",
     };
 
+    private static readonly IReadOnlyDictionary<TimelapseState, Text> StateTexts = new Dictionary<TimelapseState, Text>
+    {
+        [TimelapseState.Idle] = Texts.Of("Machine.Timelapse.State.Idle"),
+        [TimelapseState.Connecting] = Texts.Of("Machine.Timelapse.State.Connecting"),
+        [TimelapseState.Opening] = Texts.Of("Machine.Timelapse.State.Opening"),
+        [TimelapseState.Playing] = Texts.Of("Machine.Timelapse.State.Playing"),
+        [TimelapseState.Paused] = Texts.Of("Machine.Timelapse.State.Paused"),
+        [TimelapseState.Ended] = Texts.Of("Machine.Timelapse.State.Ended"),
+        [TimelapseState.Preempted] = Texts.Of("Machine.Timelapse.State.Preempted"),
+        [TimelapseState.Error] = Texts.Of("Machine.Timelapse.State.Error"),
+    };
+
     // The primary transport button for each state (states without one show only "Close").
     private static readonly IReadOnlyDictionary<TimelapseState, PlayerAction> TransportActions = new Dictionary<TimelapseState, PlayerAction>
     {
-        [TimelapseState.Playing] = new("Pause", "pause", p => p.PauseAsync()),
-        [TimelapseState.Paused] = new("Resume", "play", p => p.ResumeAsync()),
-        [TimelapseState.Ended] = new("Replay", "refresh", p => p.PlayAsync()),
+        [TimelapseState.Playing] = new(Texts.Of("Common.Pause"), "pause", p => p.PauseAsync()),
+        [TimelapseState.Paused] = new(Texts.Of("Common.Resume"), "play", p => p.ResumeAsync()),
+        [TimelapseState.Ended] = new(Texts.Of("Machine.Timelapse.Replay"), "refresh", p => p.PlayAsync()),
     };
 
     private static readonly IReadOnlySet<TimelapseState> LoadingStates =

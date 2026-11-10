@@ -69,6 +69,13 @@ public sealed class JobStartOptions
     [JsonIgnore]
     public bool UsesProbe => ScanMargin || ZProbe || Leveling;
 
+    /// <summary>
+    /// Whether the start probes the stock for Z zero (the auto Z probe, or the XYZ probe block): until the job starts,
+    /// the machine's Z zero is still the previous one.
+    /// </summary>
+    [JsonIgnore]
+    public bool ProbesWorkZ => ZProbe || WorkOrigin == WorkOriginChoice.XyzProbe;
+
     public bool IsOn(JobMode mode) => Modes.GetValueOrDefault(mode.Key);
 
     /// <summary>Probes the stock's top in the middle of the program's area: half its size from its corner.</summary>

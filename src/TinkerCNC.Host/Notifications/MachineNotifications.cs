@@ -1,5 +1,3 @@
-using System.Collections.Concurrent;
-
 namespace TinkerCNC.Host.Notifications;
 
 /// <summary>
@@ -28,6 +26,9 @@ public sealed class MachineNotifications : IDisposable
 
     public event Action? Changed;
 
+    /// <summary>A new notification came in (from the machine's status or a host service), after it was added.</summary>
+    public event Action<IMachineNotification>? Raised;
+
     public IReadOnlyList<IMachineNotification> Items
     {
         get { lock (_gate) return _items.ToList(); }
@@ -55,11 +56,12 @@ public sealed class MachineNotifications : IDisposable
             if (_items.Count > MaxKept) _items.RemoveRange(MaxKept, _items.Count - MaxKept);
         }
         Changed?.Invoke();
+        Raised?.Invoke(notification);
     }
 
     public void Dismiss(IMachineNotification notification)
     {
-        notification.Resolve("Dismissed");
+        notification.Resolve(HostTexts.Of("Notice.Dismissed"));
         Changed?.Invoke();
     }
 
@@ -73,24 +75,30 @@ public sealed class MachineNotifications : IDisposable
     {
         var status = _session.Status;
         if (status is null || ReferenceEquals(status, _lastStatus)) return;
+        List<IMachineNotification> raised;
         lock (_gate)
         {
             foreach (var item in _items) item.Observe(status);
-            foreach (var raised in Sources.Select(s => s.Observe(_lastStatus, status, _session, _job)).OfType<IMachineNotification>())
-                _items.Insert(0, raised);
+            raised = Sources.Select(s => s.Observe(_lastStatus, status, _session, _job)).OfType<IMachineNotification>().ToList();
+            foreach (var notification in raised) _items.Insert(0, notification);
             if (_items.Count > MaxKept) _items.RemoveRange(MaxKept, _items.Count - MaxKept);
             _lastStatus = status;
         }
         Changed?.Invoke();
+        foreach (var notification in raised) Raised?.Invoke(notification);
     }
 
     public void Dispose() => _session.Changed -= OnSessionChanged;
 }
 
-/// <summary>One <see cref="MachineNotifications"/> per machine session, created with the session.</summary>
+/// <summary>
+/// One <see cref="MachineNotifications"/> per machine session, created with the session; <see cref="Raised"/> and
+/// <see cref="Changed"/> report every machine's notifications in one place (for system notifications).
+/// </summary>
 public sealed class NotificationCenter : IDisposable
 {
-    private readonly ConcurrentDictionary<string, MachineNotifications> _machines = new(StringComparer.OrdinalIgnoreCase);
+    private readonly object _gate = new();
+    private readonly Dictionary<string, MachineNotifications> _machines = new(StringComparer.OrdinalIgnoreCase);
     private readonly JobTrackers _jobs;
 
     public NotificationCenter(MachineSessionManager sessions, JobTrackers jobs)
@@ -99,11 +107,31 @@ public sealed class NotificationCenter : IDisposable
         sessions.SessionCreated += s => Get(s);
     }
 
-    public MachineNotifications Get(MachineSession session) =>
-        _machines.GetOrAdd(session.Address, _ => new MachineNotifications(session, _jobs.Get(session)));
+    /// <summary>A machine got a new notification.</summary>
+    public event Action<MachineSession, IMachineNotification>? Raised;
+
+    /// <summary>Some machine's notifications changed (added, answered, resolved, cleared).</summary>
+    public event Action? Changed;
+
+    // Created under the lock: a second instance would also watch the session and raise everything twice.
+    public MachineNotifications Get(MachineSession session)
+    {
+        lock (_gate)
+        {
+            if (_machines.TryGetValue(session.Address, out var existing)) return existing;
+            var created = new MachineNotifications(session, _jobs.Get(session));
+            created.Raised += notification => Raised?.Invoke(session, notification);
+            created.Changed += () => Changed?.Invoke();
+            _machines[session.Address] = created;
+            return created;
+        }
+    }
 
     public void Dispose()
     {
-        foreach (var m in _machines.Values) m.Dispose();
+        lock (_gate)
+        {
+            foreach (var m in _machines.Values) m.Dispose();
+        }
     }
 }

@@ -1,3 +1,4 @@
+using TinkerCNC.Localization;
 using static TinkerCNC.Jobs.JobStartPlan;
 
 namespace TinkerCNC.Jobs;
@@ -5,7 +6,8 @@ namespace TinkerCNC.Jobs;
 /// <summary>How a <see cref="WorkOriginChoice"/> sets the work origin when a program is started.</summary>
 public interface IWorkOrigin
 {
-    string Describe(JobStartOptions options);
+    /// <summary>How the origin is set, for people.</summary>
+    Text Describe(JobStartOptions options);
 
     /// <summary>Commands sent right away, before the program is started.</summary>
     IEnumerable<string> SetNow(JobStartOptions options, JobStartContext context) => [];
@@ -19,29 +21,29 @@ public interface IWorkOrigin
 
 public sealed record KeepWorkOrigin : IWorkOrigin
 {
-    public string Describe(JobStartOptions options) => "unchanged";
+    public Text Describe(JobStartOptions options) => CoreTexts.Of("Origin.Unchanged");
 }
 
 /// <summary>The bed's reference corner (<c>coordinate.anchor1_x/_y</c>) plus the offset.</summary>
 public sealed record BedCornerWorkOrigin : IWorkOrigin
 {
-    public string Describe(JobStartOptions options) => $"bed corner + ({N(options.OriginOffsetX)}, {N(options.OriginOffsetY)}) mm";
+    public Text Describe(JobStartOptions options) => CoreTexts.Of("Origin.BedCorner", N(options.OriginOffsetX), N(options.OriginOffsetY));
 
     public IEnumerable<string> SetNow(JobStartOptions options, JobStartContext context) =>
         context.Travel is { BedCornerX: { } x, BedCornerY: { } y }
             ? [IWorkOrigin.SetOrigin(x + options.OriginOffsetX, y + options.OriginOffsetY)]
-            : throw new JobStartException("The machine's configuration has no bed corner (coordinate.anchor1_x/_y).");
+            : throw new JobStartException(CoreTexts.Of("Start.NoBedCorner"));
 }
 
 /// <summary>The head's current position plus the offset.</summary>
 public sealed record HeadPositionWorkOrigin : IWorkOrigin
 {
-    public string Describe(JobStartOptions options) => $"head position + ({N(options.OriginOffsetX)}, {N(options.OriginOffsetY)}) mm";
+    public Text Describe(JobStartOptions options) => CoreTexts.Of("Origin.HeadPosition", N(options.OriginOffsetX), N(options.OriginOffsetY));
 
     public IEnumerable<string> SetNow(JobStartOptions options, JobStartContext context) =>
         context.MachinePosition is { Length: >= 2 } head
             ? [IWorkOrigin.SetOrigin(head[0] + options.OriginOffsetX, head[1] + options.OriginOffsetY)]
-            : throw new JobStartException("The machine has not reported where the head is.");
+            : throw new JobStartException(CoreTexts.Of("Start.NoHeadPosition"));
 }
 
 /// <summary>
@@ -52,8 +54,8 @@ public sealed record HeadPositionWorkOrigin : IWorkOrigin
 /// </summary>
 public sealed record XyzProbeWorkOrigin : IWorkOrigin
 {
-    public string Describe(JobStartOptions options) =>
-        $"probed on the XYZ probe block ({N(options.XyzProbeHeight)} mm high, tool {N(options.XyzProbeToolDiameter)} mm)";
+    public Text Describe(JobStartOptions options) =>
+        CoreTexts.Of("Origin.XyzProbe", N(options.XyzProbeHeight), N(options.XyzProbeToolDiameter));
 
     public IEnumerable<string> BeforeProgram(JobStartOptions options) =>
         [$"M495.3 H{N(options.XyzProbeHeight)} D{N(options.XyzProbeToolDiameter)}"];

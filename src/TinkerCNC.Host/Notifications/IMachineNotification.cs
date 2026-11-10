@@ -2,7 +2,7 @@ namespace TinkerCNC.Host.Notifications;
 
 /// <summary>A button on a notification: does something on the machine and then resolves the notification.</summary>
 /// <param name="Resolution">Shown once the action succeeded, e.g. "Confirmed".</param>
-public sealed record NotificationAction(string Label, string Icon, string Css, Func<MachineSession, Task> Execute, string Resolution);
+public sealed record NotificationAction(Text Label, string Icon, string Css, Func<MachineSession, Task> Execute, Text Resolution);
 
 /// <summary>Something the machine reported that the user should see or answer.</summary>
 public interface IMachineNotification
@@ -14,18 +14,18 @@ public interface IMachineNotification
     /// <summary>CSS modifier for the notification's look (e.g. "action", "alarm").</summary>
     string Kind { get; }
 
-    string Title { get; }
-    string Message { get; }
+    Text Title { get; }
+    Text Message { get; }
     IReadOnlyList<NotificationAction> Actions { get; }
 
     /// <summary>How it was resolved ("Confirmed", "Done on the machine"…); null while it is still open.</summary>
-    string? Resolution { get; }
+    Text? Resolution { get; }
 
     DateTime? ResolvedUtc { get; }
 
     bool IsOpen => Resolution is null;
 
-    void Resolve(string resolution);
+    void Resolve(Text resolution);
 
     /// <summary>Resolves the notification when the machine's state shows it no longer applies.</summary>
     void Observe(StatusReport? status);
@@ -36,16 +36,16 @@ public abstract class MachineNotification : IMachineNotification
 {
     public Guid Id { get; } = Guid.NewGuid();
     public DateTime RaisedUtc { get; } = DateTime.UtcNow;
-    public string? Resolution { get; private set; }
+    public Text? Resolution { get; private set; }
     public DateTime? ResolvedUtc { get; private set; }
 
     public abstract string Icon { get; }
     public abstract string Kind { get; }
-    public abstract string Title { get; }
-    public abstract string Message { get; }
+    public abstract Text Title { get; }
+    public abstract Text Message { get; }
     public abstract IReadOnlyList<NotificationAction> Actions { get; }
 
-    public void Resolve(string resolution)
+    public void Resolve(Text resolution)
     {
         if (Resolution is not null) return;
         Resolution = resolution;
@@ -58,5 +58,5 @@ public abstract class MachineNotification : IMachineNotification
     }
 
     /// <summary>The resolution the machine's state implies, or null while the notification still applies.</summary>
-    protected abstract string? ResolvedBy(StatusReport? status);
+    protected abstract Text? ResolvedBy(StatusReport? status);
 }

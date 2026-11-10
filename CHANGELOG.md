@@ -6,6 +6,34 @@ All notable changes to TinkerCNC are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- **Resume after a stop**: where a running job is gets stored per machine (every 30 s, and at once when it ends
+  early). After an emergency stop, an alarm or the machine switched off, also after reopening the app, the Job card
+  offers to resume at that line: the work origin is restored, the tool asked for and measured, the head brought back
+  to that point, and the program goes on from there.
+- The dashboard speaks **English, German, French and Italian**. It follows the browser's (or, in the app's window,
+  the system's) language; **Settings → Language** picks another one for this browser.
+- **System notifications** (Settings → Notifications): tool changes, alarms and queue news also appear as the
+  system's own notifications, even while the dashboard is in the background; a click opens the machine.
+
+### Changed
+- The **toolpath** view shows the program in the machine: the machine around it and the toolpath at the work origin,
+  where it really cuts. Two tabs: **Live** (what has been cut so far) and **Preview** (the whole toolpath once the job
+  has run); a Machine button frames the whole machine.
+- **Start** on the Job card (now **Current job**) starts the queue with that job as its first entry: its run count can
+  be raised while it runs, and further runs and queued entries follow, each waiting for the go.
+- Running a file from this computer, a setup or the queue again **no longer uploads it again** when the machine
+  already has it: the MD5 the machine announces for that file is compared first, without transferring anything.
+- Camera recordings and job time-lapses are **MP4 files** (H.264) that every player and browser opens, instead of
+  raw JPEG streams. The encoder is part of TinkerCNC (no ffmpeg or other native codec is needed); recordings cut
+  short by closing the app are completed at the next start. Older `.mjpeg` recordings stay where they are.
+- A camera recording keeps **every fifth frame** (in real time), a fifth of the data of recording every frame. While
+  it runs, its file's size in Windows Explorer grows with it.
+- A job's time-lapse records **one frame every second** (it used to stretch the interval up to a minute for long
+  jobs) and plays 30 times faster than the job.
+- **Start queue** works while a job runs: the running job counts as the queue's first, and the queue goes on once it
+  has finished (it used to require an Idle machine).
+
 ## [0.2.0] - 2026-11-07
 
 ### Added

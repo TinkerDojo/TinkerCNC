@@ -147,6 +147,70 @@ public sealed class AppDatabase
         );
         CREATE INDEX ix_queue_entries_machine ON queue_entries (machine, position);
         """,
+        // A job started on the Job card is the first entry of the queue: it may have no setup and brings its own
+        // start options (own_options = 1; otherwise the option columns are NULL and the setup's options apply).
+        """
+        CREATE TABLE queue_entries_v2 (
+            id                        INTEGER PRIMARY KEY AUTOINCREMENT,
+            machine                   TEXT    NOT NULL,
+            position                  INTEGER NOT NULL,
+            setup_id                  INTEGER REFERENCES setups (id),
+            file_id                   INTEGER REFERENCES setup_files (id),
+            stored_file               TEXT,
+            original_file_name        TEXT,
+            md5                       TEXT,
+            repeat_count              INTEGER NOT NULL DEFAULT 1,
+            done_count                INTEGER NOT NULL DEFAULT 0,
+            state                     TEXT    NOT NULL,
+            error                     TEXT,
+            restart_segment           INTEGER,
+            created_utc               TEXT    NOT NULL,
+            own_options               INTEGER NOT NULL DEFAULT 0,
+            work_origin               TEXT,
+            origin_offset_x           REAL,
+            origin_offset_y           REAL,
+            xyz_probe_height          REAL,
+            xyz_probe_tool_diameter   REAL,
+            scan_margin               INTEGER,
+            z_probe                   INTEGER,
+            z_probe_from_work_origin  INTEGER,
+            z_probe_offset_x          REAL,
+            z_probe_offset_y          REAL,
+            leveling                  INTEGER,
+            leveling_points_x         INTEGER,
+            leveling_points_y         INTEGER,
+            leveling_height           REAL,
+            mode_vacuum               INTEGER,
+            mode_external_output      INTEGER,
+            mode_blow                 INTEGER,
+            mode_bed_clean            INTEGER,
+            mode_anti_static          INTEGER,
+            timelapse                 INTEGER
+        );
+        INSERT INTO queue_entries_v2 (id, machine, position, setup_id, file_id, stored_file, original_file_name, md5,
+            repeat_count, done_count, state, error, restart_segment, created_utc)
+        SELECT id, machine, position, setup_id, file_id, stored_file, original_file_name, md5,
+            repeat_count, done_count, state, error, restart_segment, created_utc
+        FROM queue_entries;
+        DROP TABLE queue_entries;
+        ALTER TABLE queue_entries_v2 RENAME TO queue_entries;
+        CREATE INDEX ix_queue_entries_machine ON queue_entries (machine, position);
+        """,
+        // Where each machine's running job was last seen, to resume it after an emergency stop or a power cut.
+        """
+        CREATE TABLE job_snapshots (
+            machine                   TEXT    PRIMARY KEY,
+            file_name                 TEXT    NOT NULL,
+            md5                       TEXT    NOT NULL,
+            line                      INTEGER NOT NULL,
+            line_count                INTEGER NOT NULL,
+            work_zero_x               REAL,
+            work_zero_y               REAL,
+            work_zero_z               REAL,
+            leveled                   INTEGER NOT NULL DEFAULT 0,
+            recorded_utc              TEXT    NOT NULL
+        );
+        """,
     ];
 
     public AppDatabase(string path)

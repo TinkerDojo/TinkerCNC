@@ -4,19 +4,19 @@
 @inject MachineSessionManager Sessions
 @inject NavigationManager Navigation
 
-<PageTitle>Time-lapse · Settings · TinkerCNC</PageTitle>
+<PageTitle>@T["Pages.Timelapse.PageTitle"]</PageTitle>
 
 <header class="page-head">
     <div>
-        <h1>Time-lapse</h1>
-        <p class="muted">Recordings stored on a machine, played through its preview channel.</p>
+        <h1>@T["Pages.Timelapse.Title"]</h1>
+        <p class="muted">@T["Pages.Timelapse.Intro"]</p>
     </div>
     <label class="field-inline">
-        <span class="muted small">Machine</span>
+        <span class="muted small">@T["Common.Machine"]</span>
         <select class="input" value="@Selected?.Address" @onchange="SelectMachine" disabled="@(Machines.Count == 0)">
             @foreach (var machine in Machines)
             {
-                <option value="@machine.Address">@machine.Name (@machine.Address)@(machine.Online ? "" : " · offline")</option>
+                <option value="@machine.Address">@machine.Name (@machine.Address)@(machine.Online ? "" : " · " + T["Common.Offline"])</option>
             }
         </select>
     </label>
@@ -28,7 +28,7 @@
 }
 else
 {
-    <div class="empty">No machines known yet. Add or discover one on the <a href="/">Machines</a> page.</div>
+    <div class="empty">@T.Html("Pages.Timelapse.Empty")</div>
 }
 
 @code {

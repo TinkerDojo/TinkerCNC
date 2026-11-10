@@ -1,6 +1,6 @@
 @inherits SessionComponent
 
-<PanelSection Title="Jog">
+<PanelSection Title="@T["Machine.Jog.Title"]">
     <Tools>
         <div class="seg seg-sm">
             @foreach (var s in Steps)
@@ -23,13 +23,13 @@
 
         @if (Connected && !CanJog)
         {
-            <p class="hint warn">Jogging is disabled while the machine is <b>@(Session.Status?.State ?? "unknown")</b>.</p>
+            <p class="hint warn">@T.Html("Machine.Jog.DisabledInState", Session.Status?.State ?? T["Common.Unknown"])</p>
         }
         @if (_runner.Error is not null)
         {
-            <p class="hint err">@_runner.Error</p>
+            <p class="hint err">@T[_runner.Error]</p>
         }
-        <p class="hint muted">Sends <code>G91 G0 …</code> then <code>G90</code>. Moves are rapid (G0).</p>
+        <p class="hint muted">@T.Html("Machine.Jog.Hint")</p>
     </ChildContent>
 </PanelSection>
 

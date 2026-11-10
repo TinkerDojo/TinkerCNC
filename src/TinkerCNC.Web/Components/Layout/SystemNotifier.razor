@@ -1,0 +1,72 @@
+@* Hands every machine's new notifications to the system as well (when switched on under Settings → Notifications),
+   and takes them away again once they are answered or resolved. Lives in the layout, so it works on every page. *@
+@implements IDisposable
+@inject NotificationCenter Center
+@inject SystemNotifications System
+
+@code {
+    private readonly object _gate = new();
+    private readonly Dictionary<Guid, IMachineNotification> _shown = new();
+    private bool _ready;
+
+    protected override void OnInitialized()
+    {
+        Center.Raised += OnRaised;
+        Center.Changed += OnChanged;
+    }
+
+    // Only notifications raised from now on: the ones already there were seen under the bell.
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender) _ready = true;
+    }
+
+    private void OnRaised(MachineSession session, IMachineNotification notification)
+    {
+        if (!_ready) return;
+        var shown = new SystemNotification(
+            notification.Id.ToString(),
+            T[notification.Title],
+            T["Layout.SystemNotification.Body", session.Name, notification.Message],
+            NavSidebar.MachineLink(session.Address),
+            Sticky: notification.Actions.Count > 0);
+        _ = InvokeAsync(() => ShowAsync(notification, shown));
+    }
+
+    private async Task ShowAsync(IMachineNotification notification, SystemNotification shown)
+    {
+        try
+        {
+            if (!await System.IsEnabledAsync()) return;
+            if (await System.ShowAsync(shown) is NotificationOutcome.Failed or NotificationOutcome.Blocked) return;
+            lock (_gate) _shown[notification.Id] = notification;
+        }
+        catch (JSDisconnectedException) { }
+    }
+
+    private void OnChanged()
+    {
+        List<IMachineNotification> answered;
+        lock (_gate)
+        {
+            answered = _shown.Values.Where(n => !n.IsOpen).ToList();
+            foreach (var notification in answered) _shown.Remove(notification.Id);
+        }
+        if (answered.Count > 0) _ = InvokeAsync(() => CloseAsync(answered));
+    }
+
+    private async Task CloseAsync(IEnumerable<IMachineNotification> answered)
+    {
+        try
+        {
+            foreach (var notification in answered) await System.CloseAsync(notification.Id.ToString());
+        }
+        catch (JSDisconnectedException) { }
+    }
+
+    public void Dispose()
+    {
+        Center.Raised -= OnRaised;
+        Center.Changed -= OnChanged;
+    }
+}

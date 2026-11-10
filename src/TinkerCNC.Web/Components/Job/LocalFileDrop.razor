@@ -2,13 +2,13 @@
 
 <label class="drop-zone @(Busy ? "disabled" : "")">
     <Icon Name="upload" Size="30" />
-    <b>Drop a G-code file here, or click to browse</b>
-    <span class="muted small">@ProgramFiles.AcceptText · uploaded to the machine's programs folder when the job starts</span>
+    <b>@T["Setups.Local.Drop"]</b>
+    <span class="muted small">@T["Setups.Local.Hint", ProgramFiles.AcceptText]</span>
     <InputFile OnChange="OnChangeAsync" accept="@ProgramFiles.Accept" disabled="@Busy" />
 </label>
 @if (_runner.Error is { } error)
 {
-    <p class="hint err">@error</p>
+    <p class="hint err">@T[error]</p>
 }
 
 @code {

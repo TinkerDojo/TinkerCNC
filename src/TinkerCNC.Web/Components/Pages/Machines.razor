@@ -5,18 +5,18 @@
 @inject DiscoveryService Discovery
 @inject NavigationManager Nav
 
-<PageTitle>Machines · TinkerCNC</PageTitle>
+<PageTitle>@T["Pages.Machines.PageTitle"]</PageTitle>
 
 <header class="page-head">
     <div>
-        <h1>Machines</h1>
+        <h1>@T["Pages.Machines.Title"]</h1>
         <p class="muted">
-            Discovered on your network or added by address.
+            @T["Pages.Machines.Intro"]
         </p>
     </div>
     <div class="head-actions">
         <button class="btn btn-primary" @onclick="() => _showAdd = !_showAdd">
-            <Icon Name="plus" /> Add machine
+            <Icon Name="plus" /> @T["Pages.Machines.Add"]
         </button>
     </div>
 </header>
@@ -26,23 +26,23 @@
     <section class="card add-card">
         <form class="add-form" @onsubmit="AddAsync">
             <label>
-                <span>IP address</span>
-                <input class="input mono" placeholder="192.168.1.42 or 192.168.1.42:2222" @bind="_newAddress" @bind:event="oninput" autofocus />
+                <span>@T["Pages.Machines.Address"]</span>
+                <input class="input mono" placeholder="@T["Pages.Machines.AddressPlaceholder"]" @bind="_newAddress" @bind:event="oninput" autofocus />
             </label>
             <label>
-                <span>Name <em>(optional)</em></span>
-                <input class="input" placeholder="Workshop mill" @bind="_newName" />
+                <span>@T.Html("Pages.Machines.Name")</span>
+                <input class="input" placeholder="@T["Pages.Machines.NamePlaceholder"]" @bind="_newName" />
             </label>
             <div class="add-buttons">
                 <button type="button" class="btn btn-ghost" disabled="@(_busy || string.IsNullOrWhiteSpace(_newAddress))" @onclick="ProbeAsync">
-                    <Icon Name="search" /> Query
+                    <Icon Name="search" /> @T["Pages.Machines.Query"]
                 </button>
-                <button type="submit" class="btn btn-primary" disabled="@(_busy || string.IsNullOrWhiteSpace(_newAddress))">Add</button>
+                <button type="submit" class="btn btn-primary" disabled="@(_busy || string.IsNullOrWhiteSpace(_newAddress))">@T["Common.Add"]</button>
             </div>
         </form>
         @if (_addMessage is not null)
         {
-            <div class="notice @(_addOk ? "notice-ok" : "notice-warn")">@_addMessage</div>
+            <div class="notice @(_addOk ? "notice-ok" : "notice-warn")">@T[_addMessage]</div>
         }
     </section>
 }
@@ -50,35 +50,35 @@
 <section class="summary-row">
     <div class="summary">
         <span class="summary-value">@_entries.Count</span>
-        <span class="summary-label">known</span>
+        <span class="summary-label">@T["Pages.Machines.Known"]</span>
     </div>
     <div class="summary">
         <span class="summary-value ok">@_entries.Count(e => e.Online)</span>
-        <span class="summary-label">online</span>
+        <span class="summary-label">@T["Pages.Machines.Online"]</span>
     </div>
     <div class="summary">
         <span class="summary-value">@Sessions.Connected.Count</span>
-        <span class="summary-label">connected</span>
+        <span class="summary-label">@T["Pages.Machines.Connected"]</span>
     </div>
     <div class="summary grow">
-        <span class="summary-label">Discovery (UDP 3333)</span>
+        <span class="summary-label">@T["Pages.Machines.Discovery"]</span>
         @if (Directory.Discovery.Error is { } derr)
         {
-            <span class="err small">@derr</span>
+            <span class="err small">@T[derr]</span>
         }
         else
         {
-            <span class="small">@Directory.Discovery.Packets announcements · last @TimeFormat.Ago(Directory.Discovery.LastPacketUtc)</span>
+            <span class="small">@T.Count("Pages.Machines.Announcements", Directory.Discovery.Packets, TimeFormat.Ago(Directory.Discovery.LastPacketUtc))</span>
         }
     </div>
 </section>
 
 <div class="toolbar">
-    <input class="input search" placeholder="Filter by name or address…" @bind="_filter" @bind:event="oninput" />
+    <input class="input search" placeholder="@T["Pages.Machines.Filter"]" @bind="_filter" @bind:event="oninput" />
     <div class="seg">
         @foreach (var view in Views)
         {
-            <button class="@(_view == view ? "active" : "")" @onclick="() => _view = view">@view.Label</button>
+            <button class="@(_view == view ? "active" : "")" @onclick="() => _view = view">@T[view.Label]</button>
         }
     </div>
 </div>
@@ -87,9 +87,9 @@
 {
     <div class="empty">
         <Icon Name="radar" Size="40" />
-        <h3>No machines @(_entries.Count == 0 ? "yet" : "match")</h3>
+        <h3>@(_entries.Count == 0 ? T["Pages.Machines.EmptyNone"] : T["Pages.Machines.EmptyNoMatch"])</h3>
         <p class="muted">
-            Machines on the same network announce themselves every few seconds. You can also add one by IP address.
+            @T["Pages.Machines.EmptyHint"]
         </p>
     </div>
 }
@@ -106,7 +106,7 @@
                 </div>
                 <div class="machine-title">
                     <h3 title="@m.Name">@m.Name</h3>
-                    <span class="mono small muted">@(m.Address ?? "no address stored")</span>
+                    <span class="mono small muted">@(m.Address ?? T["Pages.Machines.NoAddress"])</span>
                 </div>
                 <div class="machine-presence">
                     <PresenceChip Machine="m" Connected="connected" />
@@ -114,45 +114,45 @@
             </div>
 
             <div class="tags">
-                @if (m.Discovered) { <span class="tag">Discovered · @TimeFormat.Ago(m.LastSeenUtc)</span> }
-                @if (m.Manual) { <span class="tag">Added here</span> }
+                @if (m.Discovered) { <span class="tag">@T["Pages.Machines.Discovered", TimeFormat.Ago(m.LastSeenUtc)]</span> }
+                @if (m.Manual) { <span class="tag">@T["Pages.Machines.AddedHere"]</span> }
                 @if (session?.Status is { } st) { <StateBadge State="@st.State" Small="true" /> }
             </div>
 
             @if (m.Busy && m.Online && !connected)
             {
-                <p class="hint warn">Another client is connected. The machine may refuse a second connection.</p>
+                <p class="hint warn">@T["Pages.Machines.OtherClient"]</p>
             }
 
             <div class="machine-actions">
                 @if (m.Address is null)
                 {
-                    <span class="muted small">Waiting for it to show up on the network…</span>
+                    <span class="muted small">@T["Pages.Machines.Waiting"]</span>
                 }
                 else if (connected)
                 {
-                    <button class="btn btn-primary" @onclick="() => Open(m)"><Icon Name="dashboard" /> Open</button>
-                    <button class="btn btn-ghost" @onclick="() => DisconnectAsync(session!)">Disconnect</button>
+                    <button class="btn btn-primary" @onclick="() => Open(m)"><Icon Name="dashboard" /> @T["Pages.Machines.Open"]</button>
+                    <button class="btn btn-ghost" @onclick="() => DisconnectAsync(session!)">@T["Common.Disconnect"]</button>
                 }
                 else
                 {
                     <button class="btn btn-primary" disabled="@(_connecting == m.Key)" @onclick="() => ConnectAsync(m)">
-                        @if (_connecting == m.Key) { <span class="spinner"></span> <span>Connecting…</span> }
-                        else { <Icon Name="plug" /> <span>Connect</span> }
+                        @if (_connecting == m.Key) { <span class="spinner"></span> <span>@T["Pages.Machines.Connecting"]</span> }
+                        else { <Icon Name="plug" /> <span>@T["Common.Connect"]</span> }
                     </button>
-                    <button class="btn btn-ghost" @onclick="() => Open(m)" title="Open the dashboard without connecting (camera only)">
+                    <button class="btn btn-ghost" @onclick="() => Open(m)" title="@T["Pages.Machines.OpenWithoutConnecting"]">
                         <Icon Name="camera" />
                     </button>
                 }
                 <div class="spacer"></div>
                 @if (m.Manual)
                 {
-                    <button class="btn btn-icon" title="Remove" @onclick="() => Directory.Remove(m)"><Icon Name="trash" /></button>
+                    <button class="btn btn-icon" title="@T["Common.Remove"]" @onclick="() => Directory.Remove(m)"><Icon Name="trash" /></button>
                 }
             </div>
             @if (_cardError.TryGetValue(m.Key, out var cerr))
             {
-                <div class="notice notice-err">@cerr</div>
+                <div class="notice notice-err">@T[cerr]</div>
             }
         </article>
     }
@@ -160,21 +160,21 @@
 
 @code {
     private IReadOnlyList<MachineEntry> _entries = Array.Empty<MachineEntry>();
-    private readonly Dictionary<string, string> _cardError = new();
+    private readonly Dictionary<string, Text> _cardError = new();
     private bool _showAdd;
     private string? _newAddress;
     private string? _newName;
-    private string? _addMessage;
+    private Text? _addMessage;
     private bool _addOk;
     private bool _busy;
     private string? _connecting;
     private string _filter = "";
-    private sealed record View(string Label, Func<MachineEntry, bool> Filter);
+    private sealed record View(Text Label, Func<MachineEntry, bool> Filter);
 
     private static readonly View[] Views =
     {
-        new("All", _ => true),
-        new("Online", e => e.Online),
+        new(Texts.Of("Pages.Machines.View.All"), _ => true),
+        new(Texts.Of("Pages.Machines.View.Online"), e => e.Online),
     };
 
     private View _view = Views[0];
@@ -207,21 +207,23 @@
     {
         if (string.IsNullOrWhiteSpace(_newAddress)) return;
         _busy = true;
-        _addMessage = "Sending QUERY…";
+        _addMessage = Texts.Of("Pages.Machines.Querying");
         try
         {
             var host = TinkerCNC.Transport.TcpTransport.Parse(_newAddress).Host;
             var m = await Discovery.QueryAsync(host);
             _addOk = m is not null;
             _addMessage = m is null
-                ? "No answer to QUERY. The machine may still accept a TCP connection; you can add it anyway."
-                : $"Found {m.Name} at {m.ConnectAddress}{(m.Busy ? " (busy)" : "")}. It has been added to the list.";
+                ? Texts.Of("Pages.Machines.NoAnswer")
+                : m.Busy
+                    ? Texts.Of("Pages.Machines.FoundBusy", m.Name, m.ConnectAddress)
+                    : Texts.Of("Pages.Machines.Found", m.Name, m.ConnectAddress);
             if (m is not null && string.IsNullOrWhiteSpace(_newName)) _newName = m.Name;
         }
         catch (Exception ex)
         {
             _addOk = false;
-            _addMessage = ex.Message;
+            _addMessage = Text.Of(ex);
         }
         finally
         {
@@ -243,7 +245,7 @@
         catch (Exception ex)
         {
             _addOk = false;
-            _addMessage = ex.Message;
+            _addMessage = Text.Of(ex);
         }
         _entries = Directory.All;
     }
@@ -260,7 +262,7 @@
         }
         catch (Exception ex)
         {
-            _cardError[m.Key] = ex.Message;
+            _cardError[m.Key] = Text.Of(ex);
         }
         finally
         {

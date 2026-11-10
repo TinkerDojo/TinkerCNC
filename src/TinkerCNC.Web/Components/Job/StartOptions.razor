@@ -2,7 +2,7 @@
 @using TinkerCNC.Web.Components.Job.Options
 @inherits JobControlComponent
 
-<fieldset class="job-options" disabled="@Control.IsBusy" title="@(Control.IsBusy ? "Fixed while the job is being started" : null)">
+<fieldset class="job-options" disabled="@Control.IsBusy" title="@(Control.IsBusy ? T["Job.Options.Fixed"] : null)">
     <WorkOriginRow Session="Session" />
     <ZProbeRow Session="Session" />
     <LevelingRow Session="Session" />

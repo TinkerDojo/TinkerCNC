@@ -51,6 +51,10 @@ Pull requests whose commits lack a sign-off cannot be merged.
   or static interface methods.
 - **No hand-built JSON** (`JsonObject`, `JsonNode`, string concatenation). Define POCO/record contracts and
   (de)serialize them with System.Text.Json and shared `JsonSerializerOptions`.
+- **No hard-coded words in the UI.** Every text a user reads comes from the language files (`Localization/en.json`,
+  `de.json`, `fr.json`, `it.json`): `T["Category.Name"]` in components; host services hand out `Text` values, not
+  strings. Add new texts in all four languages; `TranslationTests` checks it. See
+  [Translations](docs/development.md#translations).
 - **Describe protocol behaviour in plain terms.** Comments and docs say what the machine does (packet layout,
   commands, states) and may cite the machine's open-source firmware. Strings shown to users are our own wording;
   only protocol keywords and file formats (commands, JSON field names, file names) are used verbatim, because a

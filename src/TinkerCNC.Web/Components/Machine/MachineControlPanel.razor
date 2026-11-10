@@ -1,17 +1,17 @@
 @inherits SessionComponent
 
-<PanelSection Title="Machine control">
+<PanelSection Title="@T["Machine.Control.Title"]">
     <div class="control-grid">
         @foreach (var action in MachineActions.All)
         {
-            <button class="btn btn-tile @action.Css" disabled="@(!Connected)" title="@action.Title" @onclick="() => _runner.RunAsync(() => action.Execute(Session))">
-                <Icon Name="@action.Icon" Size="18" /><span>@action.Label</span>
+            <button class="btn btn-tile @action.Css" disabled="@(!Connected)" title="@T[action.Title]" @onclick="() => _runner.RunAsync(() => action.Execute(Session))">
+                <Icon Name="@action.Icon" Size="18" /><span>@T[action.Label]</span>
             </button>
         }
     </div>
     @if (_runner.Error is not null)
     {
-        <p class="hint err">@_runner.Error</p>
+        <p class="hint err">@T[_runner.Error]</p>
     }
 </PanelSection>
 

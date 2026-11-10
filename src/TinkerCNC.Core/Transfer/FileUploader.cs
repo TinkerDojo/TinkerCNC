@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using TinkerCNC.Protocol;
+using TinkerCNC.Localization;
 
 namespace TinkerCNC.Transfer;
 
@@ -87,7 +88,7 @@ public sealed class FileUploader(MachineConnection machine)
             if (message is null)
             {
                 if (++timeouts > MaxRetries)
-                    throw new FileTransferException($"The machine stopped asking for data ({session.Describe()}).");
+                    throw new FileTransferException(CoreTexts.Of("Transfer.StoppedAsking", session.Describe()));
                 await machine.SendAsync(session.LastReply, ct).ConfigureAwait(false);
                 continue;
             }
@@ -124,7 +125,7 @@ public sealed class FileUploader(MachineConnection machine)
         /// <summary>The machine ended the upload itself (B5): nothing to cancel.</summary>
         public bool CancelledByMachine { get; private set; }
 
-        public string Describe() => $"packet {_lastPacket} of {TotalPackets} sent";
+        public Text Describe() => CoreTexts.Of("Transfer.PacketsSent", _lastPacket, TotalPackets);
 
         public IReadOnlyList<IHostMessage> TakeOutgoing()
         {
@@ -139,7 +140,7 @@ public sealed class FileUploader(MachineConnection machine)
         public override void Visit(FileData message)
         {
             if (message.Sequence < 1 || message.Sequence > TotalPackets)
-                throw new FileTransferException($"The machine asked for packet {message.Sequence} of {TotalPackets}.");
+                throw new FileTransferException(CoreTexts.Of("Transfer.WrongPacket", message.Sequence, TotalPackets));
             var offset = (message.Sequence - 1) * _packetSize;
             var length = Math.Min(_packetSize, _content.Length - offset);
             Reply(new FileData(message.Sequence, _content.AsSpan(offset, length).ToArray()));
@@ -153,10 +154,10 @@ public sealed class FileUploader(MachineConnection machine)
         public override void Visit(FileCancel message)
         {
             CancelledByMachine = true;
-            throw new FileTransferException("The machine cancelled the upload. It accepts files only while it is not moving.");
+            throw new FileTransferException(CoreTexts.Of("Transfer.UploadCancelled"));
         }
 
-        public override void Visit(AlarmMessage message) => throw new FileTransferException($"Alarm during upload: {message.Text.Trim()}");
+        public override void Visit(AlarmMessage message) => throw new FileTransferException(CoreTexts.Of("Transfer.UploadAlarm", message.Text.Trim()));
 
         private void Reply(IHostMessage reply)
         {

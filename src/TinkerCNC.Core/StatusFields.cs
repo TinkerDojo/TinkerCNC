@@ -1,27 +1,35 @@
 using System.Globalization;
+using TinkerCNC.Localization;
 
 namespace TinkerCNC;
 
 /// <summary>One value of a status field: what it is and its unit; switches are shown as on/off.</summary>
 /// <param name="NoneValue">A value that means "nothing" (e.g. −1 for no tool), shown as "none".</param>
-public sealed record StatusFieldPart(string Label, string Unit = "", bool IsSwitch = false, string? NoneValue = null)
+public sealed record StatusFieldPart(Text Label, string Unit = "", bool IsSwitch = false, string? NoneValue = null)
 {
-    public string Format(string raw)
+    private static readonly IReadOnlyDictionary<string, Text> Switches = new Dictionary<string, Text>
+    {
+        ["0"] = CoreTexts.Of("Status.Off"),
+        ["1"] = CoreTexts.Of("Status.On"),
+    };
+
+    public Text Format(string raw)
     {
         var value = raw.Trim();
-        if (value == NoneValue) return "none";
-        if (IsSwitch) return value == "0" ? "off" : value == "1" ? "on" : value;
-        return Unit.Length == 0 ? value : $"{value} {Unit}";
+        if (value == NoneValue) return CoreTexts.Of("Status.None");
+        if (IsSwitch) return Switches.GetValueOrDefault(value) ?? Text.Plain(value);
+        return Text.Plain(Unit.Length == 0 ? value : $"{value} {Unit}");
     }
 }
 
 /// <param name="Parts">The comma-separated values in order; values beyond the list are shown as "value n".</param>
-public sealed record StatusFieldInfo(string Name, IReadOnlyList<StatusFieldPart> Parts);
+public sealed record StatusFieldInfo(Text Name, IReadOnlyList<StatusFieldPart> Parts);
 
-public sealed record DescribedValue(string Label, string Text);
+/// <param name="Label">What the value is; null for a value of a field that is not known.</param>
+public sealed record DescribedValue(Text? Label, Text Text);
 
 /// <summary>A status field with readable names, e.g. Feed: current 0 mm/min, programmed 3000 mm/min, override 100 %.</summary>
-public sealed record DescribedField(string Key, string Name, IReadOnlyList<DescribedValue> Values, bool IsKnown);
+public sealed record DescribedField(string Key, Text Name, IReadOnlyList<DescribedValue> Values, bool IsKnown);
 
 /// <summary>
 /// Names and units of the status report's fields, in the order the firmware writes them (Kernel.cpp,
@@ -32,22 +40,41 @@ public static class StatusFields
 {
     private static readonly IReadOnlyDictionary<string, StatusFieldInfo> Known = new Dictionary<string, StatusFieldInfo>
     {
-        ["F"] = new("Feed", [new("current", "mm/min"), new("programmed", "mm/min"), new("override", "%")]),
-        ["S"] = new("Spindle",
+        ["F"] = new(CoreTexts.Of("Status.Feed"),
         [
-            new("current", "rpm"), new("target", "rpm"), new("override", "%"), new("vacuum mode", IsSwitch: true),
-            new("spindle temperature", "°C"), new("power supply temperature", "°C"), new("reserved"), new("reserved"),
-            new("external output mode"),
+            new(CoreTexts.Of("Status.Current"), "mm/min"), new(CoreTexts.Of("Status.Programmed"), "mm/min"),
+            new(CoreTexts.Of("Status.Override"), "%"),
         ]),
-        ["T"] = new("Tool", [new("active tool", NoneValue: "-1"), new("length offset", "mm"), new("waiting for tool", NoneValue: "-1")]),
-        ["W"] = new("Wireless probe", [new("battery", "V")]),
-        ["L"] = new("Laser", [new("laser mode", IsSwitch: true), new("on", IsSwitch: true), new("test mode", IsSwitch: true), new("power"), new("scale", "%")]),
-        ["P"] = new("Job progress", [new("line"), new("done", "%"), new("elapsed", "s")]),
-        ["A"] = new("Tool changer", [new("state")]),
-        ["O"] = new("Auto-levelling", [new("largest deviation", "mm")]),
-        ["H"] = new("Halted", [new("reason code")]),
-        ["V"] = new("Vacuum", [new("on", IsSwitch: true), new("power", "%")]), // as in the diagnostics report
-        ["C"] = new("Machine", [new("model code"), new("feature flags"), new("inch mode", IsSwitch: true), new("absolute mode", IsSwitch: true)]),
+        ["S"] = new(CoreTexts.Of("Status.Spindle"),
+        [
+            new(CoreTexts.Of("Status.Current"), "rpm"), new(CoreTexts.Of("Status.Target"), "rpm"), new(CoreTexts.Of("Status.Override"), "%"),
+            new(CoreTexts.Of("Status.VacuumMode"), IsSwitch: true), new(CoreTexts.Of("Status.SpindleTemperature"), "°C"),
+            new(CoreTexts.Of("Status.SupplyTemperature"), "°C"), new(CoreTexts.Of("Status.Reserved")), new(CoreTexts.Of("Status.Reserved")),
+            new(CoreTexts.Of("Status.ExternalOutputMode")),
+        ]),
+        ["T"] = new(CoreTexts.Of("Status.Tool"),
+        [
+            new(CoreTexts.Of("Status.ActiveTool"), NoneValue: "-1"), new(CoreTexts.Of("Status.LengthOffset"), "mm"),
+            new(CoreTexts.Of("Status.WaitingForTool"), NoneValue: "-1"),
+        ]),
+        ["W"] = new(CoreTexts.Of("Status.WirelessProbe"), [new(CoreTexts.Of("Status.Battery"), "V")]),
+        ["L"] = new(CoreTexts.Of("Status.Laser"),
+        [
+            new(CoreTexts.Of("Status.LaserMode"), IsSwitch: true), new(CoreTexts.Of("Status.IsOn"), IsSwitch: true),
+            new(CoreTexts.Of("Status.TestMode"), IsSwitch: true), new(CoreTexts.Of("Status.Power")), new(CoreTexts.Of("Status.Scale"), "%"),
+        ]),
+        ["P"] = new(CoreTexts.Of("Status.JobProgress"),
+            [new(CoreTexts.Of("Status.Line")), new(CoreTexts.Of("Status.Done"), "%"), new(CoreTexts.Of("Status.Elapsed"), "s")]),
+        ["A"] = new(CoreTexts.Of("Status.ToolChanger"), [new(CoreTexts.Of("Status.State"))]),
+        ["O"] = new(CoreTexts.Of("Status.AutoLevelling"), [new(CoreTexts.Of("Status.LargestDeviation"), "mm")]),
+        ["H"] = new(CoreTexts.Of("Status.Halted"), [new(CoreTexts.Of("Status.ReasonCode"))]),
+        ["V"] = new(CoreTexts.Of("Status.Vacuum"),
+            [new(CoreTexts.Of("Status.IsOn"), IsSwitch: true), new(CoreTexts.Of("Status.Power"), "%")]), // as in the diagnostics report
+        ["C"] = new(CoreTexts.Of("Status.Machine"),
+        [
+            new(CoreTexts.Of("Status.ModelCode")), new(CoreTexts.Of("Status.FeatureFlags")), new(CoreTexts.Of("Status.InchMode"), IsSwitch: true),
+            new(CoreTexts.Of("Status.AbsoluteMode"), IsSwitch: true),
+        ]),
     };
 
     private static readonly string[] Order = [.. Known.Keys];
@@ -63,10 +90,10 @@ public static class StatusFields
     {
         var raw = value.Length == 0 ? [] : value.Split(',');
         if (!Known.TryGetValue(key, out var info))
-            return new DescribedField(key, key, raw.Length == 0 ? [] : [new DescribedValue("", value)], IsKnown: false);
+            return new DescribedField(key, Text.Plain(key), raw.Length == 0 ? [] : [new DescribedValue(null, Text.Plain(value))], IsKnown: false);
         var values = raw.Select((v, i) => i < info.Parts.Count
                 ? new DescribedValue(info.Parts[i].Label, info.Parts[i].Format(v))
-                : new DescribedValue(string.Create(CultureInfo.InvariantCulture, $"value {i + 1}"), v.Trim()))
+                : new DescribedValue(CoreTexts.Of("Status.Value", (i + 1).ToString(CultureInfo.InvariantCulture)), Text.Plain(v.Trim())))
             .ToList();
         return new DescribedField(key, info.Name, values, IsKnown: true);
     }

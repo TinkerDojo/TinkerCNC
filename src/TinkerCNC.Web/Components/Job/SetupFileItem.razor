@@ -8,52 +8,52 @@
     <span class="file-name mono">@f.OriginalFileName</span>
     @if (Active)
     {
-        <span class="tag tag-accent">loaded</span>
+        <span class="tag tag-accent">@T["Setups.File.Loaded"]</span>
     }
     @if (Entry.FileMissing)
     {
-        <span class="tag tag-err" title="@Entry.FilePath">file missing</span>
+        <span class="tag tag-err" title="@Entry.FilePath">@T["Setups.File.Missing"]</span>
     }
     @if (f.IsDeleted)
     {
-        <span class="tag">deleted @SetupItem.Local(f.DeletedUtc!.Value)</span>
+        <span class="tag">@T["Setups.File.Deleted", SetupItem.Local(f.DeletedUtc!.Value)]</span>
     }
-    <span class="muted small file-meta">@SetupItem.Runs(f.RunCount, f.LastStartedUtc)</span>
+    <span class="muted small file-meta">@SetupItem.Runs(T, f.RunCount, f.LastStartedUtc)</span>
     <span class="spacer"></span>
     <span class="file-actions" @onclick:stopPropagation="true">
         @if (f.IsDeleted)
         {
-            <button class="btn btn-sm btn-ghost" disabled="@Locked" title="Bring the file back" @onclick="() => _runner.Run(() => Library.RestoreFile(f.Id))">Restore</button>
+            <button class="btn btn-sm btn-ghost" disabled="@Locked" title="@T["Setups.File.RestoreHint"]" @onclick="() => _runner.Run(() => Library.RestoreFile(f.Id))">@T["Common.Restore"]</button>
             @if (_confirm.IsAsking(f.Id))
             {
-                <button class="btn btn-sm btn-danger btn-danger-solid" @onclick="() => _runner.Run(() => { _confirm.Clear(); Library.DeleteFileForever(f.Id); })">Confirm</button>
+                <button class="btn btn-sm btn-danger btn-danger-solid" @onclick="() => _runner.Run(() => { _confirm.Clear(); Library.DeleteFileForever(f.Id); })">@T["Common.Confirm"]</button>
             }
             else
             {
-                <button class="btn btn-sm btn-ghost btn-danger" title="Remove the file and its copy for good" @onclick="() => _confirm.AskAsync(f.Id)"><Icon Name="trash" /> Delete forever</button>
+                <button class="btn btn-sm btn-ghost btn-danger" title="@T["Setups.File.DeleteForeverHint"]" @onclick="() => _confirm.AskAsync(f.Id)"><Icon Name="trash" /> @T["Setups.DeleteForever"]</button>
             }
         }
         else
         {
             @if (OnPick.HasDelegate)
             {
-                <button class="btn btn-sm btn-primary" disabled="@(!CanPick)" title="Choose it with the setup's options as saved" @onclick="PickAsync">
-                    <Icon Name="check" /> Load
+                <button class="btn btn-sm btn-primary" disabled="@(!CanPick)" title="@T["Setups.File.LoadHint"]" @onclick="PickAsync">
+                    <Icon Name="check" /> @T["Setups.File.Load"]
                 </button>
             }
             @if (Manage)
             {
-                <label class="btn btn-sm btn-ghost file-btn @(Busy ? "disabled" : "")" title="Use a new version of this G-code file">
-                    <Icon Name="upload" /> Replace…
+                <label class="btn btn-sm btn-ghost file-btn @(Busy ? "disabled" : "")" title="@T["Setups.File.ReplaceHint"]">
+                    <Icon Name="upload" /> @T["Setups.File.Replace"]
                     <InputFile OnChange="ReplaceAsync" accept="@ProgramFiles.Accept" disabled="@Busy" />
                 </label>
                 @if (_confirm.IsAsking(f.Id))
                 {
-                    <button class="btn btn-sm btn-danger btn-danger-solid" @onclick="() => _runner.Run(() => { _confirm.Clear(); Library.DeleteFile(f.Id); })">Confirm</button>
+                    <button class="btn btn-sm btn-danger btn-danger-solid" @onclick="() => _runner.Run(() => { _confirm.Clear(); Library.DeleteFile(f.Id); })">@T["Common.Confirm"]</button>
                 }
                 else
                 {
-                    <button class="btn btn-sm btn-ghost btn-danger" title="Move the file to the deleted ones" @onclick="() => _confirm.AskAsync(f.Id)"><Icon Name="trash" /> Delete…</button>
+                    <button class="btn btn-sm btn-ghost btn-danger" title="@T["Setups.File.DeleteHint"]" @onclick="() => _confirm.AskAsync(f.Id)"><Icon Name="trash" /> @T["Setups.DeleteAsk"]</button>
                 }
             }
         }
@@ -61,7 +61,7 @@
 </div>
 @if (_runner.Error is { } error)
 {
-    <p class="hint err pad-x">@error</p>
+    <p class="hint err pad-x">@T[error]</p>
 }
 
 @code {

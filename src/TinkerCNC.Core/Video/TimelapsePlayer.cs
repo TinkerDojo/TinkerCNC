@@ -1,5 +1,6 @@
 using System.Net.WebSockets;
 using System.Text;
+using TinkerCNC.Localization;
 
 namespace TinkerCNC.Video;
 
@@ -44,7 +45,7 @@ public sealed class TimelapsePlayer : IAsyncDisposable
     public string? FilePath { get; private set; }
     public TimelapseState State { get; private set; } = TimelapseState.Idle;
     public TimelapseInfo? Info { get; private set; }
-    public string? LastError { get; private set; }
+    public Text? LastError { get; private set; }
     public int FramesReceived { get; private set; }
     /// <summary>Index of the last displayed frame (start frame + frames received since play).</summary>
     public int CurrentFrame { get; private set; }
@@ -76,7 +77,7 @@ public sealed class TimelapsePlayer : IAsyncDisposable
         }
         catch (Exception ex)
         {
-            Fail(ex.Message);
+            Fail(Localization.Text.Of(ex));
             throw;
         }
 
@@ -124,14 +125,14 @@ public sealed class TimelapsePlayer : IAsyncDisposable
         SetState(TimelapseState.Idle);
     }
 
-    private TimelapseInfo RequireInfo() => Info ?? throw new InvalidOperationException("No recording is open.");
+    private TimelapseInfo RequireInfo() => Info ?? throw new LocalizedException(CoreTexts.Of("Timelapse.NotOpen"));
 
     private int NextSeq() => Interlocked.Increment(ref _seq);
 
     private async Task SendAsync(IPreviewRequest request, CancellationToken ct)
     {
         var ws = _ws;
-        if (ws is null || ws.State != WebSocketState.Open) throw new InvalidOperationException("Preview channel is not connected.");
+        if (ws is null || ws.State != WebSocketState.Open) throw new LocalizedException(CoreTexts.Of("Timelapse.NotConnected"));
         var bytes = Encoding.UTF8.GetBytes(PreviewJson.Serialize(request));
 
         await _sendLock.WaitAsync(ct).ConfigureAwait(false);
@@ -159,11 +160,11 @@ public sealed class TimelapsePlayer : IAsyncDisposable
         }
         catch (Exception ex)
         {
-            Fail(ex.Message);
+            Fail(Localization.Text.Of(ex));
         }
     }
 
-    private void Fail(string message)
+    private void Fail(Text message)
     {
         LastError = message;
         SetState(TimelapseState.Error);
@@ -263,7 +264,7 @@ public sealed class TimelapsePlayer : IAsyncDisposable
 
         public Task VisitAsync(PreemptedReply reply)
         {
-            player.LastError = "Another viewer took over the machine's recording channel; open the recording again to continue.";
+            player.LastError = CoreTexts.Of("Timelapse.Preempted");
             player.SetState(TimelapseState.Preempted);
             return Task.CompletedTask;
         }

@@ -7,25 +7,30 @@
             <div></div>
         </div>
         <p class="components-reconnect-first-attempt-visible">
-            Rejoining the server...
+            @T["Layout.Reconnect.Rejoining"]
         </p>
         <p class="components-reconnect-repeated-attempt-visible">
-            Rejoin failed... trying again in <span id="components-seconds-to-next-attempt"></span> seconds.
+            @((MarkupString)T["Layout.Reconnect.RetryIn", SecondsToNextAttempt])
         </p>
         <p class="components-reconnect-failed-visible">
-            Failed to rejoin.<br />Please retry or reload the page.
+            @T.Html("Layout.Reconnect.Failed")
         </p>
         <button id="components-reconnect-button" class="components-reconnect-failed-visible">
-            Retry
+            @T["Common.Retry"]
         </button>
         <p class="components-pause-visible">
-            The session has been paused by the server.
+            @T["Layout.Reconnect.Paused"]
         </p>
         <p class="components-resume-failed-visible">
-            Failed to resume the session.<br />Please retry or reload the page.
+            @T.Html("Layout.Reconnect.ResumeFailed")
         </p>
         <button id="components-resume-button" class="components-pause-visible components-resume-failed-visible">
-            Resume
+            @T["Common.Resume"]
         </button>
     </div>
 </dialog>
+
+@code {
+    // The countdown Blazor's reconnect script fills in; the translations themselves carry no markup for it.
+    private const string SecondsToNextAttempt = "<span id=\"components-seconds-to-next-attempt\"></span>";
+}

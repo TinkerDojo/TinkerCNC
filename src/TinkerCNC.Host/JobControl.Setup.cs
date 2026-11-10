@@ -1,4 +1,5 @@
 using Microsoft.Data.Sqlite;
+using TinkerCNC.Jobs;
 using TinkerCNC.Programs;
 
 namespace TinkerCNC.Host;
@@ -33,7 +34,7 @@ public sealed partial class JobControl
     public void SaveToSetup(long setupId, bool updateOptions)
     {
         RequireIdle();
-        var program = Program ?? throw new SetupException("Choose a program first.");
+        var program = Program ?? throw new SetupException(HostTexts.Of("Program.ChooseFirst"));
         if (updateOptions) _library.UpdateOptions(setupId, Options);
         var file = SetupFile?.SetupId == setupId ? SetupFile : _library.AddFile(setupId, program.Source.FileName, program.Content);
         Adopt(_library.Get(setupId), file, program);
@@ -45,7 +46,7 @@ public sealed partial class JobControl
     public void SaveAsNewSetup(string name, string notes, bool replace)
     {
         RequireIdle();
-        var program = Program ?? throw new SetupException("Choose a program first.");
+        var program = Program ?? throw new SetupException(HostTexts.Of("Program.ChooseFirst"));
         var setup = _library.Create(name, notes, Options, replace);
         var file = _library.AddFile(setup.Id, program.Source.FileName, program.Content);
         Adopt(setup, file, program);
@@ -55,7 +56,7 @@ public sealed partial class JobControl
     public void SaveChanges()
     {
         RequireIdle();
-        var setup = Setup ?? throw new SetupException("No setup is loaded.");
+        var setup = Setup ?? throw new SetupException(HostTexts.Of("Setup.NoneLoaded"));
         Setup = _library.UpdateOptions(setup.Id, Options);
         _session.NotifyChanged();
     }
@@ -68,24 +69,29 @@ public sealed partial class JobControl
         _session.NotifyChanged();
     }
 
-    /// <summary>Chooses a file for the queue: the setup's options, the probe point kept inside the file's area, a restart if asked.</summary>
+    /// <summary>Chooses a file for the queue: its options, the probe point kept inside the file's area, a restart if asked.</summary>
+    /// <param name="setup">The setup it belongs to, if any (its starts are counted).</param>
     /// <param name="file">The setup's file it is, or null for a copy queued for its runs only.</param>
+    /// <param name="options">The options it runs with: the setup's, or the entry's own.</param>
     /// <param name="restartSegment">Index of the tool operation to begin at, after a failure.</param>
-    public void LoadQueued(Setup setup, SetupFile? file, string fileName, byte[] content, int? restartSegment)
+    public void LoadQueued(Setup? setup, SetupFile? file, string fileName, byte[] content, JobStartOptions options, int? restartSegment)
     {
         RequireIdle();
-        Options = setup.Options.Clone();
-        Use(SourceOf(setup, fileName, content, "from the queue"), content, _cache.Add(fileName, content), setup, file);
+        var source = setup is null
+            ? new LocalProgram(fileName, content, HostTexts.Of("Program.Queued"))
+            : new LocalProgram(fileName, content, HostTexts.Of("Program.FromSetupQueued", setup.Name));
+        Use(source, content, _cache.Add(fileName, content), setup, file);
+        Options = options.Clone(); // exactly these: no Z probe point moved for a file without a setup
         if (Options.ZProbe && Program!.Bounds is { } bounds && !Options.ZProbeWithin(bounds))
         {
             Options.ZProbeAtCenterOf(bounds);
-            _session.Note($"Queue: the Z probe point of \"{setup.Name}\" lies outside the area of {fileName}; it is probed in the middle of that area instead.");
+            _session.Note($"Queue: the Z probe point lies outside the area of {fileName}; it is probed in the middle of that area instead.");
         }
         if (restartSegment is { } index) StartFrom(index);
     }
 
-    private static LocalProgram SourceOf(Setup setup, string fileName, byte[] content, string? suffix = null) =>
-        new(fileName, content, $"setup \"{setup.Name}\"" + (suffix is null ? "" : $", {suffix}"));
+    private static LocalProgram SourceOf(Setup setup, string fileName, byte[] content) =>
+        new(fileName, content, HostTexts.Of("Program.FromSetup", setup.Name));
 
     /// <summary>Follows changes made in the library (here or in another window) to the loaded setup and file.</summary>
     private void OnLibraryChanged()
@@ -132,6 +138,6 @@ public sealed partial class JobControl
 
     private void RequireIdle()
     {
-        if (IsBusy) throw new SetupException("Busy with the previous request.");
+        if (IsBusy) throw new SetupException(HostTexts.Of("Job.Busy"));
     }
 }

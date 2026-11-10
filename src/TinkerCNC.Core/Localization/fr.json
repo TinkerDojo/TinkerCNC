@@ -1,0 +1,134 @@
+{
+  "Address": {
+    "Invalid": "Format d'adresse non valide : {0}"
+  },
+  "Air": {
+    "Compressed": "air comprimé",
+    "SpindleBlower": "soufflage de la broche à {0} %"
+  },
+  "Camera": {
+    "StreamClosed": "flux fermé"
+  },
+  "Connection": {
+    "NotConnected": "La machine n'est pas connectée."
+  },
+  "GoTo": {
+    "MachineCoordinates": "coordonnées machine",
+    "NoPosition": "La machine n'a pas encore indiqué sa position.",
+    "OutOfRange": "{0} doit être compris entre {1} et {2} ({3}).",
+    "WorkCoordinates": "coordonnées pièce"
+  },
+  "Mode": {
+    "AntiStatic.Description": "Les charges électrostatiques sont éliminées pendant la coupe.",
+    "AntiStatic.Name": "Antistatique",
+    "BedClean.Description": "La machine nettoie le plateau après le programme.",
+    "BedClean.Name": "Nettoyage automatique du plateau",
+    "Blow.Description": "Le soufflage de la broche évacue les copeaux pendant la coupe.",
+    "Blow.Name": "Soufflage automatique",
+    "ExternalOutput.Description": "La sortie externe suit la broche.",
+    "ExternalOutput.Name": "Sortie externe automatique",
+    "Vacuum.Description": "L'aspiration fonctionne dès que la broche tourne.",
+    "Vacuum.Name": "Aspiration automatique"
+  },
+  "Origin": {
+    "BedCorner": "coin du plateau + ({0}, {1}) mm",
+    "HeadPosition": "position de la tête + ({0}, {1}) mm",
+    "Unchanged": "inchangée",
+    "XyzProbe": "palpée sur le bloc de palpage XYZ ({0} mm de haut, outil {1} mm)"
+  },
+  "Preparation": {
+    "Label": "Palpage",
+    "Leveling": "Nivellement automatique {0} × {1}",
+    "ScanMargin": "Balayage du contour",
+    "ToolBack": "Retour à l'outil",
+    "ToProbe": "Passage au palpeur",
+    "XyzCorner": "Palpage du coin XYZ",
+    "ZProbe": "Palpage Z"
+  },
+  "Preview": {
+    "UnknownError": "Erreur serveur inconnue ({0})"
+  },
+  "Restart": {
+    "Description": "{0} à partir de {1}"
+  },
+  "Resume": {
+    "Description": "{0}, repris à la ligne {1} sur {2}"
+  },
+  "Segment": {
+    "NoTool": "Aucun outil"
+  },
+  "Start": {
+    "LevelingArea": "Le nivellement automatique nécessite un programme qui couvre une surface en X et en Y.",
+    "LevelingHeight": "La hauteur de nivellement doit être comprise entre {0} et {1} mm.",
+    "LevelingPoints": "Le nivellement automatique nécessite de {0} à {1} points en X et en Y.",
+    "NoBedCorner": "La configuration de la machine ne définit aucun coin du plateau (coordinate.anchor1_x/_y).",
+    "NoHeadPosition": "La machine n'a pas indiqué où se trouve la tête.",
+    "NothingToProbe": "Le programme n'a aucun mouvement de coupe : il n'y a donc aucune zone à palper."
+  },
+  "Status": {
+    "AbsoluteMode": "mode absolu",
+    "ActiveTool": "outil actif",
+    "AutoLevelling": "Nivellement automatique",
+    "Battery": "batterie",
+    "Current": "actuelle",
+    "Done": "effectué",
+    "Elapsed": "écoulé",
+    "ExternalOutputMode": "mode sortie externe",
+    "FeatureFlags": "indicateurs de fonctions",
+    "Feed": "Avance",
+    "Halted": "Arrêtée",
+    "InchMode": "mode pouces",
+    "IsOn": "allumé",
+    "JobProgress": "Progression de la tâche",
+    "LargestDeviation": "écart maximal",
+    "Laser": "Laser",
+    "LaserMode": "mode laser",
+    "LengthOffset": "correction de longueur",
+    "Line": "ligne",
+    "Machine": "Machine",
+    "ModelCode": "code modèle",
+    "None": "aucun",
+    "Off": "désactivé",
+    "On": "activé",
+    "Override": "correction",
+    "Power": "puissance",
+    "Programmed": "programmée",
+    "ReasonCode": "code de cause",
+    "Reserved": "réservé",
+    "Scale": "échelle",
+    "Spindle": "Broche",
+    "SpindleTemperature": "température de la broche",
+    "State": "état",
+    "SupplyTemperature": "température de l'alimentation",
+    "Target": "consigne",
+    "TestMode": "mode test",
+    "Tool": "Outil",
+    "ToolChanger": "Changeur d'outils",
+    "Vacuum": "Aspiration",
+    "VacuumMode": "mode aspiration",
+    "Value": "valeur {0}",
+    "WaitingForTool": "outil attendu",
+    "WirelessProbe": "Palpeur sans fil"
+  },
+  "Timelapse": {
+    "NotConnected": "Le canal d'aperçu n'est pas connecté.",
+    "NotOpen": "Aucun enregistrement n'est ouvert.",
+    "Preempted": "Un autre spectateur a pris le canal d'enregistrement de la machine ; rouvrez l'enregistrement pour continuer."
+  },
+  "Tool": {
+    "Laser": "le module laser",
+    "Probe": "le palpeur",
+    "Probe3D": "le palpeur 3D"
+  },
+  "Transfer": {
+    "Alarm": "Alarme pendant le transfert : {0}",
+    "Cancelled": "La machine a annulé le transfert.",
+    "ListTimeout": "La machine n'a pas listé {0} en {1:0} s.",
+    "NoResponse": "Aucune réponse de la machine après {0} tentatives.",
+    "PacketsSent": "paquet {0} sur {1} envoyé",
+    "StoppedAsking": "La machine ne demande plus de données ({0}).",
+    "UploadAlarm": "Alarme pendant l'envoi : {0}",
+    "UploadCancelled": "La machine a annulé l'envoi. Elle n'accepte des fichiers que lorsqu'elle ne bouge pas.",
+    "WrongPacket": "La machine a demandé le paquet {0} sur {1}."
+  }
+}

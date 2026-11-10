@@ -23,8 +23,7 @@ public sealed class AirControl(MachineSession session)
 
     public async Task OnAsync()
     {
-        var output = Output ?? throw new InvalidOperationException(
-            session.Limits.Error ?? "The machine's type (read from its travel) is not known yet, so its air output isn't either.");
+        var output = Output ?? throw new LocalizedException(session.Limits.Error ?? HostTexts.Of("Air.TypeUnknown"));
         await session.SendAsync(output.OnCommand);
         SetOn(output);
     }

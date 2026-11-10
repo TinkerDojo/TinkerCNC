@@ -1,0 +1,126 @@
+@page "/settings/notifications"
+@implements IDisposable
+@inject SystemNotifications System
+
+<PageTitle>@T["Pages.Notifications.PageTitle"]</PageTitle>
+
+<header class="page-head">
+    <div>
+        <h1>@T["Pages.Notifications.Title"]</h1>
+        <p class="muted">@T["Pages.Notifications.Intro"]</p>
+    </div>
+</header>
+
+<section class="card settings-card">
+    <div class="card-head"><h2><Icon Name="bell" /> @T["Pages.Notifications.Heading"]</h2></div>
+
+    @if (_permission is null)
+    {
+        <p class="muted small">@T["Pages.Notifications.Checking"]</p>
+    }
+    else
+    {
+        @* The browser handles the click (see SystemNotifications.WatchToggleAsync), so its permission prompt can appear. *@
+        <label class="setting-toggle">
+            <input type="checkbox" @ref="_toggle" checked="@_enabled" disabled="@(_permission == NotificationPermission.Unsupported)" />
+            <span>
+                <b>@T["Pages.Notifications.Toggle"]</b>
+                <span class="muted small">@T["Pages.Notifications.ToggleHint"]</span>
+            </span>
+        </label>
+
+        <p class="hint @PermissionLook.Css">@T[PermissionLook.Text]</p>
+        @if (_refusedWithoutAsking)
+        {
+            <p class="hint warn">@T["Pages.Notifications.RefusedWithoutAsking"]</p>
+        }
+
+        <div class="settings-actions">
+            <button class="btn btn-ghost" disabled="@(!_enabled || _testing)" @onclick="TestAsync"><Icon Name="send" /> @T["Pages.Notifications.Test"]</button>
+            @if (_testing)
+            {
+                <span class="muted small">@T["Pages.Notifications.Testing"]</span>
+            }
+        </div>
+        @if (!_testing && _test is { } outcome)
+        {
+            <p class="hint @TestLooks[outcome].Css">@T[TestLooks[outcome].Text]</p>
+        }
+    }
+    <p class="hint muted">@T["Pages.Notifications.Stored"]</p>
+</section>
+
+@code {
+    private sealed record Look(string Css, Text Text);
+
+    private static readonly IReadOnlyDictionary<NotificationPermission, Look> PermissionLooks =
+        new Dictionary<NotificationPermission, Look>
+        {
+            [NotificationPermission.Granted] = new("muted", Texts.Of("Pages.Notifications.Permission.Granted")),
+            [NotificationPermission.Default] = new("muted", Texts.Of("Pages.Notifications.Permission.Default")),
+            [NotificationPermission.Denied] = new("warn", Texts.Of("Pages.Notifications.Permission.Denied")),
+            [NotificationPermission.Unsupported] = new("warn", Texts.Of("Pages.Notifications.Permission.Unsupported")),
+        };
+
+    /// <summary>What the test notification did, in words.</summary>
+    private static readonly IReadOnlyDictionary<NotificationOutcome, Look> TestLooks =
+        new Dictionary<NotificationOutcome, Look>
+        {
+            [NotificationOutcome.Shown] = new("muted", Texts.Of("Pages.Notifications.Test.Shown")),
+            [NotificationOutcome.Silent] = new("warn", Texts.Of("Pages.Notifications.Test.Silent")),
+            [NotificationOutcome.Failed] = new("warn", Texts.Of("Pages.Notifications.Test.Failed")),
+            [NotificationOutcome.Blocked] = new("warn", Texts.Of("Pages.Notifications.Permission.Denied")),
+        };
+
+    private NotificationPermission? _permission;
+    private bool _enabled;
+    private NotificationOutcome? _test;
+    private bool _testing;
+    private bool _refusedWithoutAsking;
+    private ElementReference _toggle;
+    private DotNetObjectReference<NotificationSettings>? _callback;
+
+    private Look PermissionLook => PermissionLooks[_permission ?? NotificationPermission.Unsupported];
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _permission = await System.PermissionAsync();
+            // Blocked or unavailable since it was switched on: it is off, whatever was remembered.
+            _enabled = _permission == NotificationPermission.Granted && await System.IsEnabledAsync();
+            StateHasChanged();
+        }
+        else if (_callback is null && _permission is not null)
+        {
+            // The checkbox exists from the second render on (once the permission is known).
+            _callback = DotNetObjectReference.Create(this);
+            await System.WatchToggleAsync(_toggle, _callback);
+        }
+    }
+
+    [JSInvokable]
+    public async Task ToggledAsync(bool wanted, string permission, bool refusedWithoutAsking)
+    {
+        _permission = SystemNotifications.Parse(permission);
+        _refusedWithoutAsking = refusedWithoutAsking;
+        _enabled = wanted && _permission == NotificationPermission.Granted;
+        await System.SetEnabledAsync(_enabled);
+        StateHasChanged();
+    }
+
+    // A new tag every time: one already shown would only be replaced, quietly.
+    private async Task TestAsync()
+    {
+        _testing = true;
+        try
+        {
+            _test = await System.ShowAsync(new SystemNotification(
+                $"tinkercnc-test-{DateTime.UtcNow.Ticks}", T["Pages.Notifications.TestTitle"], T["Pages.Notifications.TestBody"],
+                "settings/notifications", Sticky: false));
+        }
+        finally { _testing = false; }
+    }
+
+    public void Dispose() => _callback?.Dispose();
+}

@@ -50,4 +50,10 @@
     <ApplicationIcon>..\..\build\icons\TinkerCNC.ico</ApplicationIcon>
   </PropertyGroup>
 
+  <!-- The texts, one file per language (see TextCatalog); embedded as <Assembly>.Localization.<code>.json. -->
+  <ItemGroup>
+    <Content Remove="Localization\*.json" />
+    <EmbeddedResource Include="Localization\*.json" LogicalName="$(AssemblyName).Localization.%(Filename)%(Extension)" WithCulture="false" />
+  </ItemGroup>
+
 </Project>

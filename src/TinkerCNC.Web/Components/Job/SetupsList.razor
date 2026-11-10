@@ -4,10 +4,10 @@
 @inject SetupLibrary Library
 
 <div class="list-tools">
-    <input class="input list-search" placeholder="Search by name, notes or file" @bind="_filter" @bind:event="oninput" />
+    <input class="input list-search" placeholder="@T["Setups.List.Search"]" @bind="_filter" @bind:event="oninput" />
     <span class="muted small">@Count(Entries.Count, _showDeleted)</span>
     <span class="spacer"></span>
-    <label class="check small"><input type="checkbox" @bind="_showDeleted" @bind:after="Reload" /> Show deleted</label>
+    <label class="check small"><input type="checkbox" @bind="_showDeleted" @bind:after="Reload" /> @T["Setups.List.ShowDeleted"]</label>
 </div>
 
 @{ var shown = Entries.Where(Matches).ToList(); }
@@ -56,12 +56,13 @@
             || entry.Files.Any(f => f.File.OriginalFileName.Contains(text, StringComparison.OrdinalIgnoreCase));
     }
 
-    private static string Count(int count, bool withDeleted) =>
-        $"{count} setup{(count == 1 ? "" : "s")}{(withDeleted ? ", deleted included" : "")}";
+    private string Count(int count, bool withDeleted) => withDeleted
+        ? T.Count("Setups.List.CountWithDeleted", count)
+        : T.Count("Setups.List.Count", count);
 
     private string EmptyText(int total) => total == 0
-        ? "No setups yet. Choose a program on a machine, set its options and use “Save…”, or create one here."
-        : $"No setup matches “{_filter.Trim()}”.";
+        ? T["Setups.List.Empty"]
+        : T["Setups.List.NoMatch", _filter.Trim()];
 
     /// <summary>Lists again on the next render: the library changed (here, in another window or for another machine).</summary>
     private void Reload()

@@ -65,7 +65,7 @@ public sealed class JobTracker : IDisposable
     }
 
     public JobPhase Phase { get; private set; }
-    public string? Error { get; private set; }
+    public Text? Error { get; private set; }
     public RunningFile? File { get; private set; }
     public bool LoadedLocally { get; private set; }
     public DownloadProgress? Download { get; private set; }
@@ -281,7 +281,7 @@ public sealed class JobTracker : IDisposable
         catch (Exception ex)
         {
             _log.LogWarning(ex, "Could not resolve the running job on {Address}", _session.Address);
-            Error = ex.Message;
+            Error = Text.Of(ex);
             _nextAttemptUtc = DateTime.UtcNow + RetryDelay;
             SetPhase(JobPhase.Failed);
         }
@@ -364,7 +364,7 @@ public sealed class JobTracker : IDisposable
             preparation.Fingerprint, _session.Name, File?.FileName, null, 0, preparation.EstimatedSeconds,
             run.ActiveSeconds, run.PausedSeconds, run.AverageFeedOverridePercent, DateTime.UtcNow));
         _preparationTimes.TryRemove(preparation.Fingerprint, out _);
-        _session.Note($"Recorded {JobPreparation.Label.ToLowerInvariant()}: {TimeFormat.Duration(run.ActiveSeconds)} " +
+        _session.Note($"Recorded {JobPreparation.Label.ToString().ToLowerInvariant()}: {TimeFormat.Duration(run.ActiveSeconds)} " +
                       $"(estimate {TimeFormat.Duration(preparation.EstimatedSeconds)})");
     }
 

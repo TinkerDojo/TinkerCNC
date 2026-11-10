@@ -157,7 +157,9 @@ public sealed class MachineDirectory
 public sealed class DiscoveryStatus
 {
     public bool Listening { get; set; }
-    public string? Error { get; set; }
+
+    /// <summary>Why listening failed, or null.</summary>
+    public Text? Error { get; set; }
     public DateTime? LastPacketUtc { get; set; }
     public long Packets { get; set; }
 }

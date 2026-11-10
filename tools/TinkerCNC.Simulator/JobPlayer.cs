@@ -49,6 +49,9 @@ public sealed class JobPlayer(
     // States in which the program does not advance.
     private static readonly HashSet<string> HaltedStates = ["Hold", "Wait", "Pause", "Tool"];
 
+    /// <summary><c>M600</c> in a program or buffered: the same as <c>suspend</c>.</summary>
+    private const string SuspendCode = "M600";
+
     private CancellationTokenSource? _cts;
     private readonly ConcurrentQueue<string> _buffered = new();
 
@@ -133,18 +136,22 @@ public sealed class JobPlayer(
 
     /// <summary>
     /// Runs the buffered commands like the firmware's automation would: <c>M600</c> pauses until <c>resume</c>;
-    /// probing (<c>M495</c>) first asks for the probe on a machine without a tool changer, then takes a moment;
-    /// <c>M6 Tn</c> asks for that tool.
+    /// a move in machine coordinates (<c>G53 G0</c>) waits while the feed hold is on; probing (<c>M495</c>) first asks
+    /// for the probe on a machine without a tool changer, then takes a moment; <c>M6 Tn</c> asks for that tool.
     /// </summary>
     private async Task RunBufferedAsync(CancellationToken ct)
     {
         while (_buffered.TryDequeue(out var command))
         {
             Console.WriteLine($"[auto] {command}");
-            if (command.Equals(TinkerCNC.Jobs.JobCommands.Pause, StringComparison.OrdinalIgnoreCase))
+            if (command.Equals(SuspendCode, StringComparison.OrdinalIgnoreCase))
             {
                 Console.WriteLine($"[job] {await SuspendAsync(liftAfterwards: false)}");
                 while (_suspendedAt is not null) await Task.Delay(100, ct);
+            }
+            else if (MachineMoveHandler.IsMove(command))
+            {
+                await machine.MoveToAsync(MachineMoveHandler.Target(command, machine.MachinePosition), "Run");
             }
             else if (command.StartsWith("M495", StringComparison.OrdinalIgnoreCase))
             {
@@ -188,7 +195,7 @@ public sealed class JobPlayer(
             while (Line <= analysis.LineCount && !ct.IsCancellationRequested)
             {
                 await Task.Delay(50, ct);
-                if (HaltedStates.Contains(machine.State)) continue;
+                if (HaltedStates.Contains(machine.ReportedState)) continue;
                 if (manualToolChange && IsToolChange(analysis, Line) && _toolChangeDone != Line)
                 {
                     _toolChangeDone = Line;

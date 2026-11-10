@@ -17,21 +17,22 @@ public interface IProgramSource
     /// <summary>Whether starting it transfers the file to the machine first.</summary>
     bool NeedsUpload { get; }
 
-    string Describe();
+    /// <summary>Where it is and how it gets to the machine, for people.</summary>
+    Text Describe();
 
     /// <summary>Makes sure the program is on the machine's SD card.</summary>
     Task PutOnMachineAsync(MachineSession session, IProgress<UploadProgress> progress);
 }
 
 /// <summary>A file kept here (from this computer, a setup or the queue): uploaded to the programs folder before it starts.</summary>
-/// <param name="Origin">Where it comes from, for <see cref="Describe"/>.</param>
-public sealed record LocalProgram(string FileName, byte[] Content, string Origin = "from this computer") : IProgramSource
+/// <param name="Origin">Where it comes from, for <see cref="Describe"/>; null: from this computer.</param>
+public sealed record LocalProgram(string FileName, byte[] Content, Text? Origin = null) : IProgramSource
 {
     public string MachinePath => RemotePath.ForProgram(FileName);
 
     public bool NeedsUpload => true;
 
-    public string Describe() => $"{Origin}, uploaded to {MachinePath} when started";
+    public Text Describe() => HostTexts.Of("Program.Local", Origin ?? HostTexts.Of("Program.FromComputer"), MachinePath);
 
     public Task PutOnMachineAsync(MachineSession session, IProgress<UploadProgress> progress) =>
         session.UploadAsync(MachinePath, Content, progress);
@@ -44,7 +45,7 @@ public sealed record MachineProgram(string MachinePath) : IProgramSource
 
     public bool NeedsUpload => false;
 
-    public string Describe() => $"on the machine, {MachinePath}";
+    public Text Describe() => HostTexts.Of("Program.OnMachine", MachinePath);
 
     public Task PutOnMachineAsync(MachineSession session, IProgress<UploadProgress> progress) => Task.CompletedTask;
 }
@@ -72,12 +73,15 @@ public sealed partial class JobControl
     /// <summary>Longest wait for the machine to report the program playing after <c>play</c>.</summary>
     private static readonly TimeSpan StartTimeout = TimeSpan.FromSeconds(20);
 
+    /// <summary>Longest wait for the machine to report the feed hold of the gate (<see cref="JobGate"/>).</summary>
+    private static readonly TimeSpan HoldTimeout = TimeSpan.FromSeconds(5);
+
     private readonly MachineSession _session;
     private readonly JobTracker _tracker;
     private readonly GCodeCache _cache;
     private readonly JobOptionsStore _store;
     private readonly SetupLibrary _library;
-    private readonly IReadOnlyList<(Func<JobControl, bool> Blocks, Func<JobControl, string> Reason)> _startRules;
+    private readonly IReadOnlyList<(Func<JobControl, bool> Blocks, Func<JobControl, Text> Reason)> _startRules;
     private int _busy;
 
     public JobControl(MachineSession session, JobTracker tracker, GCodeCache cache, JobOptionsStore store, SetupLibrary library,
@@ -93,13 +97,13 @@ public sealed partial class JobControl
         Options = store.Get(session.Address);
         _startRules =
         [
-            (c => c._session.State != SessionState.Connected, _ => "The machine is not connected."),
-            (c => c.Program is null, _ => "Choose a program first."),
-            (c => c.IsBusy, _ => "Busy with the previous request."),
-            (c => c._session.Limits.Travel is null, c => c._session.Limits.Error ?? "The machine's travel limits are not known yet."),
-            (c => c._session.BedCleaning.IsRunning, _ => "The bed is being cleaned."),
-            (c => c._session.Transferring, _ => "The machine is busy with a file transfer."),
-            (c => !CanStartIn(c._session.Status), c => $"Programs start only while the machine is Idle (it is {c._session.Status?.State ?? "not reporting"})."),
+            (c => c._session.State != SessionState.Connected, _ => HostTexts.Of("Machine.NotConnected")),
+            (c => c.Program is null, _ => HostTexts.Of("Program.ChooseFirst")),
+            (c => c.IsBusy, _ => HostTexts.Of("Job.Busy")),
+            (c => c._session.Limits.Travel is null, c => c._session.Limits.Error ?? HostTexts.Of("Limits.Unknown")),
+            (c => c._session.BedCleaning.IsRunning, _ => HostTexts.Of("Start.BedCleaning")),
+            (c => c._session.Transferring, _ => HostTexts.Of("Start.Transferring")),
+            (c => !CanStartIn(c._session.Status), c => HostTexts.Of("Start.NotIdle", MachineSession.StateOf(c._session.Status))),
         ];
     }
 
@@ -110,8 +114,8 @@ public sealed partial class JobControl
     public JobTimelapse Timelapse { get; }
 
     /// <summary>
-    /// Pause right after the start until the user resumes (<see cref="JobCommands.Pause"/>); set by the queue for its
-    /// jobs, so the machine waits for the go before anything moves.
+    /// Wait for the go before anything moves (<see cref="JobGate"/>): the machine's button or <see cref="ContinueAsync"/>
+    /// lets the job go on; set by the queue for its jobs.
     /// </summary>
     public bool WaitForGo { get; set; }
 
@@ -125,7 +129,7 @@ public sealed partial class JobControl
     public DownloadProgress? Download { get; private set; }
 
     /// <summary>Why the last request failed, or null.</summary>
-    public string? LastError { get; private set; }
+    public Text? LastError { get; private set; }
 
     /// <summary>The programs folder on the machine, as last listed.</summary>
     public IReadOnlyList<RemoteEntry>? MachineFiles { get; private set; }
@@ -137,16 +141,16 @@ public sealed partial class JobControl
     public static bool CanStartIn(StatusReport? status) => MachineSession.IsIdle(status) && status?.IsPlaying != true;
 
     /// <summary>Why a program can't be started right now, or null when it can.</summary>
-    public string? WhyNotStart => _startRules.FirstOrDefault(r => r.Blocks(this)) is { Reason: { } reason } ? reason(this) : null;
+    public Text? WhyNotStart => _startRules.FirstOrDefault(r => r.Blocks(this)) is { Reason: { } reason } ? reason(this) : null;
 
     public bool CanPause => _session.Status?.IsPlaying == true && JobSuspension.HasState(_session.Status, "Run");
-    public bool CanResume => JobSuspension.IsSuspended(_session.Status) && !_session.BedCleaning.IsRunning;
+    public bool CanResume => (JobSuspension.IsSuspended(_session.Status) || JobGate.IsHeld(_session.Status)) && !_session.BedCleaning.IsRunning;
     public bool CanStop => _session.Status?.IsPlaying == true && !_session.BedCleaning.IsRunning;
 
     /// <summary>Forgets the chosen program; the next start needs a new choice. Nothing changes while a job runs.</summary>
     public void Clear()
     {
-        if (IsBusy) throw new InvalidOperationException("Busy with the previous request.");
+        if (IsBusy) throw new LocalizedException(HostTexts.Of("Job.Busy"));
         Program = null;
         Setup = null;
         SetupFile = null;
@@ -196,8 +200,8 @@ public sealed partial class JobControl
     /// <exception cref="JobStartException">The options don't fit the program or the machine.</exception>
     public JobStartPlan Plan()
     {
-        var program = Program ?? throw new JobStartException("Choose a program first.");
-        var travel = _session.Limits.Travel ?? throw new JobStartException("The machine's travel limits are not known yet.");
+        var program = Program ?? throw new JobStartException(HostTexts.Of("Program.ChooseFirst"));
+        var travel = _session.Limits.Travel ?? throw new JobStartException(HostTexts.Of("Limits.Unknown"));
         var status = _session.Status;
         var context = new JobStartContext(
             travel, program.Bounds, status?.MachinePosition, status?.Tool?.Active, Modes, program.SelectsTool);
@@ -223,7 +227,7 @@ public sealed partial class JobControl
             await program.Source.PutOnMachineAsync(_session, progress);
             SetPhase(JobControlPhase.Starting);
             await RunAsync(plan, program);
-            if (Options.Timelapse) Timelapse.Begin(program.Source.FileName, _tracker.Timeline?.TotalSeconds ?? 0);
+            if (Options.Timelapse) Timelapse.Begin(program.Source.FileName);
             if (setup is not null) CountStart(setup, file);
         });
         Upload = null;
@@ -254,14 +258,24 @@ public sealed partial class JobControl
     /// <summary>Pauses the program (<c>suspend</c>): the queued moves finish first.</summary>
     public Task PauseAsync() => _session.SendAsync(JobSuspension.SuspendCommand);
 
-    /// <summary>Continues a paused program: the head goes back to where it paused first.</summary>
-    public Task ResumeAsync() => _session.SendAsync(JobSuspension.ResumeCommand);
+    /// <summary>
+    /// Continues a paused program (the head goes back to where it paused first) or one in a feed hold, such as a job
+    /// waiting for the go (<see cref="WaitForGo"/>).
+    /// </summary>
+    public Task ResumeAsync() => JobGate.IsHeld(_session.Status)
+        ? _session.RealtimeAsync(JobGate.Release, "~ (cycle start / resume)")
+        : _session.SendAsync(JobSuspension.ResumeCommand);
 
-    /// <summary>Ends the program: the spindle stops and the remaining moves are dropped.</summary>
-    public Task StopAsync()
+    /// <summary>
+    /// Ends the program: the spindle stops and the remaining moves are dropped. In a feed hold the machine reads
+    /// <c>abort</c> only once the waiting move goes on, so the hold is released right after it.
+    /// </summary>
+    public async Task StopAsync()
     {
         StopRequestedUtc = DateTime.UtcNow;
-        return _session.SendAsync(JobCommands.Abort);
+        var held = JobGate.IsHeld(_session.Status);
+        await _session.SendAsync(JobCommands.Abort);
+        if (held) await _session.RealtimeAsync(JobGate.Release, "~ (lets the abort through)");
     }
 
     /// <summary>Continues a job that waits for the go (<see cref="WaitForGo"/>) or is paused.</summary>
@@ -296,27 +310,43 @@ public sealed partial class JobControl
         _session.TextReceived += Collect;
         _tracker.ExpectPreparation(plan.Preparation);
         var playing = false;
+        var held = false;
         try
         {
             _session.Note($"Starting {program.Source.FileName} ({program.Source.Describe()})");
+            if (plan.HoldFirst) held = await HoldAsync();
             foreach (var command in plan.Commands) await _session.SendAsync(command);
             var status = await _session.WaitForStatusAsync(s => s.IsPlaying || JobSuspension.HasState(s, "Alarm"), StartTimeout);
             // Not homed: the machine refuses with an alarm, which also drops the queued commands.
-            if (!status.IsPlaying) throw new InvalidOperationException($"The machine raised an alarm instead of starting: {_session.LastAlarm}");
+            if (!status.IsPlaying) throw new LocalizedException(HostTexts.Of("Start.Alarm", _session.LastAlarm));
             playing = true;
         }
         catch (TimeoutException)
         {
             var answer = replies.LastOrDefault(r => r.Length > 0 && r != "ok" && !r.StartsWith("Command buffered", StringComparison.Ordinal));
-            throw new InvalidOperationException(
-                "The machine did not start the program" + (answer is null ? "" : $" (its last answer: \"{answer}\")") +
-                ". The commands queued for the start (probing, tool) stay queued until a program starts or the " +
-                "machine is reset, so reset it before trying again.");
+            throw new LocalizedException(answer is null ? HostTexts.Of("Start.NotStarted") : HostTexts.Of("Start.NotStartedAnswer", answer));
         }
         finally
         {
             _session.TextReceived -= Collect;
             if (!playing) _tracker.ExpectPreparation(null); // a later job started elsewhere is not this one
+            if (held && !playing) await _session.RealtimeAsync(JobGate.Release, "~ (the start failed, the feed hold goes)");
+        }
+    }
+
+    /// <summary>The feed hold of the gate, sent while the machine is idle; true once the machine reports it.</summary>
+    /// <exception cref="InvalidOperationException">The machine did not take the feed hold.</exception>
+    private async Task<bool> HoldAsync()
+    {
+        await _session.RealtimeAsync(JobGate.Hold, "! (feed hold: the job waits for the go)");
+        try
+        {
+            await _session.WaitForStatusAsync(JobGate.IsHeld, HoldTimeout);
+            return true;
+        }
+        catch (TimeoutException)
+        {
+            throw new LocalizedException(HostTexts.Of("Start.NoFeedHold"));
         }
     }
 
@@ -324,7 +354,7 @@ public sealed partial class JobControl
     {
         if (Interlocked.Exchange(ref _busy, 1) == 1)
         {
-            LastError = "Busy with the previous request.";
+            LastError = HostTexts.Of("Job.Busy");
             _session.NotifyChanged();
             return;
         }
@@ -336,7 +366,7 @@ public sealed partial class JobControl
         }
         catch (Exception ex)
         {
-            LastError = ex.Message;
+            LastError = Text.Of(ex);
             _session.Note($"Job: {ex.Message}");
         }
         finally

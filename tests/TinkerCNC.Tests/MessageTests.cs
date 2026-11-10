@@ -72,7 +72,7 @@ public class MessageTests
         Assert.Equal(new MetaReply("s1", 150, 100000, 15000, 0), meta);
 
         var error = IPreviewReply.Parse("""{"rsp":"open","err":2,"msg":"file not found"}""");
-        Assert.Equal("file not found", Assert.IsType<ErrorReply>(error).Text);
+        Assert.Equal("file not found", Assert.IsType<ErrorReply>(error).Text.ToString());
 
         Assert.IsType<UnknownReply>(IPreviewReply.Parse("""{"rsp":"something-new"}"""));
     }

@@ -1,3 +1,5 @@
+using TinkerCNC.Localization;
+
 namespace TinkerCNC.Jobs;
 
 /// <summary>
@@ -6,7 +8,9 @@ namespace TinkerCNC.Jobs;
 /// the machine right before starting a program.
 /// </summary>
 /// <param name="Key">Stable name for saved settings.</param>
-public sealed record JobMode(string Key, string Name, string Description, string OnCommand, string OffCommand)
+/// <param name="Name">What it is called, for people.</param>
+/// <param name="Description">What it does, for people.</param>
+public sealed record JobMode(string Key, Text Name, Text Description, string OnCommand, string OffCommand)
 {
     public string CommandFor(bool on) => on ? OnCommand : OffCommand;
 }
@@ -21,20 +25,20 @@ public sealed record JobMode(string Key, string Name, string Description, string
 /// </summary>
 public static class JobModes
 {
-    public static readonly JobMode Vacuum = new("vacuum", "Auto vacuum",
-        "The vacuum runs whenever the spindle does.", "M331", "M332");
+    public static readonly JobMode Vacuum = new("vacuum", CoreTexts.Of("Mode.Vacuum.Name"),
+        CoreTexts.Of("Mode.Vacuum.Description"), "M331", "M332");
 
-    public static readonly JobMode ExternalOutput = new("extout", "Auto external output",
-        "The external output follows the spindle.", "M331.3", "M332.3");
+    public static readonly JobMode ExternalOutput = new("extout", CoreTexts.Of("Mode.ExternalOutput.Name"),
+        CoreTexts.Of("Mode.ExternalOutput.Description"), "M331.3", "M332.3");
 
-    public static readonly JobMode Blow = new("blow", "Auto blow",
-        "The spindle blower clears chips while cutting.", "M331.1", "M332.1");
+    public static readonly JobMode Blow = new("blow", CoreTexts.Of("Mode.Blow.Name"),
+        CoreTexts.Of("Mode.Blow.Description"), "M331.1", "M332.1");
 
-    public static readonly JobMode BedClean = new("bedclean", "Auto bed clean",
-        "The machine cleans the bed after the program.", "M331.2", "M332.2");
+    public static readonly JobMode BedClean = new("bedclean", CoreTexts.Of("Mode.BedClean.Name"),
+        CoreTexts.Of("Mode.BedClean.Description"), "M331.2", "M332.2");
 
-    public static readonly JobMode AntiStatic = new("antistatic", "Anti-static",
-        "Static charge is removed while cutting.", "M331.4", "M332.4");
+    public static readonly JobMode AntiStatic = new("antistatic", CoreTexts.Of("Mode.AntiStatic.Name"),
+        CoreTexts.Of("Mode.AntiStatic.Description"), "M331.4", "M332.4");
 
     /// <summary>Every known job option, for naming one by its key whatever machine it belongs to.</summary>
     public static IReadOnlyList<JobMode> All { get; } = [Vacuum, ExternalOutput, Blow, BedClean, AntiStatic];

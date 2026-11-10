@@ -4,3 +4,13 @@
         <FocusOnNavigate RouteData="routeData" Selector="h1" />
     </Found>
 </Router>
+
+@code {
+    /// <summary>The language chosen for this browser (code), null to follow <see cref="BrowserLanguage"/>.</summary>
+    [Parameter] public string? Language { get; set; }
+
+    [Parameter] public string? BrowserLanguage { get; set; }
+
+    protected override void OnInitialized() =>
+        T.Use(new LanguagePreference(UiLanguages.Find(Language), UiLanguages.Find(BrowserLanguage) ?? UiLanguages.English));
+}

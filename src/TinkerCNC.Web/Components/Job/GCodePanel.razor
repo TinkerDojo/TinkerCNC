@@ -1,23 +1,23 @@
 @* The program around the line being executed, or around an operation picked on the timeline, in the side rail. *@
 @inherits JobComponent
 
-<RailPanel Title="G-code" Icon="code" Key="@Key" Wide="true">
+<RailPanel Title="@T["Setups.GCode.Title"]" Icon="code" Key="@Key" Wide="true">
     <Tools>
         @if (Job.Timeline is { } timeline)
         {
             <span class="muted small">
                 @if (Job.CurrentLine is { } current)
                 {
-                    <text>Line <b class="mono">@current.ToString("N0")</b> of @timeline.Analysis.LineCount.ToString("N0")</text>
+                    <text>@T.Html("Setups.GCode.LineOf", current.ToString("N0"), timeline.Analysis.LineCount.ToString("N0"))</text>
                 }
                 else
                 {
-                    <text>@timeline.Analysis.LineCount.ToString("N0") lines</text>
+                    <text>@T.Count("Setups.GCode.Lines", timeline.Analysis.LineCount)</text>
                 }
             </span>
             @if (!Focus.Follow && Job.CurrentLine is not null)
             {
-                <button class="btn btn-sm btn-ghost" title="Show the line the machine is executing" @onclick="Focus.FollowMachine">Follow</button>
+                <button class="btn btn-sm btn-ghost" title="@T["Setups.GCode.FollowHint"]" @onclick="Focus.FollowMachine">@T["Setups.GCode.Follow"]</button>
             }
         }
     </Tools>
@@ -28,7 +28,7 @@
         }
         else
         {
-            <p class="muted small pad">No program loaded.</p>
+            <p class="muted small pad">@T["Setups.GCode.NoProgram"]</p>
         }
     </ChildContent>
 </RailPanel>

@@ -1,3 +1,5 @@
+using TinkerCNC.Localization;
+
 namespace TinkerCNC;
 
 /// <summary>
@@ -16,15 +18,15 @@ public static class ManualToolChange
     public const string ConfirmCommand = "M490.2";
 
     // Tool numbers the firmware reserves: 0 for the probe, 8888 for the laser module, 9999 for the 3D probe.
-    private static readonly IReadOnlyDictionary<int, string> SpecialTools = new Dictionary<int, string>
+    private static readonly IReadOnlyDictionary<int, Text> SpecialTools = new Dictionary<int, Text>
     {
-        [0] = "the probe",
-        [8888] = "the laser module",
-        [9999] = "the 3D probe",
+        [0] = CoreTexts.Of("Tool.Probe"),
+        [8888] = CoreTexts.Of("Tool.Laser"),
+        [9999] = CoreTexts.Of("Tool.Probe3D"),
     };
 
-    /// <summary>Short name of a tool for prompts: "T3", or what a reserved number stands for.</summary>
-    public static string NameOf(int tool) => SpecialTools.GetValueOrDefault(tool) ?? $"T{tool}";
+    /// <summary>Short name of a tool for prompts: "T3", or what a reserved number stands for ("the probe").</summary>
+    public static Text NameOf(int tool) => SpecialTools.GetValueOrDefault(tool) ?? Text.Plain($"T{tool}");
 
     /// <summary>A real cutting tool: not "none" (−1) and none of the reserved numbers.</summary>
     public static bool IsCuttingTool(int tool) => tool > 0 && !SpecialTools.ContainsKey(tool);

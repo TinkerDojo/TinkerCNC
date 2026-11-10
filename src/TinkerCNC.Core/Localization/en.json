@@ -1,0 +1,149 @@
+{
+  "$notes": {
+    "GoTo.OutOfRange": "axis, lowest, highest, coordinate system",
+    "Origin.Unchanged": "how the work origin is set at the start",
+    "Preparation.Label": "what runs before the program on the job's timeline",
+    "Preparation.Leveling": "points in X × Y",
+    "Restart.Description": "file name, then the tool operation it begins at",
+    "Segment.NoTool": "an operation of the program without a tool number",
+    "Status.IsOn": "name of a value: whether the laser or vacuum is switched on",
+    "Status.Off": "value of a switch",
+    "Status.On": "value of a switch",
+    "Status.Value": "a value of a status field the firmware does not explain, numbered",
+    "Tool.Laser": "object of 'Insert {0}' and 'waiting for {0}' (German: accusative)",
+    "Tool.Probe": "object of 'Insert {0}' and 'waiting for {0}' (German: accusative)",
+    "Tool.Probe3D": "object of 'Insert {0}' and 'waiting for {0}' (German: accusative)"
+  },
+  "Address": {
+    "Invalid": "Invalid address format: {0}"
+  },
+  "Air": {
+    "Compressed": "compressed air",
+    "SpindleBlower": "spindle blower at {0} %"
+  },
+  "Camera": {
+    "StreamClosed": "stream closed"
+  },
+  "Connection": {
+    "NotConnected": "The machine is not connected."
+  },
+  "GoTo": {
+    "MachineCoordinates": "machine coordinates",
+    "NoPosition": "The machine has not reported its position yet.",
+    "OutOfRange": "{0} must be between {1} and {2} ({3}).",
+    "WorkCoordinates": "work coordinates"
+  },
+  "Mode": {
+    "AntiStatic.Description": "Static charge is removed while cutting.",
+    "AntiStatic.Name": "Anti-static",
+    "BedClean.Description": "The machine cleans the bed after the program.",
+    "BedClean.Name": "Auto bed clean",
+    "Blow.Description": "The spindle blower clears chips while cutting.",
+    "Blow.Name": "Auto blow",
+    "ExternalOutput.Description": "The external output follows the spindle.",
+    "ExternalOutput.Name": "Auto external output",
+    "Vacuum.Description": "The vacuum runs whenever the spindle does.",
+    "Vacuum.Name": "Auto vacuum"
+  },
+  "Origin": {
+    "BedCorner": "bed corner + ({0}, {1}) mm",
+    "HeadPosition": "head position + ({0}, {1}) mm",
+    "Unchanged": "unchanged",
+    "XyzProbe": "probed on the XYZ probe block ({0} mm high, tool {1} mm)"
+  },
+  "Preparation": {
+    "Label": "Probing",
+    "Leveling": "Auto leveling {0} × {1}",
+    "ScanMargin": "Scan margin",
+    "ToolBack": "Change back to the tool",
+    "ToProbe": "Change to the probe",
+    "XyzCorner": "XYZ probe corner",
+    "ZProbe": "Z probe"
+  },
+  "Preview": {
+    "UnknownError": "Unknown server error ({0})"
+  },
+  "Restart": {
+    "Description": "{0} from {1}"
+  },
+  "Resume": {
+    "Description": "{0}, resumed at line {1} of {2}"
+  },
+  "Segment": {
+    "NoTool": "No tool"
+  },
+  "Start": {
+    "LevelingArea": "Auto leveling needs a program that spans an area in X and Y.",
+    "LevelingHeight": "The leveling height must be between {0} and {1} mm.",
+    "LevelingPoints": "Auto leveling needs {0} to {1} points in X and Y.",
+    "NoBedCorner": "The machine's configuration has no bed corner (coordinate.anchor1_x/_y).",
+    "NoHeadPosition": "The machine has not reported where the head is.",
+    "NothingToProbe": "The program has no cutting moves, so there is no area to probe."
+  },
+  "Status": {
+    "AbsoluteMode": "absolute mode",
+    "ActiveTool": "active tool",
+    "AutoLevelling": "Auto-levelling",
+    "Battery": "battery",
+    "Current": "current",
+    "Done": "done",
+    "Elapsed": "elapsed",
+    "ExternalOutputMode": "external output mode",
+    "FeatureFlags": "feature flags",
+    "Feed": "Feed",
+    "Halted": "Halted",
+    "InchMode": "inch mode",
+    "IsOn": "on",
+    "JobProgress": "Job progress",
+    "LargestDeviation": "largest deviation",
+    "Laser": "Laser",
+    "LaserMode": "laser mode",
+    "LengthOffset": "length offset",
+    "Line": "line",
+    "Machine": "Machine",
+    "ModelCode": "model code",
+    "None": "none",
+    "Off": "off",
+    "On": "on",
+    "Override": "override",
+    "Power": "power",
+    "Programmed": "programmed",
+    "ReasonCode": "reason code",
+    "Reserved": "reserved",
+    "Scale": "scale",
+    "Spindle": "Spindle",
+    "SpindleTemperature": "spindle temperature",
+    "State": "state",
+    "SupplyTemperature": "power supply temperature",
+    "Target": "target",
+    "TestMode": "test mode",
+    "Tool": "Tool",
+    "ToolChanger": "Tool changer",
+    "Vacuum": "Vacuum",
+    "VacuumMode": "vacuum mode",
+    "Value": "value {0}",
+    "WaitingForTool": "waiting for tool",
+    "WirelessProbe": "Wireless probe"
+  },
+  "Timelapse": {
+    "NotConnected": "Preview channel is not connected.",
+    "NotOpen": "No recording is open.",
+    "Preempted": "Another viewer took over the machine's recording channel; open the recording again to continue."
+  },
+  "Tool": {
+    "Laser": "the laser module",
+    "Probe": "the probe",
+    "Probe3D": "the 3D probe"
+  },
+  "Transfer": {
+    "Alarm": "Alarm during transfer: {0}",
+    "Cancelled": "The machine cancelled the transfer.",
+    "ListTimeout": "The machine did not list {0} within {1:0} s.",
+    "NoResponse": "No response from the machine after {0} retries.",
+    "PacketsSent": "packet {0} of {1} sent",
+    "StoppedAsking": "The machine stopped asking for data ({0}).",
+    "UploadAlarm": "Alarm during upload: {0}",
+    "UploadCancelled": "The machine cancelled the upload. It accepts files only while it is not moving.",
+    "WrongPacket": "The machine asked for packet {0} of {1}."
+  }
+}

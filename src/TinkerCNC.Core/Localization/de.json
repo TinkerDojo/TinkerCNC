@@ -1,0 +1,134 @@
+{
+  "Address": {
+    "Invalid": "Ungültiges Adressformat: {0}"
+  },
+  "Air": {
+    "Compressed": "Druckluft",
+    "SpindleBlower": "Spindelgebläse mit {0} %"
+  },
+  "Camera": {
+    "StreamClosed": "Stream geschlossen"
+  },
+  "Connection": {
+    "NotConnected": "Die Maschine ist nicht verbunden."
+  },
+  "GoTo": {
+    "MachineCoordinates": "Maschinenkoordinaten",
+    "NoPosition": "Die Maschine hat ihre Position noch nicht gemeldet.",
+    "OutOfRange": "{0} muss zwischen {1} und {2} liegen ({3}).",
+    "WorkCoordinates": "Werkstückkoordinaten"
+  },
+  "Mode": {
+    "AntiStatic.Description": "Statische Aufladung wird beim Fräsen abgebaut.",
+    "AntiStatic.Name": "Antistatik",
+    "BedClean.Description": "Die Maschine reinigt das Bett nach dem Programm.",
+    "BedClean.Name": "Automatische Bettreinigung",
+    "Blow.Description": "Das Spindelgebläse entfernt beim Fräsen die Späne.",
+    "Blow.Name": "Automatisches Abblasen",
+    "ExternalOutput.Description": "Der externe Ausgang folgt der Spindel.",
+    "ExternalOutput.Name": "Automatischer externer Ausgang",
+    "Vacuum.Description": "Die Absaugung läuft, sobald die Spindel läuft.",
+    "Vacuum.Name": "Automatische Absaugung"
+  },
+  "Origin": {
+    "BedCorner": "Bettecke + ({0}, {1}) mm",
+    "HeadPosition": "Kopfposition + ({0}, {1}) mm",
+    "Unchanged": "unverändert",
+    "XyzProbe": "mit dem XYZ-Tastblock angetastet ({0} mm hoch, Werkzeug {1} mm)"
+  },
+  "Preparation": {
+    "Label": "Antasten",
+    "Leveling": "Automatische Nivellierung {0} × {1}",
+    "ScanMargin": "Rand abfahren",
+    "ToolBack": "Zurück zum Werkzeug wechseln",
+    "ToProbe": "Wechsel zum Taster",
+    "XyzCorner": "Ecke mit XYZ-Taster antasten",
+    "ZProbe": "Z-Antastung"
+  },
+  "Preview": {
+    "UnknownError": "Unbekannter Serverfehler ({0})"
+  },
+  "Restart": {
+    "Description": "{0} ab {1}"
+  },
+  "Resume": {
+    "Description": "{0}, fortgesetzt ab Zeile {1} von {2}"
+  },
+  "Segment": {
+    "NoTool": "Kein Werkzeug"
+  },
+  "Start": {
+    "LevelingArea": "Die automatische Nivellierung braucht ein Programm, das eine Fläche in X und Y abdeckt.",
+    "LevelingHeight": "Die Nivellierhöhe muss zwischen {0} und {1} mm liegen.",
+    "LevelingPoints": "Die automatische Nivellierung braucht {0} bis {1} Punkte in X und Y.",
+    "NoBedCorner": "Die Konfiguration der Maschine enthält keine Bettecke (coordinate.anchor1_x/_y).",
+    "NoHeadPosition": "Die Maschine hat nicht gemeldet, wo der Kopf steht.",
+    "NothingToProbe": "Das Programm hat keine Schneidbewegungen, daher gibt es keinen Bereich zum Antasten."
+  },
+  "Status": {
+    "AbsoluteMode": "Absolutmodus",
+    "ActiveTool": "aktives Werkzeug",
+    "AutoLevelling": "Auto-Nivellierung",
+    "Battery": "Akku",
+    "Current": "aktuell",
+    "Done": "erledigt",
+    "Elapsed": "vergangen",
+    "ExternalOutputMode": "Modus externer Ausgang",
+    "FeatureFlags": "Funktions-Flags",
+    "Feed": "Vorschub",
+    "Halted": "Angehalten",
+    "InchMode": "Zoll-Modus",
+    "IsOn": "eingeschaltet",
+    "JobProgress": "Job-Fortschritt",
+    "LargestDeviation": "größte Abweichung",
+    "Laser": "Laser",
+    "LaserMode": "Lasermodus",
+    "LengthOffset": "Längenkorrektur",
+    "Line": "Zeile",
+    "Machine": "Maschine",
+    "ModelCode": "Modellcode",
+    "None": "keins",
+    "Off": "aus",
+    "On": "an",
+    "Override": "Korrektur",
+    "Power": "Leistung",
+    "Programmed": "programmiert",
+    "ReasonCode": "Ursachencode",
+    "Reserved": "reserviert",
+    "Scale": "Skalierung",
+    "Spindle": "Spindel",
+    "SpindleTemperature": "Spindeltemperatur",
+    "State": "Zustand",
+    "SupplyTemperature": "Netzteiltemperatur",
+    "Target": "Soll",
+    "TestMode": "Testmodus",
+    "Tool": "Werkzeug",
+    "ToolChanger": "Werkzeugwechsler",
+    "Vacuum": "Absaugung",
+    "VacuumMode": "Absaugmodus",
+    "Value": "Wert {0}",
+    "WaitingForTool": "wartet auf Werkzeug",
+    "WirelessProbe": "Funktaster"
+  },
+  "Timelapse": {
+    "NotConnected": "Der Vorschaukanal ist nicht verbunden.",
+    "NotOpen": "Keine Aufnahme geöffnet.",
+    "Preempted": "Ein anderer Betrachter hat den Aufnahmekanal der Maschine übernommen; öffnen Sie die Aufnahme erneut, um fortzufahren."
+  },
+  "Tool": {
+    "Laser": "das Lasermodul",
+    "Probe": "den Taster",
+    "Probe3D": "den 3D-Taster"
+  },
+  "Transfer": {
+    "Alarm": "Alarm während der Übertragung: {0}",
+    "Cancelled": "Die Maschine hat die Übertragung abgebrochen.",
+    "ListTimeout": "Die Maschine hat {0} nicht innerhalb von {1:0} s aufgelistet.",
+    "NoResponse": "Keine Antwort der Maschine nach {0} Wiederholungen.",
+    "PacketsSent": "Paket {0} von {1} gesendet",
+    "StoppedAsking": "Die Maschine fordert keine Daten mehr an ({0}).",
+    "UploadAlarm": "Alarm beim Hochladen: {0}",
+    "UploadCancelled": "Die Maschine hat das Hochladen abgebrochen. Sie nimmt Dateien nur an, solange sie sich nicht bewegt.",
+    "WrongPacket": "Die Maschine hat Paket {0} von {1} angefordert."
+  }
+}
