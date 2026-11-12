@@ -6,6 +6,30 @@ All notable changes to TinkerCNC are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-11-12
+
+### Fixed
+- **Go to**, **jogs** and **bed cleaning** move in millimetres also after an inch program: the machine keeps the
+  units a program leaves behind, and a move typed in millimetres went 25.4 times as far.
+- Codes with a decimal part (`G91.1`, `G92.1`, `G59.1`) are no longer taken for `G91`, `G92`, `G59`. A program
+  with `G91.1` in its header made jobs **started from a tool operation** run the rest in incremental mode.
+- A job **resumed after a stop** no longer goes down to a height it does not know: after a retract in machine
+  coordinates (`G53`) the tool stays at the clearance height, and a line right after a `G53` move in X or Y is not
+  resumed at all. The toolpath view breaks the path there.
+- A job started from a tool operation changes to that operation's tool also when the program names the tool on a
+  line of its own (`T4`, then `M6`).
+- Starting a job makes the program's **work offset** (`G54`…`G59`) the active one first, so the work origin set
+  from the bed corner or the head position, and the probing, apply to the offset the program cuts in.
+- **Go to** in work coordinates is refused while the machine does not report its work position, instead of moving
+  to the typed numbers as machine coordinates.
+- A feed on the same line as `G20`/`G21` is read in the units that line sets (restarts and resumes restated it
+  25.4 times off).
+- A queued job with the **XYZ probe block** waits for the go with a small step up and back down, so the head stays
+  where it was put above the block instead of rising to the clearance height before probing.
+- Starting from a tool operation of a job with **auto leveling** says that the copy runs without the height map.
+- Probing, scan margin and leveling of a **4-axis** program use its own work coordinates, not the toolpath as
+  turned by the A axis.
+
 ## [0.3.1] - 2026-11-12
 
 ### Fixed

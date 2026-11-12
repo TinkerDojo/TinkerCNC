@@ -5,7 +5,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <!-- Release version; build/pack-*.sh|ps1 pass the real one (-p:Version=…). -->
-    <Version>0.3.1</Version>
+    <Version>0.3.2</Version>
     <Product>TinkerCNC</Product>
     <Company>TinkerDojo</Company>
     <Authors>TinkerDojo</Authors>

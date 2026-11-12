@@ -68,7 +68,7 @@
 | Languages | English, German, French and Italian, from the browser's or system's language or chosen under Settings |
 | Camera | Live MJPEG from the machine's camera, snapshots, MP4 recordings (H.264 encoded in-process, no ffmpeg), one-frame-a-second time-lapses of jobs that play 30× faster, time-lapse playback with seek |
 | Desktop app | Own window (WebView2 / WebKit), per-user install without admin rights, in-app updates via Velopack |
-| Developer tools | `TinkerCNC.Core` library, `tinkercnc-cli`, machine simulator with camera and time-lapse, 226 tests |
+| Developer tools | `TinkerCNC.Core` library, `tinkercnc-cli`, machine simulator with camera and time-lapse, 236 tests |
 
 The complete feature reference is in [`docs/features.md`](docs/features.md).
 
