@@ -58,6 +58,9 @@ public sealed record SelectedProgram(IProgramSource Source, byte[] Content, GCod
 
     /// <summary>Whether it changes to a tool of its own.</summary>
     public bool SelectsTool { get; } = Analysis.Segments.Any(s => s.ToolNumber is not null);
+
+    /// <summary>The work offset it cuts in (<see cref="GCodeAnalysis.CuttingWorkOffset"/>).</summary>
+    public int WorkOffset { get; } = Analysis.CuttingWorkOffset;
 }
 
 public enum JobControlPhase { None, Loading, Uploading, Starting }
@@ -204,7 +207,7 @@ public sealed partial class JobControl
         var travel = _session.Limits.Travel ?? throw new JobStartException(HostTexts.Of("Limits.Unknown"));
         var status = _session.Status;
         var context = new JobStartContext(
-            travel, program.Bounds, status?.MachinePosition, status?.Tool?.Active, Modes, program.SelectsTool);
+            travel, program.Bounds, status?.MachinePosition, status?.Tool?.Active, Modes, program.SelectsTool, program.WorkOffset);
         return JobStartPlan.Create(Options, context, program.Source.MachinePath, WaitForGo);
     }
 

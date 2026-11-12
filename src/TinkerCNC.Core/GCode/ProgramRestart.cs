@@ -62,8 +62,9 @@ public sealed record RestartProgram(string FileName, byte[] Content, Text Descri
 /// <summary>
 /// Restarts a program at a tool operation after it ended early: the firmware plays a file from its first line only
 /// (and jumps inside a paused program without restating anything), so a trimmed copy is made: a comment, the modal
-/// state the program was in at that point (<see cref="ModalState.ToLines"/>), then the lines from the operation's
-/// tool change to the end. The machine asks for the tool as usual, or carries on if it is in the spindle already.
+/// state the program was in at that point (<see cref="ModalState.ToLines"/>), the operation's tool number when its
+/// tool change does not name it, then the lines from the operation's tool change to the end. The machine asks for the
+/// tool as usual, or carries on if it is in the spindle already.
 /// </summary>
 public static class ProgramRestart
 {
@@ -75,6 +76,9 @@ public static class ProgramRestart
             $"; TinkerCNC: {fileName} from {segment.Label} (line {segment.StartLine} of {analysis.LineCount})",
         };
         lines.AddRange(segment.ModalAtStart.ToLines());
+        // The tool change names its tool on an earlier line ("T4", then "M6"): without it the machine would change to
+        // whatever tool it last heard of.
+        if (segment.ToolNumber is { } tool && !GCodeLine.Parse(analysis.Lines[segment.StartLine - 1]).Has('T')) lines.Add($"T{tool}");
         lines.AddRange(analysis.Lines.Skip(segment.StartLine - 1));
         var text = string.Join('\n', lines) + "\n";
         return new RestartProgram(NameFor(fileName, segment), Encoding.UTF8.GetBytes(text),

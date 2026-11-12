@@ -84,6 +84,14 @@ public sealed class GCodeAnalysis
     /// <summary>Whether the 1-based <paramref name="line"/> is a G1/G2/G3 move.</summary>
     public bool IsFeedMove(int line) => line >= 1 && line <= _feedMoves.Length && _feedMoves[line - 1];
 
+    /// <summary>
+    /// The work offset the program cuts in: the one in force at its first G1/G2/G3 move (54 for <c>G54</c> … 59), or
+    /// the firmware's default without any cutting move.
+    /// </summary>
+    public int CuttingWorkOffset => Array.IndexOf(_feedMoves, true) is >= 0 and var index
+        ? StateBefore(index + 2).Modal.WorkOffset // index + 1 is the line itself; its own G5x counts
+        : ModalState.Default.WorkOffset;
+
     internal static GCodeAnalysis Build(
         IReadOnlyList<string> lines, IReadOnlyList<LineStep> steps, HeaderMetadata metadata, MachineLineMap machineLines)
     {

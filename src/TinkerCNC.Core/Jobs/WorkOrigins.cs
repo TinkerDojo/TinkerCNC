@@ -15,6 +15,12 @@ public interface IWorkOrigin
     /// <summary>Commands the machine runs once the program has started, before anything else.</summary>
     IEnumerable<string> BeforeProgram(JobStartOptions options) => [];
 
+    /// <summary>
+    /// Whether <see cref="BeforeProgram"/> starts from where the head was put by hand, so nothing may move it away
+    /// first (<see cref="JobGate"/> then waits with a move that comes back to the same place).
+    /// </summary>
+    bool StartsFromHead => false;
+
     /// <summary><c>G10 L2 P0</c>: the active work offset becomes the given machine position (X/Y; Z stays).</summary>
     protected static string SetOrigin(double machineX, double machineY) => $"G10 L2 P0 X{N(machineX)} Y{N(machineY)}";
 }
@@ -59,6 +65,8 @@ public sealed record XyzProbeWorkOrigin : IWorkOrigin
 
     public IEnumerable<string> BeforeProgram(JobStartOptions options) =>
         [$"M495.3 H{N(options.XyzProbeHeight)} D{N(options.XyzProbeToolDiameter)}"];
+
+    public bool StartsFromHead => true;
 }
 
 public static class WorkOrigins

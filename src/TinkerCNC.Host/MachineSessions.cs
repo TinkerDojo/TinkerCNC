@@ -147,14 +147,16 @@ public sealed class MachineSession : IAsyncDisposable
     public Task UnlockAsync() => SendAsync("$X");
 
     /// <summary>
-    /// Relative jog as a rapid move in incremental mode ("G91 G0 " + axis words). G90 is restored afterwards so
-    /// later absolute commands are not affected.
+    /// Relative jog as a rapid move in incremental mode ("G91 G0 " + axis words), in millimetres whatever units the
+    /// last program left (<see cref="MachineUnits"/>). G90 is restored afterwards so later absolute commands are not
+    /// affected.
     /// </summary>
     public async Task JogAsync(double dx = 0, double dy = 0, double dz = 0, double da = 0)
     {
         static string W(char axis, double v) => v == 0 ? "" : $" {axis}{v.ToString("0.###", CultureInfo.InvariantCulture)}";
         var words = W('X', dx) + W('Y', dy) + W('Z', dz) + W('A', da);
         if (words.Length == 0) return;
+        await SendAsync(MachineUnits.Millimetres);
         await SendAsync("G91 G0" + words);
         await SendAsync("G90");
     }

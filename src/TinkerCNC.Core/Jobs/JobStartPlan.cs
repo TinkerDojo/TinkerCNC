@@ -26,9 +26,10 @@ public static class JobCommands
 /// <param name="MachinePosition">Current head position (machine coordinates, X/Y/Z), if reported.</param>
 /// <param name="ActiveTool">Tool in the spindle (status field T), if reported.</param>
 /// <param name="ProgramSelectsTool">Whether the program changes to a tool of its own (M6 T…).</param>
+/// <param name="WorkOffset">The work offset the program cuts in (54 for <c>G54</c> … 59 for <c>G59</c>).</param>
 public sealed record JobStartContext(
     MachineTravel Travel, ToolpathBounds? Program, double[]? MachinePosition, int? ActiveTool, IReadOnlyList<JobMode> Modes,
-    bool ProgramSelectsTool = false);
+    bool ProgramSelectsTool = false, int WorkOffset = 54);
 
 /// <summary>The options and the program can't be started together.</summary>
 public sealed class JobStartException(Text text) : LocalizedException(text);
@@ -37,6 +38,8 @@ public sealed class JobStartException(Text text) : LocalizedException(text);
 /// The commands that start a program with the chosen <see cref="JobStartOptions"/>, in the order they are sent:
 /// <list type="number">
 /// <item>the machine's job options (<see cref="JobMode"/>), each switched on or off;</item>
+/// <item>the program's work offset (<c>G54</c> … <c>G59</c>) made the active one, so the origin set now and the
+/// probing before the program apply to the offset the program cuts in, not to the one the machine had;</item>
 /// <item>the work origin, when it is set from the bed corner or the head position (<c>G10 L2 P0 X Y</c>: the active
 /// work offset becomes that machine position);</item>
 /// <item>queued with <c>buffer</c>, so they run after the program has started: for a queued job the lift of the
@@ -67,10 +70,11 @@ public sealed record JobStartPlan(IReadOnlyList<string> Commands, JobPreparation
             .. context.Program is { } program ? [Automation(options, program)] : Array.Empty<string>(),
             .. ToolBackAfterProbing(options, context),
         ];
-        IReadOnlyList<string> gate = waitForGo ? JobGate.Commands(context.Travel) : [];
+        IReadOnlyList<string> gate = waitForGo ? JobGate.Commands(context.Travel, stayInPlace: origin.StartsFromHead) : [];
         return new JobStartPlan(
         [
             .. context.Modes.Select(m => m.CommandFor(options.IsOn(m))),
+            $"G{context.WorkOffset}",
             .. origin.SetNow(options, context),
             .. gate.Concat(preparation).Select(JobCommands.Buffer),
             JobCommands.Play(remotePath),

@@ -15,6 +15,7 @@
   "GoTo": {
     "MachineCoordinates": "Maschinenkoordinaten",
     "NoPosition": "Die Maschine hat ihre Position noch nicht gemeldet.",
+    "NoWorkPosition": "Die Maschine hat die Werkstückposition nicht gemeldet, daher lassen sich Werkstückkoordinaten nicht umrechnen; verwenden Sie Maschinenkoordinaten.",
     "OutOfRange": "{0} muss zwischen {1} und {2} liegen ({3}).",
     "WorkCoordinates": "Werkstückkoordinaten"
   },
@@ -52,7 +53,8 @@
     "Description": "{0} ab {1}"
   },
   "Resume": {
-    "Description": "{0}, fortgesetzt ab Zeile {1} von {2}"
+    "Description": "{0}, fortgesetzt ab Zeile {1} von {2}",
+    "PositionUnknown": "Der Job kann nicht ab Zeile {0} fortgesetzt werden: Davor hat sich das Programm in Maschinenkoordinaten bewegt (G53), daher ist nicht bekannt, wo das Werkzeug war. Starten Sie stattdessen die ganze Datei oder einen ihrer Arbeitsgänge."
   },
   "Segment": {
     "NoTool": "Kein Werkzeug"

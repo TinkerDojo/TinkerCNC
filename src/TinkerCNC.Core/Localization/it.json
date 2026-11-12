@@ -15,6 +15,7 @@
   "GoTo": {
     "MachineCoordinates": "coordinate macchina",
     "NoPosition": "La macchina non ha ancora comunicato la sua posizione.",
+    "NoWorkPosition": "La macchina non ha comunicato la posizione pezzo, quindi le coordinate pezzo non possono essere convertite; usa le coordinate macchina.",
     "OutOfRange": "{0} deve essere compreso tra {1} e {2} ({3}).",
     "WorkCoordinates": "coordinate pezzo"
   },
@@ -52,7 +53,8 @@
     "Description": "{0} da {1}"
   },
   "Resume": {
-    "Description": "{0}, ripreso dalla riga {1} di {2}"
+    "Description": "{0}, ripreso dalla riga {1} di {2}",
+    "PositionUnknown": "Il lavoro non può riprendere dalla riga {0}: prima il programma si è spostato in coordinate macchina (G53), quindi non si sa dove fosse l'utensile. Avvia invece l'intero file o una delle sue operazioni."
   },
   "Segment": {
     "NoTool": "Nessun utensile"

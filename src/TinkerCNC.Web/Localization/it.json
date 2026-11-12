@@ -187,6 +187,7 @@
     "Start.From": "Avvia da",
     "Start.From.Beginning": "l'inizio (file intero)",
     "Start.From.Hint": "Viene caricata una copia che inizia da {0}. La tastatura è disattivata e l'origine mantenuta, perché il pezzo non si è spostato; riattivale se si è spostato.",
+    "Start.From.Leveled": "Il lavoro è stato avviato con il livellamento automatico. La sua mappa delle altezze non viene ripristinata, quindi questa copia viene eseguita senza; se la superficie è irregolare, avvia piuttosto l'intero file.",
     "Start.From.Operation": "{0}, riga {1}",
     "Start.From.OperationInterrupted": "{0}, riga {1} · interrotta",
     "Start.InclProbing": "di cui {0} di tastatura",

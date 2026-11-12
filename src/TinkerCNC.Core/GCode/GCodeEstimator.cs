@@ -31,6 +31,12 @@ internal sealed class EstimatorState(EstimatorSettings settings)
     public int? Tool { get; set; }
     public int? PendingTool { get; set; }
 
+    /// <summary>
+    /// Axes whose position in the program's coordinates is unknown: the last move of the axis was in machine
+    /// coordinates (<c>G53</c>). An absolute move of the axis, or <c>G92</c>, makes it known again.
+    /// </summary>
+    public HashSet<char> UnknownAxes { get; } = [];
+
     /// <summary>The modal state as it is now, for a program that starts here.</summary>
     public ModalState Modal => new(UnitScale, Absolute, Plane, WorkOffset, FeedMmPerMin, MotionCode, Spindle, SpindleSpeed, Mist, Flood);
 
@@ -39,6 +45,9 @@ internal sealed class EstimatorState(EstimatorSettings settings)
     public bool ToolChanged { get; set; }
     public bool SuppressMotion { get; set; }
     public bool FeedMove { get; set; }
+
+    /// <summary><c>G53</c> on this line: its move is in machine coordinates.</summary>
+    public bool MachineCoordinates { get; set; }
 
     public double EffectiveFeed => FeedMmPerMin > 0 ? FeedMmPerMin : Settings.DefaultFeedMmPerMin;
 
@@ -83,6 +92,7 @@ public static class GCodeEstimator
             [20] = (s, _) => s.UnitScale = 25.4,
             [21] = (s, _) => s.UnitScale = 1,
             [28] = (s, _) => s.SuppressMotion = true,
+            [53] = (s, _) => s.MachineCoordinates = true,
             [54] = (s, _) => s.WorkOffset = 54,
             [55] = (s, _) => s.WorkOffset = 55,
             [56] = (s, _) => s.WorkOffset = 56,
@@ -91,7 +101,7 @@ public static class GCodeEstimator
             [59] = (s, _) => s.WorkOffset = 59,
             [90] = (s, _) => s.Absolute = true,
             [91] = (s, _) => s.Absolute = false,
-            [92] = (s, l) => { s.Position = s.TargetOf(l); s.SuppressMotion = true; },
+            [92] = (s, l) => { s.Position = s.TargetOf(l); s.UnknownAxes.ExceptWith(AxisLetters.Where(l.Has)); s.SuppressMotion = true; },
         };
 
     private static readonly IReadOnlyDictionary<int, Action<EstimatorState, GCodeLine>> MCodes =
@@ -143,7 +153,7 @@ public static class GCodeEstimator
         };
         var state = new EstimatorState(effective);
         foreach (var text in lines.Take(Math.Clamp(line - 1, 0, lines.Count))) Step(state, GCodeLine.Parse(text));
-        return new ProgramPoint(state.Modal, state.Position, state.Tool);
+        return new ProgramPoint(state.Modal, state.Position, state.Tool, state.UnknownAxes.ToHashSet());
     }
 
     private static LineStep Step(EstimatorState state, GCodeLine line)
@@ -152,28 +162,40 @@ public static class GCodeEstimator
         state.ToolChanged = false;
         state.SuppressMotion = false;
         state.FeedMove = false;
+        state.MachineCoordinates = false;
 
         var modalBefore = line.Codes('M').Contains(6) ? state.Modal : null; // where a program restarted at this tool change begins
-        if (line['F'] is { } feed) state.FeedMmPerMin = feed * state.UnitScale;
         if (line['T'] is { } tool) state.PendingTool = (int)Math.Round(tool);
         if (line['S'] is { } speed && !line.Codes('G').Contains(4)) state.SpindleSpeed = speed; // G4 S is a dwell
 
         foreach (var code in line.Codes('G'))
             GCodes.GetValueOrDefault(code)?.Invoke(state, line);
+        // After the G codes: an F on the same line as G20/G21 is in the units that line sets.
+        if (line['F'] is { } feed) state.FeedMmPerMin = feed * state.UnitScale;
         foreach (var code in line.Codes('M'))
             MCodes.GetValueOrDefault(code)?.Invoke(state, line);
 
         IReadOnlyList<Point4> path = [];
-        if (!state.SuppressMotion && AxisLetters.Any(line.Has))
+        var axes = AxisLetters.Where(line.Has).ToList();
+        var positionLost = false;
+        if (state.MachineCoordinates && axes.Count > 0)
+        {
+            // Where a move in machine coordinates ends in the program's coordinates is not known here (the work
+            // offset is the machine's): those axes keep their last known value, marked unknown; no time, nothing drawn.
+            state.UnknownAxes.UnionWith(axes);
+            positionLost = true;
+        }
+        else if (!state.SuppressMotion && axes.Count > 0)
         {
             var target = state.TargetOf(line);
             state.LineSeconds += state.Motion.Seconds(state, line, target);
             path = state.Motion.Path(state, line, target);
             state.Position = target;
             state.FeedMove = state.Motion.IsFeed;
+            if (state.Absolute) state.UnknownAxes.ExceptWith(axes);
         }
 
-        return new LineStep(state.LineSeconds, state.Tool, state.ToolChanged, state.FeedMove, state.Position, path, modalBefore);
+        return new LineStep(state.LineSeconds, state.Tool, state.ToolChanged, state.FeedMove, state.Position, path, modalBefore, positionLost);
     }
 
     /// <summary>Smoothieware semantics: G4 P is milliseconds, G4 S is seconds.</summary>
@@ -181,9 +203,15 @@ public static class GCodeEstimator
 }
 
 /// <summary>A program's state between two lines: modal state, tool position (work coordinates, mm), tool in the spindle.</summary>
-public sealed record ProgramPoint(ModalState Modal, Point4 Position, int? Tool);
+/// <param name="UnknownAxes">
+/// Axes of <paramref name="Position"/> that are not known: the program last moved them in machine coordinates
+/// (<c>G53</c>), so their value there is an older one.
+/// </param>
+public sealed record ProgramPoint(ModalState Modal, Point4 Position, int? Tool, IReadOnlySet<char> UnknownAxes);
 
 /// <param name="Path">Points the line's move passes through after its start (empty without a move).</param>
 /// <param name="ModalBefore">The modal state before the line, kept for lines with a tool change (null elsewhere).</param>
+/// <param name="PositionLost">The line moved in machine coordinates (<c>G53</c>): where the tool is afterwards is unknown.</param>
 internal sealed record LineStep(
-    double Seconds, int? Tool, bool ToolChanged, bool FeedMove, Point4 EndPosition, IReadOnlyList<Point4> Path, ModalState? ModalBefore);
+    double Seconds, int? Tool, bool ToolChanged, bool FeedMove, Point4 EndPosition, IReadOnlyList<Point4> Path, ModalState? ModalBefore,
+    bool PositionLost = false);

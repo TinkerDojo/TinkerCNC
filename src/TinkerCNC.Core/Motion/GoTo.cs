@@ -60,6 +60,8 @@ public static class GoToPlanner
         var current = status.MachinePosition is { Length: >= 3 } m ? m : null;
         if (current is null)
             return Invalid(Axis.X, CoreTexts.Of("GoTo.NoPosition"), [0, 0, 0]);
+        if (request.Frame == CoordinateFrame.Work && status.WorkPosition is not { Length: >= 3 })
+            return Invalid(Axis.X, CoreTexts.Of("GoTo.NoWorkPosition"), current[..3]);
 
         var offset = OffsetOf(request.Frame, status);
         var target = Axes.Select(a => request[a] is { } v ? v + offset[(int)a] : current[(int)a]).ToArray();
@@ -73,7 +75,8 @@ public static class GoToPlanner
         return new GoToPlan(lifted ? LiftedMoves(request, current, target, travel) : [.. Absolute, Move(target[0], target[1], target[2])], errors, target);
     }
 
-    private static readonly string[] Absolute = ["G90"];
+    /// <summary>Millimetres (<see cref="MachineUnits"/>) and absolute positions, whatever the last program left.</summary>
+    private static readonly string[] Absolute = [MachineUnits.Millimetres, "G90"];
 
     /// <summary>Up to the clearance height (never down), across, then down to the requested Z.</summary>
     private static List<string> LiftedMoves(GoToRequest request, double[] current, double[] target, MachineTravel travel)
@@ -92,7 +95,10 @@ public static class GoToPlanner
         return "G53 G0" + W('X', x) + W('Y', y) + W('Z', z);
     }
 
-    /// <summary>Machine position − typed position: 0 for machine coordinates, MPos − WPos for work coordinates.</summary>
+    /// <summary>
+    /// Machine position − typed position: 0 for machine coordinates, MPos − WPos for work coordinates (0 while WPos is
+    /// not reported, for showing ranges only: <see cref="Plan"/> refuses work coordinates then).
+    /// </summary>
     private static double[] OffsetOf(CoordinateFrame frame, StatusReport status) =>
         frame == CoordinateFrame.Machine || status.MachinePosition is not { Length: >= 3 } m || status.WorkPosition is not { Length: >= 3 } w
             ? [0, 0, 0]

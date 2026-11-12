@@ -138,6 +138,7 @@ public sealed class BedCleaning(MachineSession session)
         session.Note($"Cleaning the bed ({Passes}×) from {JobPause.Describe(origin)} (machine), at Z{height:0.###}");
         SetPhase(BedCleaningPhase.Sweeping);
         var pass = BedSweepPlanner.Pass(travel, height, Settings);
+        await session.SendAsync(MachineUnits.Millimetres); // a paused program gets its own units back with resume
         await MoveAllAsync(BedSweepPlanner.Lift(origin, travel), ct);
         await MoveAsync(pass[0], ct); // to the start corner before the air goes on
         await session.Air.OnAsync();
@@ -186,6 +187,7 @@ public sealed class BedCleaning(MachineSession session)
         SetPhase(BedCleaningPhase.Returning);
         try
         {
+            await session.SendAsync(MachineUnits.Millimetres);
             await MoveAllAsync(BedSweepPlanner.Return(origin, height), CancellationToken.None);
         }
         catch (Exception ex)

@@ -17,6 +17,12 @@ public sealed partial class JobControl
     /// <summary>The tool operation the chosen program begins at, when it is a restart; null for the whole file.</summary>
     public ToolSegment? StartSegment { get; private set; }
 
+    /// <summary>
+    /// The restart switched auto leveling off: the rest of a leveled job then runs without the height map, which the
+    /// person starting it has to know.
+    /// </summary>
+    public bool RestartDroppedLeveling { get; private set; }
+
     /// <summary>The stopped job the chosen program resumes (<see cref="LoadResume"/>); null otherwise.</summary>
     public JobSnapshot? Resuming { get; private set; }
 
@@ -57,6 +63,7 @@ public sealed partial class JobControl
                 _cache.Add(restart.FileName, restart.Content));
             _wholeProgram = whole;
             StartSegment = segment;
+            RestartDroppedLeveling |= Options.Leveling; // stays set when another operation is chosen next
             Options.ScanMargin = Options.ZProbe = Options.Leveling = false;
             Options.WorkOrigin = WorkOriginChoice.Keep;
         }
@@ -85,7 +92,10 @@ public sealed partial class JobControl
     /// that brings the machine back there first (<see cref="ProgramResume"/>). Probing and leveling are off and the
     /// work origin is the one the job had; the whole program stays at hand for further runs (the queue's repeats).
     /// </summary>
-    /// <exception cref="LocalizedException">The program is no longer in the cache, or the machine's travel is unknown.</exception>
+    /// <exception cref="LocalizedException">
+    /// The program is no longer in the cache, the machine's travel is unknown, or where the tool was before that line is
+    /// not known (the program moved in machine coordinates, <c>G53</c>); nothing is chosen then.
+    /// </exception>
     public void LoadResume(JobSnapshot snapshot, GCodeAnalysis program)
     {
         RequireIdle();
@@ -108,6 +118,7 @@ public sealed partial class JobControl
     {
         _wholeProgram = null;
         StartSegment = null;
+        RestartDroppedLeveling = false;
         Resuming = null;
         ResumePreamble = [];
     }

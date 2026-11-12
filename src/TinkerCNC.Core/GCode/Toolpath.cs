@@ -18,12 +18,15 @@ public enum ToolpathMove : byte
 /// </summary>
 public sealed class Toolpath
 {
-    private Toolpath(float[] positions, int[] lines, ToolpathMove[] moves)
+    private Toolpath(float[] positions, int[] lines, ToolpathMove[] moves, ToolpathBounds? cutBounds)
     {
         Positions = positions;
         Lines = lines;
         Moves = moves;
+        _cutBounds = cutBounds;
     }
+
+    private readonly ToolpathBounds? _cutBounds;
 
     /// <summary>X, Y, Z of every point in millimetres, interleaved.</summary>
     public float[] Positions { get; }
@@ -39,27 +42,18 @@ public sealed class Toolpath
     public ToolpathBounds? Bounds() => BoundsOf(Enumerable.Range(0, Count));
 
     /// <summary>
-    /// The box around the cutting moves (G1/G2/G3, start and end), leaving out rapids such as the move to a safe
-    /// height or a parking position; null without any cutting move.
+    /// The box around the cutting moves (G1/G2/G3, start and end, arcs through their chords) in the program's own
+    /// work coordinates, leaving out rapids such as the move to a safe height or a parking position; null without any
+    /// cutting move. Unlike <see cref="Bounds"/> it is not turned by the A axis: probing and leveling go to these
+    /// positions on the machine.
     /// </summary>
-    public ToolpathBounds? CutBounds() =>
-        BoundsOf(Enumerable.Range(1, Math.Max(0, Count - 1)).Where(k => Moves[k] == ToolpathMove.Feed).SelectMany(k => new[] { k - 1, k }));
+    public ToolpathBounds? CutBounds() => _cutBounds;
 
     private ToolpathBounds? BoundsOf(IEnumerable<int> points)
     {
-        double[] min = [double.MaxValue, double.MaxValue, double.MaxValue], max = [double.MinValue, double.MinValue, double.MinValue];
-        var any = false;
-        foreach (var k in points)
-        {
-            any = true;
-            for (var a = 0; a < 3; a++)
-            {
-                var v = Positions[3 * k + a];
-                min[a] = Math.Min(min[a], v);
-                max[a] = Math.Max(max[a], v);
-            }
-        }
-        return any ? new ToolpathBounds(min[0], min[1], min[2], max[0], max[1], max[2]) : null;
+        var box = new BoxBuilder();
+        foreach (var k in points) box.Add(Positions[3 * k], Positions[3 * k + 1], Positions[3 * k + 2]);
+        return box.ToBounds();
     }
 
     internal static Toolpath Build(IReadOnlyList<LineStep> steps)
@@ -69,11 +63,33 @@ public sealed class Toolpath
         for (var i = 0; i < steps.Count; i++)
         {
             var step = steps[i];
-            if (step.ToolChanged) builder.Forget(); // the changer moved the head somewhere we cannot see
+            // The changer, or a move in machine coordinates (G53), took the head somewhere we cannot see.
+            if (step.ToolChanged || step.PositionLost) builder.Forget();
             if (step.Path.Count > 0) builder.Move(previousEnd, step.Path, i + 1, step.FeedMove ? ToolpathMove.Feed : ToolpathMove.Rapid);
             previousEnd = step.EndPosition;
         }
         return builder.ToToolpath();
+    }
+
+    /// <summary>Grows a box point by point.</summary>
+    private sealed class BoxBuilder
+    {
+        private readonly double[] _min = [double.MaxValue, double.MaxValue, double.MaxValue];
+        private readonly double[] _max = [double.MinValue, double.MinValue, double.MinValue];
+        private bool _any;
+
+        public void Add(double x, double y, double z)
+        {
+            _any = true;
+            double[] point = [x, y, z];
+            for (var a = 0; a < 3; a++)
+            {
+                _min[a] = Math.Min(_min[a], point[a]);
+                _max[a] = Math.Max(_max[a], point[a]);
+            }
+        }
+
+        public ToolpathBounds? ToBounds() => _any ? new ToolpathBounds(_min[0], _min[1], _min[2], _max[0], _max[1], _max[2]) : null;
     }
 
     private sealed class Builder
@@ -81,6 +97,7 @@ public sealed class Toolpath
         private readonly List<float> _positions = new();
         private readonly List<int> _lines = new();
         private readonly List<ToolpathMove> _moves = new();
+        private readonly BoxBuilder _cut = new();
         private Point4? _last;
 
         public void Forget() => _last = null;
@@ -93,10 +110,12 @@ public sealed class Toolpath
                 return;
             }
             if (_last != start) Add(start, line, ToolpathMove.Jump); // G92 redefined the position
+            if (move == ToolpathMove.Feed)
+                foreach (var point in path.Prepend(start)) _cut.Add(point.X, point.Y, point.Z);
             foreach (var point in path) Add(point, line, move);
         }
 
-        public Toolpath ToToolpath() => new(_positions.ToArray(), _lines.ToArray(), _moves.ToArray());
+        public Toolpath ToToolpath() => new(_positions.ToArray(), _lines.ToArray(), _moves.ToArray(), _cut.ToBounds());
 
         private void Add(Point4 point, int line, ToolpathMove move)
         {

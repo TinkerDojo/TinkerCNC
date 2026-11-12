@@ -318,6 +318,7 @@
     "Start.From": "Start from",
     "Start.From.Beginning": "the beginning (whole file)",
     "Start.From.Hint": "A copy that begins at {0} is uploaded. Probing is off and the origin kept, as the piece has not moved; switch them back on if it has.",
+    "Start.From.Leveled": "The job was started with auto leveling. Its height map is not brought back, so this copy runs without it; start the whole file instead if the surface is uneven.",
     "Start.From.Operation": "{0}, line {1}",
     "Start.From.OperationInterrupted": "{0}, line {1} · interrupted",
     "Start.InclProbing": "incl. {0} probing",

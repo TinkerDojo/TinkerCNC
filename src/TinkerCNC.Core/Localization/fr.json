@@ -15,6 +15,7 @@
   "GoTo": {
     "MachineCoordinates": "coordonnées machine",
     "NoPosition": "La machine n'a pas encore indiqué sa position.",
+    "NoWorkPosition": "La machine n'a pas indiqué la position pièce, les coordonnées pièce ne peuvent donc pas être converties ; utilisez les coordonnées machine.",
     "OutOfRange": "{0} doit être compris entre {1} et {2} ({3}).",
     "WorkCoordinates": "coordonnées pièce"
   },
@@ -52,7 +53,8 @@
     "Description": "{0} à partir de {1}"
   },
   "Resume": {
-    "Description": "{0}, repris à la ligne {1} sur {2}"
+    "Description": "{0}, repris à la ligne {1} sur {2}",
+    "PositionUnknown": "La tâche ne peut pas reprendre à la ligne {0} : juste avant, le programme s'est déplacé en coordonnées machine (G53), on ne sait donc pas où était l'outil. Lancez plutôt le fichier entier ou l'une de ses opérations."
   },
   "Segment": {
     "NoTool": "Aucun outil"

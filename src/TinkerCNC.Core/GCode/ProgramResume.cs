@@ -24,7 +24,7 @@ public sealed record ResumeContext(double ClearanceZ, double[]? WorkZero, double
 /// which a switched-off machine has forgotten;</item>
 /// <item>up to the clearance height (<c>G53 G0 Z</c>), across to where the tool was before that line, spindle and
 /// air as they were, a pause for the spindle to reach speed, then down to that point at feed: the tool was there, so
-/// the way down is cut free;</item>
+/// the way down is cut free (it stays up when the program had lifted in machine coordinates, <c>G53</c>);</item>
 /// <item>units, absolute or incremental moves, the motion mode and feed of that line, then the line and the rest.</item>
 /// </list>
 /// The approach is written in millimetres and absolute coordinates whatever the program uses.
@@ -40,7 +40,7 @@ public static class ProgramResume
         var point = analysis.StateBefore(at);
         var modal = point.Modal;
         var preamble = new List<string> { $"; TinkerCNC: {fileName} resumed at line {at} of {analysis.LineCount}" };
-        preamble.AddRange(Approach(point, context));
+        preamble.AddRange(Approach(point, context, at));
         preamble.Add(modal.UnitScale == 1 ? "G21" : "G20");
         preamble.Add(modal.Absolute ? "G90" : "G91");
         preamble.AddRange(modal.FeedLines());
@@ -57,10 +57,16 @@ public static class ProgramResume
         return $"{stem}_resume_L{line}{extension}";
     }
 
-    /// <summary>From wherever the machine is to the tool's position before the line, in mm and absolute coordinates.</summary>
-    private static IEnumerable<string> Approach(ProgramPoint point, ResumeContext context)
+    /// <summary>
+    /// From wherever the machine is to the tool's position before the line, in mm and absolute coordinates. When the
+    /// program last moved Z in machine coordinates (a <c>G53</c> retract), the tool stays at the clearance height
+    /// instead of going down to a height that is not known; an unknown X or Y can't be approached at all.
+    /// </summary>
+    /// <exception cref="LocalizedException">The tool's X or Y before the line is not known.</exception>
+    private static IEnumerable<string> Approach(ProgramPoint point, ResumeContext context, int line)
     {
-        var (modal, at) = (point.Modal, point.Position);
+        var (modal, at, unknown) = (point.Modal, point.Position, point.UnknownAxes);
+        if (unknown.Contains('X') || unknown.Contains('Y')) throw new LocalizedException(CoreTexts.Of("Resume.PositionUnknown", line));
         yield return "G21";
         yield return "G90";
         yield return $"G{modal.Plane}";
@@ -68,7 +74,7 @@ public static class ProgramResume
         if (context.WorkZero is [var x, var y, var z, ..]) yield return $"G10 L2 P0 X{N(x)} Y{N(y)} Z{N(z)}";
         if (point.Tool is { } tool) yield return $"M6 T{tool}";
         yield return $"G53 G0 Z{N(context.ClearanceZ)}";
-        yield return at.A == 0 ? $"G0 X{N(at.X)} Y{N(at.Y)}" : $"G0 X{N(at.X)} Y{N(at.Y)} A{N(at.A)}";
+        yield return at.A == 0 || unknown.Contains('A') ? $"G0 X{N(at.X)} Y{N(at.Y)}" : $"G0 X{N(at.X)} Y{N(at.Y)} A{N(at.A)}";
         if (modal.Spindle is { } spindle)
         {
             yield return $"M{spindle} S{N(modal.SpindleSpeed)}";
@@ -76,7 +82,8 @@ public static class ProgramResume
         }
         if (modal.Mist) yield return "M7";
         if (modal.Flood) yield return "M8";
-        yield return $"G1 Z{N(at.Z)} F{N(modal.FeedMmPerMin > 0 ? modal.FeedMmPerMin : DefaultPlungeMmPerMin)}";
+        if (!unknown.Contains('Z'))
+            yield return $"G1 Z{N(at.Z)} F{N(modal.FeedMmPerMin > 0 ? modal.FeedMmPerMin : DefaultPlungeMmPerMin)}";
     }
 
     private static string N(double value) => value.ToString("0.###", CultureInfo.InvariantCulture);

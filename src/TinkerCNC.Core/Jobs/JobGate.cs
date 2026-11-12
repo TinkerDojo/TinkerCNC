@@ -32,11 +32,27 @@ public static class JobGate
 
     public static bool IsHeld(StatusReport? status) => JobSuspension.HasState(status, HeldState);
 
-    /// <summary>Queued first with <c>buffer</c>: millimetres, then the two lifts in machine coordinates.</summary>
-    public static IReadOnlyList<string> Commands(MachineTravel travel) =>
-    [
-        "G21",
-        $"G53 G0 Z{JobStartPlan.N(travel.ClearanceZ - StepBelowClearance)}",
-        $"G53 G0 Z{JobStartPlan.N(travel.ClearanceZ)}",
-    ];
+    /// <summary>How far the head goes up and back down when it has to stay where it is.</summary>
+    private const double StepInPlace = 1;
+
+    /// <summary>
+    /// Queued first with <c>buffer</c>: millimetres, then the two lifts in machine coordinates. With
+    /// <paramref name="stayInPlace"/> (probing that starts from where the head was put, such as the XYZ probe block)
+    /// the waiting move is a small step up and the same step back down instead, so the head ends where it was.
+    /// </summary>
+    public static IReadOnlyList<string> Commands(MachineTravel travel, bool stayInPlace = false) => stayInPlace
+        ?
+        [
+            MachineUnits.Millimetres,
+            "G91",
+            $"G0 Z{JobStartPlan.N(StepInPlace)}",
+            $"G0 Z{JobStartPlan.N(-StepInPlace)}",
+            "G90",
+        ]
+        :
+        [
+            MachineUnits.Millimetres,
+            $"G53 G0 Z{JobStartPlan.N(travel.ClearanceZ - StepBelowClearance)}",
+            $"G53 G0 Z{JobStartPlan.N(travel.ClearanceZ)}",
+        ];
 }

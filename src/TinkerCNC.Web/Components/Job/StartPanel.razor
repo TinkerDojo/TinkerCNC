@@ -62,6 +62,10 @@
             @if (Control.StartSegment is { } segment)
             {
                 <p class="hint muted">@T["Job.Start.From.Hint", segment.DisplayLabel]</p>
+                @if (Control.RestartDroppedLeveling && !Options.Leveling)
+                {
+                    <p class="hint warn">@T["Job.Start.From.Leveled"]</p>
+                }
             }
         </div>
     }

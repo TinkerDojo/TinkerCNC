@@ -29,8 +29,20 @@ public class GoToTests
         var plan = GoToPlanner.Plan(new GoToRequest(10, 20, 5, CoordinateFrame.Work), Status, Travel);
 
         Assert.True(plan.IsValid);
-        Assert.Equal(["G90", "G53 G0 Z-3", "G53 G0 X-310 Y-200", "G53 G0 Z-55"], plan.Commands);
+        Assert.Equal(["G21", "G90", "G53 G0 Z-3", "G53 G0 X-310 Y-200", "G53 G0 Z-55"], plan.Commands); // mm, whatever a program left
         Assert.Equal([-310.0, -200.0, -55.0], plan.Target);
+    }
+
+    [Fact]
+    public void Work_coordinates_are_refused_while_the_work_position_is_not_reported()
+    {
+        var withoutWork = StatusReport.Parse("<Idle|MPos:-200,-120,-50,0>");
+
+        var plan = GoToPlanner.Plan(new GoToRequest(10, 20, 5, CoordinateFrame.Work), withoutWork, Travel);
+
+        Assert.False(plan.IsValid);
+        Assert.Empty(plan.Commands);
+        Assert.True(GoToPlanner.Plan(new GoToRequest(-100, null, null, CoordinateFrame.Machine), withoutWork, Travel).IsValid);
     }
 
     [Fact]
@@ -38,7 +50,7 @@ public class GoToTests
     {
         var plan = GoToPlanner.Plan(new GoToRequest(-100, null, null, CoordinateFrame.Machine), Status, Travel);
 
-        Assert.Equal(["G90", "G53 G0 Z-3", "G53 G0 X-100 Y-120"], plan.Commands);
+        Assert.Equal(["G21", "G90", "G53 G0 Z-3", "G53 G0 X-100 Y-120"], plan.Commands);
         Assert.Equal(-3.0, plan.Target[2]);
     }
 
@@ -46,7 +58,7 @@ public class GoToTests
     public void Straight_move_when_not_lifting()
     {
         var plan = GoToPlanner.Plan(new GoToRequest(null, null, -60, CoordinateFrame.Machine, LiftFirst: false), Status, Travel);
-        Assert.Equal(["G90", "G53 G0 X-200 Y-120 Z-60"], plan.Commands);
+        Assert.Equal(["G21", "G90", "G53 G0 X-200 Y-120 Z-60"], plan.Commands);
     }
 
     [Fact]

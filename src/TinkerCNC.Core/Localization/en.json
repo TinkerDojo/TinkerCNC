@@ -30,6 +30,7 @@
   "GoTo": {
     "MachineCoordinates": "machine coordinates",
     "NoPosition": "The machine has not reported its position yet.",
+    "NoWorkPosition": "The machine has not reported the work position, so work coordinates can't be converted; use machine coordinates.",
     "OutOfRange": "{0} must be between {1} and {2} ({3}).",
     "WorkCoordinates": "work coordinates"
   },
@@ -67,7 +68,8 @@
     "Description": "{0} from {1}"
   },
   "Resume": {
-    "Description": "{0}, resumed at line {1} of {2}"
+    "Description": "{0}, resumed at line {1} of {2}",
+    "PositionUnknown": "The job can't be resumed at line {0}: before it the program moved in machine coordinates (G53), so where the tool was is not known. Start the whole file or one of its operations instead."
   },
   "Segment": {
     "NoTool": "No tool"

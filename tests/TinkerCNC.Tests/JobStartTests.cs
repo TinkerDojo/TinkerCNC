@@ -91,6 +91,7 @@ public class JobStartPlanTests
         Assert.Equal(
         [
             "M331.1", "M332.2", "M332.4", "M332.3",
+            "G54",
             "G10 L2 P0 X-180.3 Y-189.114",
             "buffer M495 X10 Y20 O0 F0",
             "buffer M6 T3",
@@ -131,7 +132,40 @@ public class JobStartPlanTests
     public void Without_probing_no_tool_is_changed()
     {
         var plan = JobStartPlan.Create(new JobStartOptions(), Context(tool: 2), "/sd/gcodes/a.nc");
-        Assert.Equal(["buffer M495 X10 Y20 P1", "play /sd/gcodes/a.nc"], plan.Commands.Where(c => !c.StartsWith('M')));
+        Assert.Equal(["G54", "buffer M495 X10 Y20 P1", "play /sd/gcodes/a.nc"], plan.Commands.Where(c => !c.StartsWith('M')));
+    }
+
+    [Fact]
+    public void The_programs_work_offset_is_made_active_before_the_origin_is_set()
+    {
+        var options = new JobStartOptions { WorkOrigin = WorkOriginChoice.BedCorner };
+        var commands = JobStartPlan.Create(options, Context() with { WorkOffset = 55 }, "/sd/gcodes/a.nc").Commands.ToList();
+
+        Assert.True(commands.IndexOf("G55") < commands.FindIndex(c => c.StartsWith("G10 L2 P0", StringComparison.Ordinal)));
+        Assert.Equal(55, GCodeEstimator.Analyze("G21 G90\nG0 X0 Y0\nG55\nG1 X10 F100").CuttingWorkOffset);
+        Assert.Equal(56, GCodeEstimator.Analyze("G0 X0\nG56 G1 X10 F100").CuttingWorkOffset);
+        Assert.Equal(54, GCodeEstimator.Analyze("G0 X0").CuttingWorkOffset);
+    }
+
+    [Fact]
+    public void A_queued_xyz_probe_waits_in_place_instead_of_lifting_the_head_off_the_block()
+    {
+        var options = new JobStartOptions { WorkOrigin = WorkOriginChoice.XyzProbe };
+        var buffered = JobStartPlan.Create(options, Context(), "/sd/gcodes/a.nc", waitForGo: true).Commands
+            .Where(c => c.StartsWith("buffer ", StringComparison.Ordinal)).ToList();
+
+        Assert.Equal(["buffer G21", "buffer G91", "buffer G0 Z1", "buffer G0 Z-1", "buffer G90"], buffered.Take(5));
+        Assert.DoesNotContain(buffered, c => c.Contains("G53", StringComparison.Ordinal));
+        Assert.StartsWith("buffer M495.3", buffered[5]);
+    }
+
+    [Fact]
+    public void The_probing_area_is_in_work_coordinates_also_when_the_a_axis_turns()
+    {
+        var toolpath = GCodeEstimator.Analyze("G0 X0 Y0 Z5 A90\nG1 Z-1 F300\nG1 X50 Y20").Toolpath;
+
+        var cut = toolpath.CutBounds()!;
+        Assert.Equal((0, 0, 50, 20, -1, 5), (cut.MinX, cut.MinY, cut.MaxX, cut.MaxY, cut.MinZ, cut.MaxZ));
     }
 
     [Fact]

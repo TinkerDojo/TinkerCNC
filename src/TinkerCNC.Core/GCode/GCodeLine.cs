@@ -34,9 +34,13 @@ public sealed partial class GCodeLine
 
     public bool Has(char letter) => _values.ContainsKey(letter);
 
-    /// <summary>All values of a letter that can repeat on one line (G and M words).</summary>
+    /// <summary>
+    /// All values of a letter that can repeat on one line (G and M words). Only whole numbers: a code with a decimal
+    /// part is a command of its own (<c>G91.1</c> sets how arc centres are given, not incremental moves like
+    /// <c>G91</c>; <c>G92.1</c> clears the offset <c>G92</c> sets), so it is not taken for the whole-number one.
+    /// </summary>
     public IEnumerable<int> Codes(char letter) =>
-        _words.Where(w => w.Letter == letter).Select(w => (int)Math.Round(w.Value));
+        _words.Where(w => w.Letter == letter && w.Value == Math.Floor(w.Value)).Select(w => (int)w.Value);
 
     [GeneratedRegex(@"\(.*?\)|;.*$")]
     private static partial Regex Comment();

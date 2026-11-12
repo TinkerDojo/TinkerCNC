@@ -187,6 +187,7 @@
     "Start.From": "Démarrer à partir de",
     "Start.From.Beginning": "le début (fichier entier)",
     "Start.From.Hint": "Une copie qui commence à {0} est envoyée. Le palpage est désactivé et l'origine conservée, car la pièce n'a pas bougé ; réactivez-les si elle a bougé.",
+    "Start.From.Leveled": "La tâche a été lancée avec le nivellement automatique. Sa carte des hauteurs n'est pas rétablie, cette copie s'exécute donc sans elle ; si la surface est irrégulière, lancez plutôt le fichier entier.",
     "Start.From.Operation": "{0}, ligne {1}",
     "Start.From.OperationInterrupted": "{0}, ligne {1} · interrompue",
     "Start.InclProbing": "dont {0} de palpage",

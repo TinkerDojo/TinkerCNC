@@ -1,6 +1,7 @@
 using System.Text;
 using TinkerCNC.GCode;
 using TinkerCNC.Jobs;
+using TinkerCNC.Localization;
 using TinkerCNC.Motion;
 
 namespace TinkerCNC.Tests;
@@ -94,8 +95,9 @@ public class WaitForGoPlanTests
         var plan = JobStartPlan.Create(new JobStartOptions { ZProbe = true }, context, "/sd/gcodes/a.nc", waitForGo: true);
 
         Assert.True(plan.HoldFirst);
-        Assert.Equal(["buffer G21", "buffer G53 G0 Z-4", "buffer G53 G0 Z-3"], plan.Commands.Take(3));
-        Assert.StartsWith("buffer M495", plan.Commands[3]);
+        Assert.Equal("G54", plan.Commands[0]); // the program's work offset, sent at once
+        Assert.Equal(["buffer G21", "buffer G53 G0 Z-4", "buffer G53 G0 Z-3"], plan.Commands.Skip(1).Take(3));
+        Assert.StartsWith("buffer M495", plan.Commands[4]);
         Assert.Equal("play /sd/gcodes/a.nc", plan.Commands[^1]);
     }
 
@@ -189,5 +191,74 @@ public class ProgramResumeTests
         var restore = Array.IndexOf(lines, "G20");
         Assert.True(restore > Array.IndexOf(lines, "G1 Z0 F254"));
         Assert.Equal(["G20", "G91", "G1 F10", "G1 Y1"], lines[restore..]);
+    }
+
+    [Fact]
+    public void After_a_retract_in_machine_coordinates_the_tool_stays_at_the_clearance_height()
+    {
+        var analysis = GCodeEstimator.Analyze("G21 G90\nM3 S10000\nG0 X10 Y10 Z5\nG1 Z-2 F300\nG1 X20 F900\nG53 G0 Z0\nG0 X50 Y50\nG1 Z-2 F300\nM30");
+        var lines = Encoding.UTF8.GetString(ProgramResume.From(analysis, "a.nc", 7, new ResumeContext(-3, null)).Content).Split('\n');
+
+        Assert.Contains("G0 X20 Y10", lines);                     // X and Y are known
+        Assert.DoesNotContain(lines, l => l.StartsWith("G1 Z", StringComparison.Ordinal) && Array.IndexOf(lines, l) < Array.IndexOf(lines, "G0 X50 Y50"));
+        Assert.Equal(['Z'], analysis.StateBefore(7).UnknownAxes);
+        Assert.Empty(analysis.StateBefore(9).UnknownAxes);           // G1 Z-2 (absolute) made Z known again
+    }
+
+    [Fact]
+    public void A_line_after_a_machine_coordinate_move_in_x_or_y_can_not_be_resumed()
+    {
+        var analysis = GCodeEstimator.Analyze("G21 G90\nG0 X10 Y10 Z5\nG53 G0 X0 Y0\nG1 Z-1 F300\nG1 X5");
+
+        Assert.Throws<LocalizedException>(() => ProgramResume.From(analysis, "a.nc", 4, new ResumeContext(-3, null)));
+        Assert.Equal(0, analysis.Times.Seconds[2]);                    // the G53 move has no estimate
+    }
+}
+
+public class GCodeModalTrackingTests
+{
+    [Fact]
+    public void A_code_with_a_decimal_part_is_not_taken_for_the_whole_number_one()
+    {
+        var analysis = GCodeEstimator.Analyze("G90 G94 G91.1 G17 G21\nM6 T1\nG0 X10 Y10\nG1 Z-1 F300\nM6 T2\nG0 X20 Y20");
+        var restart = Encoding.UTF8.GetString(ProgramRestart.From(analysis, "a.nc", analysis.Segments[1]).Content).Split('\n');
+
+        Assert.True(analysis.Segments[1].ModalAtStart.Absolute);   // G91.1 sets how arc centres are given, not G91
+        Assert.Contains("G90", restart);
+        Assert.DoesNotContain("G91", restart);
+        Assert.Equal(20, analysis.EndPositions[^1].X);
+    }
+
+    [Fact]
+    public void A_feed_on_the_line_that_switches_units_is_in_those_units()
+    {
+        var inches = GCodeEstimator.Analyze("G21\nG20 G1 X1 F10\nM6 T2\nG1 X2");
+        Assert.Equal(254, inches.Segments[^1].ModalAtStart.FeedMmPerMin, 6);
+
+        var millimetres = GCodeEstimator.Analyze("G20\nG21 G1 X1 F300\nM6 T2\nG1 X2");
+        Assert.Equal(300, millimetres.Segments[^1].ModalAtStart.FeedMmPerMin, 6);
+    }
+
+    [Fact]
+    public void A_restart_names_the_tool_when_its_tool_change_does_not()
+    {
+        var analysis = GCodeEstimator.Analyze("T1\nM6\nG1 X1 F100\nT4\nM6\nG1 X2");
+        var lines = Encoding.UTF8.GetString(ProgramRestart.From(analysis, "a.nc", analysis.Segments[^1]).Content).TrimEnd('\n').Split('\n');
+
+        Assert.Equal(4, analysis.Segments[^1].ToolNumber);
+        Assert.Equal(["T4", "M6", "G1 X2"], lines[^3..]);
+
+        var sameLine = GCodeEstimator.Analyze("T1 M6\nG1 X1 F100\nT4 M6\nG1 X2");
+        var copy = Encoding.UTF8.GetString(ProgramRestart.From(sameLine, "a.nc", sameLine.Segments[^1]).Content).Split('\n');
+        Assert.DoesNotContain("T4", copy);                                // "T4 M6" names it already
+    }
+
+    [Fact]
+    public void A_move_in_machine_coordinates_breaks_the_drawn_path()
+    {
+        var toolpath = GCodeEstimator.Analyze("G0 X10 Y10 Z5\nG1 Z-1 F300\nG53 G0 Z0\nG0 X50").Toolpath;
+
+        Assert.Equal(ToolpathMove.Jump, toolpath.Moves[^1]);         // where the head was after G53 is unknown
+        Assert.Equal(-1, toolpath.Positions[^1]);                   // its Z is the last known one
     }
 }
