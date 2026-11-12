@@ -43,7 +43,7 @@ public static class ProgramResume
         preamble.AddRange(Approach(point, context));
         preamble.Add(modal.UnitScale == 1 ? "G21" : "G20");
         preamble.Add(modal.Absolute ? "G90" : "G91");
-        if (modal.FeedMmPerMin > 0) preamble.Add($"G{Math.Min(modal.MotionCode, 1)} F{N(modal.FeedMmPerMin / modal.UnitScale)}");
+        preamble.AddRange(modal.FeedLines());
         var text = string.Join('\n', preamble.Concat(analysis.Lines.Skip(at - 1))) + "\n";
         return new RestartProgram(NameFor(fileName, at), Encoding.UTF8.GetBytes(text),
             CoreTexts.Of("Resume.Description", fileName, at, analysis.LineCount), preamble);

@@ -35,7 +35,20 @@ public sealed record ModalState(
         if (Mist) yield return "M7";
         if (Flood) yield return "M8";
         if (Spindle is { } spindle) yield return $"M{spindle} S{N(SpindleSpeed)}";
-        if (FeedMmPerMin > 0) yield return $"G{Math.Min(MotionCode, 1)} F{N(FeedMmPerMin / UnitScale)}";
+        foreach (var line in FeedLines()) yield return line;
+    }
+
+    /// <summary>
+    /// The feed and the motion mode in force, in the program's own unit. The feed always goes on a <c>G1</c>: on the
+    /// firmware an <c>F</c> on a <c>G0</c> line becomes the speed of every later rapid move, so <c>G0 F300</c> would
+    /// slow all rapids to 300 mm/min. A program left in <c>G0</c> gets a bare <c>G0</c> after it, which changes nothing
+    /// but the motion mode.
+    /// </summary>
+    public IEnumerable<string> FeedLines()
+    {
+        if (FeedMmPerMin <= 0) yield break;
+        yield return $"G1 F{N(FeedMmPerMin / UnitScale)}";
+        if (MotionCode == 0) yield return "G0";
     }
 
     private static string N(double value) => value.ToString("0.###", CultureInfo.InvariantCulture);

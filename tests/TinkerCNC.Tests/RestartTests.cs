@@ -60,8 +60,18 @@ public class ProgramRestartTests
     {
         var analysis = GCodeEstimator.Analyze("G20 G91\nM6 T1\nG1 X1 F10\nG0 X0\nM5\nM6 T2\nG1 X2");
         var lines = Encoding.UTF8.GetString(ProgramRestart.From(analysis, "a.gcode", analysis.Segments[1]).Content).Split('\n');
-        Assert.Equal(["G20", "G91", "G17", "G54", "G0 F10"], lines[1..6]); // the feed in the program's own unit, the motion mode in force
+        Assert.Equal(["G20", "G91", "G17", "G54", "G1 F10", "G0"], lines[1..7]); // the feed in the program's own unit, the motion mode in force
         Assert.Equal("a_from_T2.gcode", ProgramRestart.NameFor("a.gcode", analysis.Segments[1]));
+    }
+
+    [Fact]
+    public void The_feed_is_never_restated_on_a_rapid_move_so_the_rapids_keep_their_speed()
+    {
+        var analysis = GCodeEstimator.Analyze("M6 T1\nG1 Z-1 F300\nG0 Z12\nM6 T4\nG0 X48 Y63\nG1 Z-2 F600");
+        var lines = Encoding.UTF8.GetString(ProgramRestart.From(analysis, "a.nc", analysis.Segments[1]).Content).Split('\n');
+
+        Assert.DoesNotContain(lines, l => l.StartsWith("G0", StringComparison.Ordinal) && l.Contains('F'));
+        Assert.Equal(["G1 F300", "G0", "M6 T4"], lines[5..8]);
     }
 
     [Fact]
