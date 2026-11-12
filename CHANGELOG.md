@@ -6,6 +6,13 @@ All notable changes to TinkerCNC are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-11-12
+
+### Fixed
+- A job **started from a tool operation** or **resumed after a stop** no longer runs its rapid moves at the cutting
+  feed. The copy restated the feed on a rapid move (`G0 F300`), which the machine takes as the speed of every later
+  rapid; the feed now goes on a `G1`, and the rapids keep the machine's own speed.
+
 ## [0.3.0] - 2026-11-10
 
 ### Added
